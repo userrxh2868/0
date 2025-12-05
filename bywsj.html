@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>深夜玩手机模拟器</title>
+    <style>
+        :root {
+            --md-sys-color-background: #121212;
+            --md-sys-color-surface: #1e1e1e;
+            --md-sys-color-surface-variant: #49454f;
+            --md-sys-color-primary: #d0bcff;
+            --md-sys-color-on-primary: #381e72;
+            --md-sys-color-secondary-container: #4a4458;
+            --md-sys-color-on-surface: #e6e1e5;
+            --md-sys-color-error: #f2b8b5;
+            --md-sys-color-outline: #938f99;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-surface);
+            font-family: 'Roboto', system-ui, -apple-system, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header & Status */
+        header {
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--md-sys-color-surface);
+        }
+
+        .score-badge {
+            background: var(--md-sys-color-secondary-container);
+            padding: 8px 16px;
+            border-radius: 16px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        /* Main View Area */
+        #main-view {
+            flex: 1;
+            position: relative;
+            margin: 16px;
+            border-radius: 24px;
+            overflow: hidden;
+            border: 2px solid var(--md-sys-color-outline);
+            transition: all 0.3s ease;
+        }
+
+        /* Phone Screen (The Game) */
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #2b2930 0%, #141218 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2;
+        }
+
+        .phone-content {
+            width: 80%;
+            height: 70%;
+            background: #333;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(208, 188, 255, 0.2);
+            position: relative;
+        }
+
+        .game-app-icon {
+            width: 64px;
+            height: 64px;
+            background: var(--md-sys-color-primary);
+            border-radius: 16px;
+            margin-bottom: 16px;
+            animation: pulse 2s infinite;
+        }
+
+        .tap-hint {
+            color: var(--md-sys-color-primary);
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        /* CCTV Screen */
+        .cctv-screen {
+            width: 100%;
+            height: 100%;
+            background: #000;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 16px;
+            font-family: monospace;
+            color: #0f0;
+        }
+
+        .cctv-grain {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0, 255, 0, 0.1) 2px);
+            pointer-events: none;
+        }
+
+        .mom-indicator {
+            font-size: 2em;
+            text-align: center;
+            margin-top: 20%;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        /* Hiding State (Darkness) */
+        #main-view.hidden {
+            background: #000;
+            border-color: #333;
+        }
+        #main-view.hidden .phone-screen,
+        #main-view.hidden .cctv-screen {
+            display: none;
+        }
+        .sleeping-text {
+            display: none;
+            color: #555;
+            font-style: italic;
+        }
+        #main-view.hidden .sleeping-text {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Controls */
+        .controls {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            background: var(--md-sys-color-surface);
+        }
+
+        .btn {
+            border: none;
+            padding: 20px;
+            border-radius: 24px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn:active {
+            transform: scale(0.96);
+        }
+
+        .btn-primary {
+            background: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+        }
+
+        .btn-secondary {
+            background: var(--md-sys-color-surface-variant);
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .btn-danger {
+            background: var(--md-sys-color-error);
+            color: #601410;
+            grid-column: span 2;
+        }
+
+        /* Audio Visualizer Text */
+        #sound-cue {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: var(--md-sys-color-error);
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            display: none;
+        }
+        .modal-content {
+            background: var(--md-sys-color-surface);
+            padding: 24px;
+            border-radius: 28px;
+            width: 80%;
+            text-align: center;
+        }
+        .modal h2 { margin-top: 0; }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div style="font-size: 0.9em; opacity: 0.7;">深夜 02:30</div>
+        <div class="score-badge">快乐值: <span id="score">0</span></div>
+    </header>
+
+    <div id="sound-cue"></div>
+
+    <div id="main-view">
+        <!-- CCTV Layer -->
+        <div class="cctv-screen">
+            <div class="cctv-grain"></div>
+            <div style="display:flex; justify-content:space-between;">
+                <span>CAM 02 - 走廊</span>
+                <span style="animation: blink 1s infinite;">REC</span>
+            </div>
+            <div class="mom-indicator" id="mom-cctv-visual">🛑 妈妈在走廊!</div>
+            <div style="font-size: 0.8em; opacity: 0.7;">系统运行正常</div>
+        </div>
+
+        <!-- Phone Layer -->
+        <div class="phone-screen" id="phone-layer" onclick="playGame()">
+            <div class="phone-content">
+                <div class="game-app-icon"></div>
+                <h3>原神启动模拟器</h3>
+                <p class="tap-hint">点击屏幕玩游戏</p>
+                <div style="font-size: 0.8em; margin-top: 10px; color: #aaa;">如果不玩，快乐值会下降</div>
+            </div>
+        </div>
+
+        <!-- Hiding Layer -->
+        <div class="sleeping-text">
+            (假装睡觉中... zZZ)
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-secondary" onclick="toggleView()">
+            <span>📷 切换/查看监控</span>
+        </button>
+        <button class="btn btn-primary" onclick="playGame()">
+            <span>🎮 玩手机</span>
+        </button>
+        <button class="btn btn-danger" id="hide-btn" ontouchstart="startHiding()" onmousedown="startHiding()">
+            <span>🛏️ 藏手机/睡觉</span>
+        </button>
+    </div>
+
+    <!-- Game Over / Win Modal -->
+    <div class="modal" id="end-modal">
+        <div class="modal-content">
+            <h2 id="end-title"></h2>
+            <p id="end-msg"></p>
+            <button class="btn btn-primary" style="width:100%" onclick="location.reload()">再来一局</button>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        let state = {
+            score: 0,
+            isPlaying: false, // Is the phone screen active?
+            isHiding: false,
+            viewMode: 'PHONE', // 'PHONE' or 'CCTV'
+            momDistance: 0, // 0: Safe, 1: Far, 2: Near(Footsteps), 3: Door(Handle), 4: Enter
+            momCooldown: 0,
+            gameOver: false
+        };
+
+        // DOM Elements
+        const els = {
+            score: document.getElementById('score'),
+            mainView: document.getElementById('main-view'),
+            phoneLayer: document.getElementById('phone-layer'),
+            momCCTV: document.getElementById('mom-cctv-visual'),
+            soundCue: document.getElementById('sound-cue'),
+            modal: document.getElementById('end-modal'),
+            title: document.getElementById('end-title'),
+            msg: document.getElementById('end-msg')
+        };
+
+        // Audio Context for simple synthesis (No external files)
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+            
+            if (type === 'footstep') {
+                // Low thud
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(80, now);
+                osc.frequency.exponentialRampToValueAtTime(10, now + 0.1);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+                // Vibrate phone
+                if(navigator.vibrate) navigator.vibrate(50);
+            } else if (type === 'door') {
+                // High pitch creak/click
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(800, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+                if(navigator.vibrate) navigator.vibrate([50, 50, 50]);
+            }
+        }
+
+        function showCue(text) {
+            els.soundCue.textContent = text;
+            els.soundCue.style.opacity = 1;
+            els.soundCue.style.animation = "pulse 0.2s";
+            setTimeout(() => {
+                els.soundCue.style.opacity = 0;
+                els.soundCue.style.animation = "none";
+            }, 1500);
+        }
+
+        // Game Logic Loop
+        setInterval(() => {
+            if (state.gameOver) return;
+
+            // Score decay
+            if (state.score > 0 && !state.isPlaying && !state.isHiding) {
+                state.score -= 1;
+                updateUI();
+            }
+            if (state.isHiding && state.score > 0) {
+                 state.score -= 2; // Boredom decreases faster when sleeping
+                 updateUI();
+            }
+
+            // Mom AI Logic
+            updateMomAI();
+
+        }, 1000);
+
+        function updateMomAI() {
+            if (state.momCooldown > 0) {
+                state.momCooldown--;
+                return;
+            }
+
+            // Random chance to advance mom state
+            const chance = Math.random();
+            
+            if (state.momDistance === 0) {
+                // Safe -> Start Walking (20% chance)
+                if (chance < 0.2) {
+                    state.momDistance = 1;
+                }
+            } else if (state.momDistance === 1) {
+                // Far -> Near (Footsteps) (30% chance)
+                if (chance < 0.3) {
+                    state.momDistance = 2;
+                    playSound('footstep');
+                    showCue("👂 听到远处有脚步声...");
+                } else if (chance > 0.8) {
+                    state.momDistance = 0; // She went away
+                }
+            } else if (state.momDistance === 2) {
+                // Near -> Door (Handle sound) (40% chance)
+                if (chance < 0.4) {
+                    state.momDistance = 3;
+                    playSound('door');
+                    showCue("🚪 门把手在转动！");
+                } else if (chance > 0.8) {
+                    state.momDistance = 1; // Walked away slightly
+                    showCue("脚步声远去了...");
+                } else {
+                    playSound('footstep'); // Keep hearing footsteps
+                    showCue("👣 脚步声越来越近...");
+                }
+            } else if (state.momDistance === 3) {
+                // Door -> Enter Room (Immediate next tick usually)
+                enterRoom();
+            }
+            
+            updateUI();
+        }
+
+        function enterRoom() {
+            state.momDistance = 4; // In room
+            
+            // Check player status
+            if (state.isHiding) {
+                // Safe
+                showCue("妈妈进来看了一眼...");
+                setTimeout(() => {
+                    showCue("妈妈离开了。");
+                    state.momDistance = 0;
+                    state.momCooldown = 5; // Safe for 5 seconds
+                }, 3000);
+            } else {
+                // CAUGHT!
+                // Check RNG for "Studying" excuse
+                const lucky = Math.random() < 0.2; // 20% chance
+
+                if (lucky) {
+                    state.gameOver = true; // Pause game momentarily
+                    els.modal.style.display = 'flex';
+                    els.title.textContent = "😅 虚惊一场";
+                    els.title.style.color = "#4caf50";
+                    els.msg.textContent = "妈妈看到你手里拿着手机，但以为你在查学习资料。她满意地关上了门。";
+                    // Override button to continue
+                    const btn = els.modal.querySelector('button');
+                    btn.textContent = "呼... 继续游戏";
+                    btn.onclick = () => {
+                        els.modal.style.display = 'none';
+                        state.gameOver = false;
+                        state.momDistance = 0;
+                        state.momCooldown = 5;
+                        // Restore button logic
+                        btn.textContent = "再来一局";
+                        btn.onclick = () => location.reload();
+                    };
+                } else {
+                    endGame(false);
+                }
+            }
+        }
+
+        function endGame(win) {
+            state.gameOver = true;
+            els.modal.style.display = 'flex';
+            if (win) {
+                // Not implemented in this endless loop, but ready
+            } else {
+                els.title.textContent = "💀 被抓住了！";
+                els.title.style.color = "var(--md-sys-color-error)";
+                els.msg.textContent = `妈妈冲进了房间！你的手机被没收了。\n最终快乐值: ${state.score}`;
+                if(navigator.vibrate) navigator.vibrate([200, 100, 500]);
+            }
+        }
+
+        // User Actions
+        function playGame() {
+            if (state.isHiding) return;
+            
+            // If in CCTV mode, switch back to phone automatically
+            if (state.viewMode === 'CCTV') {
+                toggleView();
+            }
+
+            state.isPlaying = true;
+            state.score += 5;
+            updateUI();
+
+            // Visual feedback
+            const content = document.querySelector('.phone-content');
+            content.style.transform = "scale(0.95)";
+            setTimeout(() => content.style.transform = "scale(1)", 100);
+        }
+
+        function toggleView() {
+            if (state.isHiding) return;
+
+            if (state.viewMode === 'PHONE') {
+                state.viewMode = 'CCTV';
+                state.isPlaying = false;
+                els.phoneLayer.style.opacity = '0';
+                setTimeout(() => els.phoneLayer.style.display = 'none', 300);
+            } else {
+                state.viewMode = 'PHONE';
+                els.phoneLayer.style.display = 'flex';
+                setTimeout(() => els.phoneLayer.style.opacity = '1', 50);
+            }
+        }
+
+        function startHiding() {
+            if (state.gameOver) return;
+            
+            const btn = document.getElementById('hide-btn');
+            
+            if (!state.isHiding) {
+                // Hide
+                state.isHiding = true;
+                state.isPlaying = false;
+                els.mainView.classList.add('hidden');
+                btn.innerHTML = "<span>👀 起床/看手机</span>";
+                btn.classList.remove('btn-danger');
+                btn.classList.add('btn-primary');
+            } else {
+                // Wake up
+                state.isHiding = false;
+                els.mainView.classList.remove('hidden');
+                btn.innerHTML = "<span>🛏️ 藏手机/睡觉</span>";
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-danger');
+            }
+        }
+
+        function updateUI() {
+            els.score.textContent = state.score;
+
+            // Update CCTV visual based on Mom Distance
+            if (state.viewMode === 'CCTV') {
+                if (state.momDistance >= 1 && state.momDistance <= 2) {
+                    els.momCCTV.textContent = "🚶 走廊有人影...";
+                    els.momCCTV.style.opacity = 1;
+                    els.momCCTV.style.color = "yellow";
+                } else if (state.momDistance >= 3) {
+                    els.momCCTV.textContent = "⚠️ 妈妈在门口!!";
+                    els.momCCTV.style.opacity = 1;
+                    els.momCCTV.style.color = "red";
+                } else {
+                    els.momCCTV.style.opacity = 0;
+                }
+            }
+        }
+
+        // Initialization
+        // Unlock AudioContext on first click interaction
+        document.body.addEventListener('click', () => {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }, { once: true });
+
+    </script>
+</body>
+</html>
