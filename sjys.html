@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#141218">
+    <title>Time Art Collection</title>
+    
+    <!-- 引入 Google Fonts 和 Material Symbols -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+    <style>
+        :root {
+            /* MD3 Color Tokens (Dark Theme default for "Art" feel) */
+            --md-sys-color-background: #141218;
+            --md-sys-color-on-background: #E6E1E5;
+            --md-sys-color-surface: #141218;
+            --md-sys-color-surface-variant: #49454F;
+            --md-sys-color-primary: #D0BCFF;
+            --md-sys-color-on-primary: #381E72;
+            --md-sys-color-primary-container: #4F378B;
+            --md-sys-color-on-primary-container: #EADDFF;
+            --md-sys-color-secondary-container: #4A4458;
+            --md-sys-color-on-secondary-container: #E8DEF8;
+            
+            /* Layout & Spacing */
+            --border-radius-lg: 28px;
+            --border-radius-xl: 32px;
+            --gap: 16px;
+            --safe-area-top: env(safe-area-inset-top, 20px);
+            --safe-area-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-background);
+            font-family: 'Roboto Flex', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* App Bar */
+        header {
+            padding: calc(var(--safe-area-top) + 10px) 20px 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--md-sys-color-background);
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 22px;
+            font-weight: 400;
+            margin: 0;
+            letter-spacing: 0.5px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* Main Content Scroll Area */
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 16px 100px 16px; /* Bottom padding for nav bar */
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scrollbar-width: none; /* Hide scrollbar Firefox */
+        }
+        main::-webkit-scrollbar { display: none; }
+
+        /* Generic Card Style */
+        .card {
+            background: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
+            border-radius: var(--border-radius-lg);
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s ease;
+        }
+        
+        .card:active {
+            transform: scale(0.98);
+        }
+
+        .card-title {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
+        }
+
+        /* --- Art 1: Fluid Digital --- */
+        .digital-clock {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 0;
+            background: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+        }
+        .time-display {
+            font-size: 64px;
+            font-weight: 600;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -2px;
+        }
+        .date-display {
+            font-size: 16px;
+            margin-top: 8px;
+            opacity: 0.8;
+        }
+
+        /* --- Art 2: Glow Analog --- */
+        .analog-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 260px;
+        }
+        .clock-face {
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            border: 4px solid rgba(255,255,255,0.1);
+            position: relative;
+            background: radial-gradient(circle at center, #4A4458 0%, #141218 100%);
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .hand {
+            position: absolute;
+            bottom: 50%;
+            left: 50%;
+            transform-origin: bottom center;
+            border-radius: 4px;
+            transition: transform 0.1s cubic-bezier(0.4, 2.3, 0.3, 1); /* Bouncy tick */
+            z-index: 2;
+        }
+        .hand.hour {
+            width: 6px;
+            height: 60px;
+            background: var(--md-sys-color-on-secondary-container);
+            margin-left: -3px;
+        }
+        .hand.minute {
+            width: 4px;
+            height: 90px;
+            background: var(--md-sys-color-on-secondary-container);
+            margin-left: -2px;
+            opacity: 0.8;
+        }
+        .hand.second {
+            width: 2px;
+            height: 100px;
+            background: var(--md-sys-color-primary);
+            margin-left: -1px;
+            z-index: 3;
+            transition: transform 0.05s linear; /* Smooth sweep or linear tick */
+        }
+        .center-dot {
+            width: 12px;
+            height: 12px;
+            background: var(--md-sys-color-primary);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 4;
+        }
+
+        /* --- Art 3: Binary Rain --- */
+        .binary-container {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            justify-items: center;
+            padding: 10px 0;
+        }
+        .binary-col {
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 8px;
+        }
+        .bit {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+        .bit.active {
+            background: var(--md-sys-color-primary);
+            box-shadow: 0 0 8px var(--md-sys-color-primary);
+            transform: scale(1.2);
+        }
+        .binary-label {
+            grid-column: span 6;
+            text-align: center;
+            margin-top: 10px;
+            font-size: 12px;
+            opacity: 0.6;
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+        }
+
+        /* --- Art 4: Day Progress --- */
+        .progress-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .progress-bar-bg {
+            height: 16px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--md-sys-color-primary), #E0B6FF);
+            width: 0%;
+            transition: width 1s linear;
+            border-radius: 10px;
+        }
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* Bottom Navigation */
+        .nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 80px;
+            background: var(--md-sys-color-surface);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding-bottom: var(--safe-area-bottom);
+            z-index: 20;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: var(--md-sys-color-on-surface-variant);
+            text-decoration: none;
+            padding: 8px 20px;
+            border-radius: 16px;
+            transition: 0.2s;
+        }
+
+        .nav-item.active {
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .nav-item.active .icon-container {
+            background: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+        }
+
+        .icon-container {
+            width: 64px;
+            height: 32px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.3s ease;
+        }
+        
+        .material-symbols-rounded {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 24px;
+        }
+        
+        .nav-label {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* Animation for Fab-like effect */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Time Art</h1>
+        <div class="avatar">TA</div>
+    </header>
+
+    <main>
+        <!-- Art 1: Large Digital -->
+        <div class="card digital-clock">
+            <div class="time-display" id="digitalTime">00:00</div>
+            <div class="date-display" id="dateDisplay">Loading...</div>
+        </div>
+
+        <!-- Art 2: Analog -->
+        <div class="card">
+            <div class="card-title">Analog Flow</div>
+            <div class="analog-wrapper">
+                <div class="clock-face">
+                    <div class="center-dot"></div>
+                    <div class="hand hour" id="hourHand"></div>
+                    <div class="hand minute" id="minuteHand"></div>
+                    <div class="hand second" id="secondHand"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Art 3: Binary -->
+        <div class="card">
+            <div class="card-title">Binary Matrix</div>
+            <div class="binary-container" id="binaryGrid">
+                <!-- Generated by JS -->
+            </div>
+            <div class="binary-label">
+                <span>H</span><span>H</span><span>M</span><span>M</span><span>S</span><span>S</span>
+            </div>
+        </div>
+
+        <!-- Art 4: Progress -->
+        <div class="card">
+            <div class="card-title">Day Progress</div>
+            <div class="progress-container">
+                <div class="progress-text">
+                    <span id="progressPercent">0%</span>
+                    <span>今日剩余</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-fill" id="dayProgress"></div>
+                </div>
+                <div style="font-size: 12px; opacity: 0.6; text-align: right;" id="timeLeft">00:00:00</div>
+            </div>
+        </div>
+    </main>
+
+    <nav class="nav-bar">
+        <div class="nav-item active" onclick="switchTab(this)">
+            <div class="icon-container">
+                <span class="material-symbols-rounded">schedule</span>
+            </div>
+            <span class="nav-label">时钟</span>
+        </div>
+        <div class="nav-item" onclick="switchTab(this)">
+            <div class="icon-container">
+                <span class="material-symbols-rounded">timer</span>
+            </div>
+            <span class="nav-label">计时</span>
+        </div>
+        <div class="nav-item" onclick="switchTab(this)">
+            <div class="icon-container">
+                <span class="material-symbols-rounded">settings</span>
+            </div>
+            <span class="nav-label">设置</span>
+        </div>
+    </nav>
+
+    <script>
+        // --- 核心时钟逻辑 ---
+        
+        function updateClock() {
+            const now = new Date();
+            const h = now.getHours();
+            const m = now.getMinutes();
+            const s = now.getSeconds();
+            const ms = now.getMilliseconds();
+
+            // 1. Digital Clock
+            const hStr = h.toString().padStart(2, '0');
+            const mStr = m.toString().padStart(2, '0');
+            const sStr = s.toString().padStart(2, '0');
+            document.getElementById('digitalTime').innerText = `${hStr}:${mStr}:${sStr}`;
+            
+            const options = { weekday: 'long', month: 'short', day: 'numeric' };
+            document.getElementById('dateDisplay').innerText = now.toLocaleDateString('zh-CN', options);
+
+            // 2. Analog Clock
+            const sDeg = ((s / 60) * 360) + ((ms/1000)*6); // Smooth sweep
+            const mDeg = ((m / 60) * 360) + ((s/60)*6);
+            const hDeg = ((h % 12) / 12) * 360 + ((m/60)*30);
+
+            document.getElementById('secondHand').style.transform = `translateX(-50%) rotate(${sDeg}deg)`;
+            document.getElementById('minuteHand').style.transform = `translateX(-50%) rotate(${mDeg}deg)`;
+            document.getElementById('hourHand').style.transform = `translateX(-50%) rotate(${hDeg}deg)`;
+
+            // 3. Binary Clock
+            updateBinaryClock(h, m, s);
+
+            // 4. Day Progress
+            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const currentSecs = (now - startOfDay) / 1000;
+            const totalSecs = 86400;
+            const percent = (currentSecs / totalSecs) * 100;
+            
+            document.getElementById('dayProgress').style.width = `${percent}%`;
+            document.getElementById('progressPercent').innerText = `${percent.toFixed(2)}%`;
+            
+            const remainingSecs = totalSecs - currentSecs;
+            const rh = Math.floor(remainingSecs / 3600);
+            const rm = Math.floor((remainingSecs % 3600) / 60);
+            const rs = Math.floor(remainingSecs % 60);
+            document.getElementById('timeLeft').innerText = `-${rh}h ${rm}m ${rs}s`;
+
+            requestAnimationFrame(updateClock);
+        }
+
+        // --- Binary Clock Setup & Logic ---
+        const binaryGrid = document.getElementById('binaryGrid');
+        // Create grid: 6 columns, 4 rows (bits: 8, 4, 2, 1)
+        for (let col = 0; col < 6; col++) {
+            const colDiv = document.createElement('div');
+            colDiv.className = 'binary-col';
+            for (let bit = 0; bit < 4; bit++) {
+                const dot = document.createElement('div');
+                dot.className = 'bit';
+                dot.id = `b-${col}-${bit}`; // col 0-5, bit 0-3 (0 is bottom/1 value)
+                colDiv.appendChild(dot);
+            }
+            binaryGrid.appendChild(colDiv);
+        }
+
+        function updateBinaryClock(h, m, s) {
+            const timeStr = 
+                h.toString().padStart(2, '0') + 
+                m.toString().padStart(2, '0') + 
+                s.toString().padStart(2, '0'); // "123045"
+
+            for (let i = 0; i < 6; i++) {
+                const digit = parseInt(timeStr[i]); // e.g., '1'
+                // Convert digit to binary (e.g., 5 -> 0101)
+                for (let bit = 0; bit < 4; bit++) {
+                    // Check if bit is set. bit 0 is value 1, bit 1 is value 2...
+                    const isActive = (digit >> bit) & 1;
+                    const dot = document.getElementById(`b-${i}-${bit}`);
+                    if (isActive) {
+                        dot.classList.add('active');
+                    } else {
+                        dot.classList.remove('active');
+                    }
+                }
+            }
+        }
+
+        // --- UI Logic ---
+        function switchTab(element) {
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            
+            // 简单的触摸反馈动画
+            const icon = element.querySelector('.icon-container');
+            icon.style.transform = "scale(0.9)";
+            setTimeout(() => icon.style.transform = "scale(1)", 150);
+        }
+
+        // Init
+        updateClock();
+
+    </script>
+</body>
+</html>
