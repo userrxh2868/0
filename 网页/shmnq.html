@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2D沙盒游戏 - 增强版</title>
+    <style>
+        /* --- 全局样式 --- */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: #fff;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden; /* 防止滚动 */
+            touch-action: none; /* 禁用默认触摸动作 */
+        }
+
+        /* --- 画布容器 --- */
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+        }
+
+        canvas {
+            background-color: #000;
+            image-rendering: pixelated; /* 像素风格 */
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+        }
+
+        /* --- UI 控制面板 --- */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            pointer-events: none; /* 让点击穿透到画布，但在按钮上恢复 */
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .panel {
+            pointer-events: auto;
+            background: rgba(30, 30, 30, 0.8);
+            backdrop-filter: blur(5px);
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            max-width: 280px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        h1 {
+            font-size: 14px;
+            margin: 0 0 10px 0;
+            width: 100%;
+            text-align: right;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* --- 按钮样式 --- */
+        button {
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            flex-grow: 1;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        button:active, button.active {
+            transform: scale(1.15);
+            z-index: 2;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+            outline: 2px solid white;
+        }
+
+        /* 元素特定颜色 */
+        .btn-sand { background: #f4a460; color: #331a00; }
+        .btn-water { background: #4169e1; }
+        .btn-stone { background: #808080; }
+        .btn-fire { background: #ff4500; }
+        .btn-plant { background: #228b22; }
+        .btn-erase { background: #d32f2f; }
+        .btn-clear { background: #333; border: 1px solid #555; width: 100%; margin-top: 5px; }
+        
+        /* 更多元素颜色 */
+        .btn-acid { background: #7fff00; color: black; }
+        .btn-oil { background: #4a3b2a; color: #ffd700; }
+        .btn-lava { background: #cf1020; }
+        .btn-steam { background: #dcdcdc; color: #333; }
+        .btn-ice { background: #afeeee; color: #005f6b; }
+        .btn-gunpowder { background: #444; color: #ddd; }
+        .btn-wood { background: #8b4513; }
+
+        /* --- 更多菜单 --- */
+        #more-menu {
+            display: none; /* 默认隐藏 */
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #444;
+            width: 100%;
+        }
+
+        #toggle-more {
+            background: #444;
+            width: 100%;
+            margin-top: 5px;
+        }
+
+        /* 手机适配调整 */
+        @media (max-width: 600px) {
+            .panel {
+                max-width: 100px; /* 手机上侧边栏变窄 */
+            }
+            button {
+                padding: 10px 5px;
+                font-size: 11px;
+                min-width: 100%; /* 按钮占满列宽 */
+            }
+            #toggle-more {
+                font-size: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <canvas id="sandbox"></canvas>
+    </div>
+
+    <div id="ui-layer">
+        <div class="panel">
+            <h1>基本元素</h1>
+            <button class="btn-sand active" onclick="selectType(1, this)">沙子</button>
+            <button class="btn-water" onclick="selectType(2, this)">水</button>
+            <button class="btn-stone" onclick="selectType(3, this)">墙壁</button>
+            <button class="btn-fire" onclick="selectType(4, this)">火焰</button>
+            <button class="btn-plant" onclick="selectType(6, this)">植物</button>
+            <button class="btn-erase" onclick="selectType(0, this)">橡皮擦</button>
+
+            <button id="toggle-more" onclick="toggleMore()">▼ 更多元素</button>
+
+            <div id="more-menu">
+                <button class="btn-wood" onclick="selectType(5, this)">木头</button>
+                <button class="btn-oil" onclick="selectType(8, this)">石油</button>
+                <button class="btn-lava" onclick="selectType(9, this)">岩浆</button>
+                <button class="btn-acid" onclick="selectType(7, this)">强酸</button>
+                <button class="btn-ice" onclick="selectType(11, this)">冰块</button>
+                <button class="btn-steam" onclick="selectType(10, this)">蒸汽</button>
+                <button class="btn-gunpowder" onclick="selectType(12, this)">火药</button>
+            </div>
+
+            <button class="btn-clear" onclick="clearCanvas()">清空画布</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 游戏配置 ---
+        const canvas = document.getElementById('sandbox');
+        const ctx = canvas.getContext('2d');
+        
+        // 为了性能和复古效果，我们使用较小的逻辑分辨率，CSS将其放大
+        const width = 150; 
+        const height = 250; 
+        const scale = 1; // 内部逻辑比例
+        
+        canvas.width = width;
+        canvas.height = height;
+
+        // 元素类型定义 (ID)
+        const T = {
+            EMPTY: 0,
+            SAND: 1,
+            WATER: 2,
+            STONE: 3,
+            FIRE: 4,
+            WOOD: 5,
+            PLANT: 6,
+            ACID: 7,
+            OIL: 8,
+            LAVA: 9,
+            STEAM: 10,
+            ICE: 11,
+            GUNPOWDER: 12,
+            SMOKE: 13
+        };
+
+        // 元素颜色映射
+        const colors = {};
+        colors[T.EMPTY] = [0, 0, 0];
+        colors[T.SAND] = [244, 164, 96];
+        colors[T.WATER] = [65, 105, 225];
+        colors[T.STONE] = [128, 128, 128];
+        colors[T.FIRE] = [255, 69, 0];
+        colors[T.WOOD] = [139, 69, 19];
+        colors[T.PLANT] = [34, 139, 34];
+        colors[T.ACID] = [127, 255, 0];
+        colors[T.OIL] = [50, 40, 20];
+        colors[T.LAVA] = [207, 16, 32];
+        colors[T.STEAM] = [200, 200, 200];
+        colors[T.ICE] = [175, 238, 238];
+        colors[T.GUNPOWDER] = [80, 80, 80];
+        colors[T.SMOKE] = [50, 50, 50];
+
+        // 网格初始化
+        let grid = new Int8Array(width * height).fill(T.EMPTY);
+        let nextGrid = new Int8Array(width * height).fill(T.EMPTY); // 双缓冲看似多余，但如果不复杂可以直接操作单网格
+        
+        // 记录每个像素的额外数据（如火焰寿命，水的颜色变化等），简化起见这里只用ID
+        // 为了更好的视觉效果，我们可以给颜色加一点随机性，但这需要更多性能。
+        
+        let currentType = T.SAND;
+        let isDrawing = false;
+        let brushSize = 2;
+
+        // --- 输入处理 ---
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            let cx, cy;
+            if (e.touches && e.touches.length > 0) {
+                cx = e.touches[0].clientX;
+                cy = e.touches[0].clientY;
+            } else {
+                cx = e.clientX;
+                cy = e.clientY;
+            }
+            // 计算相对于 Canvas 内部逻辑分辨率的坐标
+            const x = Math.floor((cx - rect.left) / (rect.width / width));
+            const y = Math.floor((cy - rect.top) / (rect.height / height));
+            return { x, y };
+        }
+
+        function draw(x, y) {
+            for (let i = -brushSize; i <= brushSize; i++) {
+                for (let j = -brushSize; j <= brushSize; j++) {
+                    if (Math.random() > 0.5) continue; // 增加一点散布感
+                    let nx = x + i;
+                    let ny = y + j;
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                        // 只有当目标是空的，或者是强行覆盖(墙壁/橡皮)，或者是液体覆盖气体时才绘制
+                        const idx = ny * width + nx;
+                        if (currentType === T.EMPTY || grid[idx] === T.EMPTY || grid[idx] === T.WATER || currentType === T.STONE) {
+                             grid[idx] = currentType;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 鼠标事件
+        canvas.addEventListener('mousedown', e => { isDrawing = true; const p = getPos(e); draw(p.x, p.y); });
+        window.addEventListener('mouseup', () => isDrawing = false);
+        canvas.addEventListener('mousemove', e => { if (isDrawing) { const p = getPos(e); draw(p.x, p.y); } });
+
+        // 触摸事件
+        canvas.addEventListener('touchstart', e => { isDrawing = true; const p = getPos(e); draw(p.x, p.y); e.preventDefault(); }, {passive: false});
+        window.addEventListener('touchend', () => isDrawing = false);
+        canvas.addEventListener('touchmove', e => { if (isDrawing) { const p = getPos(e); draw(p.x, p.y); } e.preventDefault(); }, {passive: false});
+
+        // UI 逻辑
+        function selectType(type, btn) {
+            currentType = type;
+            document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function toggleMore() {
+            const menu = document.getElementById('more-menu');
+            const btn = document.getElementById('toggle-more');
+            if (menu.style.display === 'flex') {
+                menu.style.display = 'none';
+                btn.innerText = '▼ 更多元素';
+            } else {
+                menu.style.display = 'flex';
+                btn.innerText = '▲ 收起';
+            }
+        }
+
+        function clearCanvas() {
+            grid.fill(T.EMPTY);
+        }
+
+        // --- 物理引擎核心 ---
+        function update() {
+            // 每一帧我们创建一个副本，或者更聪明地遍历
+            // 为了防止元素在一次更新中下落多格，我们从下往上扫描
+            // 为了左右流动的随机性，我们随机从左到右或从右到左
+            
+            // 注意：为了高性能JS模拟，我们这里直接修改 grid。
+            // 为了避免处理已经移动过的粒子，我们可以使用一个标记数组，或者根据方向遍历。
+            // 这里使用简单的从下到上遍历。
+
+            for (let y = height - 1; y >= 0; y--) {
+                // 随机遍历方向 (0 或 1)，决定是先左还是先右
+                const dir = Math.random() < 0.5 ? 1 : -1;
+                
+                // X轴遍历
+                for (let i = 0; i < width; i++) {
+                    // 技巧：如果是偶数行从左到右，奇数行从右到左，或者根据 dir 调整
+                    let x = (dir === 1) ? i : (width - 1 - i);
+                    
+                    const idx = y * width + x;
+                    const type = grid[idx];
+
+                    if (type === T.EMPTY || type === T.STONE || type === T.WOOD) continue;
+
+                    // 辅助函数：尝试移动
+                    const tryMove = (newX, newY) => {
+                        if (newX < 0 || newX >= width || newY < 0 || newY >= height) return false;
+                        const newIdx = newY * width + newX;
+                        const target = grid[newIdx];
+                        
+                        // 定义密度/重量简单的规则
+                        let canSwap = false;
+                        
+                        // 固体下落逻辑 (沙子, 火药)
+                        if (type === T.SAND || type === T.GUNPOWDER) {
+                            if (target === T.EMPTY || target === T.WATER || target === T.OIL || target === T.ACID) canSwap = true;
+                        }
+                        // 液体下落逻辑
+                        else if (type === T.WATER || type === T.OIL || type === T.ACID || type === T.LAVA) {
+                            if (target === T.EMPTY || target === T.STEAM || target === T.FIRE) canSwap = true;
+                            // 油浮在水上
+                            if (type === T.OIL && target === T.WATER) canSwap = false; 
+                            // 水沉在油下
+                            if (type === T.WATER && target === T.OIL) canSwap = true;
+                            // 强酸腐蚀
+                            if (type === T.ACID && target !== T.ACID && target !== T.EMPTY) {
+                                if (Math.random() < 0.1) { // 腐蚀速度
+                                    grid[newIdx] = T.SMOKE; 
+                                    grid[idx] = Math.random() < 0.5 ? T.EMPTY : T.SMOKE;
+                                    return true;
+                                }
+                            }
+                            // 岩浆融化
+                            if (type === T.LAVA) {
+                                if (target === T.WATER) { grid[idx] = T.STONE; grid[newIdx] = T.STEAM; return true; }
+                                if (target === T.ICE) { grid[newIdx] = T.WATER; return true; }
+                                if (target === T.WOOD || target === T.PLANT) { grid[newIdx] = T.FIRE; return true; }
+                            }
+                        }
+                        // 气体上升
+                        else if (type === T.STEAM || type === T.SMOKE || type === T.FIRE) {
+                            // 气体向上跑
+                            if (newY < y && target === T.EMPTY) canSwap = true;
+                            // 液体向下，气体向上交换
+                            if (newY < y && (target === T.WATER || target === T.SAND)) canSwap = false;
+                        }
+
+                        if (canSwap) {
+                            grid[newIdx] = type;
+                            grid[idx] = target; // 交换
+                            return true;
+                        }
+                        return false;
+                    };
+
+                    // --- 行为逻辑 ---
+
+                    // 1. 火焰逻辑 (特殊)
+                    if (type === T.FIRE) {
+                        if (Math.random() < 0.1) { grid[idx] = T.SMOKE; continue; } // 变烟
+                        if (Math.random() < 0.05) { grid[idx] = T.EMPTY; continue; } // 熄灭
+                        
+                        // 燃烧周围
+                        const neighbors = [[0,-1], [0,1], [-1,0], [1,0]];
+                        neighbors.forEach(n => {
+                            let nx = x + n[0], ny = y + n[1];
+                            if(nx>=0 && nx<width && ny>=0 && ny<height){
+                                let t = grid[ny*width+nx];
+                                if(t === T.WOOD || t === T.PLANT || t === T.OIL || t === T.GUNPOWDER) {
+                                    if(Math.random() < 0.1) grid[ny*width+nx] = T.FIRE;
+                                    if(t === T.GUNPOWDER && Math.random() < 0.5) { 
+                                        // 爆炸效果简单模拟
+                                        for(let bx=-2; bx<=2; bx++) for(let by=-2; by<=2; by++) {
+                                            let ex=nx+bx, ey=ny+by;
+                                            if(ex>=0 && ex<width && ey>=0 && ey<height) grid[ey*width+ex] = T.FIRE;
+                                        }
+                                    }
+                                }
+                                if(t === T.ICE) grid[ny*width+nx] = T.WATER;
+                                if(t === T.WATER) grid[idx] = T.STEAM; // 火遇水变蒸汽
+                            }
+                        });
+
+                        // 火焰上升晃动
+                        let moveX = Math.floor(Math.random() * 3) - 1; 
+                        tryMove(x + moveX, y - 1);
+                        continue;
+                    }
+                    
+                    // 2. 蒸汽/烟雾逻辑 (上升)
+                    if (type === T.STEAM || type === T.SMOKE) {
+                         if (Math.random() < 0.02) { grid[idx] = type === T.STEAM ? T.WATER : T.EMPTY; continue; } // 蒸汽冷凝或烟雾消失
+                         if (!tryMove(x, y - 1)) {
+                             tryMove(x - 1, y - 1) || tryMove(x + 1, y - 1) || tryMove(x - 1, y) || tryMove(x + 1, y);
+                         }
+                         continue;
+                    }
+
+                    // 3. 粉末逻辑 (沙子, 火药)
+                    if (type === T.SAND || type === T.GUNPOWDER || type === T.ICE) { // 冰这里作为固体，暂时不滑
+                        if (!tryMove(x, y + 1)) {
+                            tryMove(x - 1, y + 1) || tryMove(x + 1, y + 1);
+                        }
+                    }
+
+                    // 4. 液体逻辑 (水, 油, 酸, 岩浆)
+                    if (type === T.WATER || type === T.OIL || type === T.ACID || type === T.LAVA) {
+                        // 尝试向下
+                        if (!tryMove(x, y + 1)) {
+                            // 尝试左下或右下
+                            if (!tryMove(x - 1, y + 1) && !tryMove(x + 1, y + 1)) {
+                                // 尝试水平流淌 (增加流速感，检测远一点)
+                                let flow = Math.random() < 0.5 ? 1 : -1;
+                                if (!tryMove(x + flow, y)) {
+                                    tryMove(x - flow, y);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 5. 植物生长逻辑
+                    if (type === T.PLANT) {
+                        if (y > 0 && grid[(y-1)*width+x] === T.WATER) {
+                             grid[(y-1)*width+x] = T.PLANT; // 吸水生长
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 渲染循环 ---
+        function render() {
+            // 创建图像数据
+            const imgData = ctx.createImageData(width, height);
+            const data = imgData.data;
+
+            for (let i = 0; i < grid.length; i++) {
+                const type = grid[i];
+                const col = colors[type];
+                
+                // 简单的颜色抖动，让画面看起来不那么单调
+                let r = col[0], g = col[1], b = col[2];
+                
+                if (type !== T.EMPTY && type !== T.STONE) {
+                    const noise = (Math.random() - 0.5) * 20;
+                    r = Math.max(0, Math.min(255, r + noise));
+                    g = Math.max(0, Math.min(255, g + noise));
+                    b = Math.max(0, Math.min(255, b + noise));
+                }
+
+                const pxIndex = i * 4;
+                data[pxIndex] = r;
+                data[pxIndex + 1] = g;
+                data[pxIndex + 2] = b;
+                data[pxIndex + 3] = 255; // Alpha
+            }
+
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 启动
+        gameLoop();
+
+    </script>
+</body>
+</html>
