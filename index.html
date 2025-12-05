@@ -1,325 +1,519 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="description" content="Alight Motion 第三方下载导航，聚合多平台高速下载链接，首次访问将提示设备性能要求。" />
-  <title>AM下载 · 手机极速版</title>
-  <style>
-    :root {
-      --bg: #ffffff;
-      --card: #ffffff;
-      --text: #1f1f1f;
-      --text-muted: #666;
-      --link: #1a73e8;
-      --accent: #ff4d8d;
-      --border: #eaeaea;
-      --notice-bg: #fff8e1;
-      --notice-text: #5d4037;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #000000;
-        --card: #121212;
-        --text: #f0f0f0;
-        --text-muted: #bbb;
-        --border: #333;
-        --notice-bg: #2a2516;
-        --notice-text: #ffd54f;
-      }
-    }
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-      padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
-      min-height: 100vh;
-    }
-    .container {
-      max-width: 700px;
-      margin: 0 auto;
-    }
-    header {
-      text-align: center;
-      padding: 16px 0 12px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-    }
-    .title-wrap {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      justify-content: center;
-    }
-    .title-icon {
-      height: 32px;
-      width: auto;
-      border-radius: 8px;
-      background: var(--card);
-      padding: 2px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-    }
-    h1 {
-      font-size: 22px;
-      font-weight: 700;
-      margin: 0;
-      background: linear-gradient(90deg, #ff4d8d, #ff8c42);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-      line-height: 1.2;
-    }
-    .subtitle {
-      color: var(--text-muted);
-      font-size: 14px;
-    }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 16px;
-      margin: 16px 0 24px;
-      font-size: 15px;
-      line-height: 1.5;
-    }
-    .notice {
-      background: var(--notice-bg);
-      color: var(--notice-text);
-      border-left: 3px solid #ffc107;
-    }
-    .section {
-      margin-bottom: 26px;
-    }
-    .section h2 {
-      font-size: 20px;
-      font-weight: 600;
-      margin-bottom: 14px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .links {
-      list-style: none;
-    }
-    .links li {
-      margin-bottom: 12px;
-    }
-    .links a {
-      display: block;
-      min-height: 60px;
-      padding: 16px 20px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      text-decoration: none;
-      color: var(--link);
-      font-size: 17px;
-      font-weight: 500;
-      transition: all 0.15s ease;
-      position: relative;
-    }
-    .links a::before {
-      content: "→";
-      position: absolute;
-      right: 20px;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 20px;
-      color: var(--link);
-      opacity: 0.7;
-    }
-    .links a:active {
-      background: #f0f7ff;
-    }
-    @media (prefers-color-scheme: dark) {
-      .links a:active {
-        background: #1e2a3a;
-      }
-    }
-    footer {
-      text-align: center;
-      font-size: 13px;
-      color: var(--text-muted);
-      padding: 24px 0 30px;
-      margin-top: 8px;
-      border-top: 1px solid var(--border);
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MD3 Code Editor</title>
+    <!-- 引入 Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <!-- 引入 Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Symbols+Rounded" rel="stylesheet">
 
-    /* 弹窗样式 */
-    #performance-modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
-    }
-    .modal-content {
-      background: var(--card);
-      border-radius: 20px;
-      padding: 24px;
-      width: 100%;
-      max-width: 340px;
-      text-align: left;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    }
-    .modal-content h3 {
-      margin-bottom: 12px;
-      color: #d32f2f;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .modal-content h3::before {
-      content: "⚠️";
-    }
-    .modal-content p {
-      margin-bottom: 16px;
-      font-size: 15px;
-      line-height: 1.5;
-    }
-    .checkbox-wrap {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      margin-bottom: 20px;
-      font-size: 14px;
-    }
-    .checkbox-wrap input {
-      margin-top: 4px;
-    }
-    .modal-buttons {
-      display: flex;
-      gap: 10px;
-    }
-    .modal-btn {
-      flex: 1;
-      padding: 12px;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-    }
-    #confirm-btn {
-      background: #1a73e8;
-      color: white;
-    }
-    #confirm-btn:active {
-      background: #0d5bb8;
-    }
-    @media (max-width: 375px) {
-      body { padding: env(safe-area-inset-top) 12px env(safe-area-inset-bottom); }
-      .title-icon { height: 30px; }
-      h1 { font-size: 20px; }
-      .links a { font-size: 16px; padding: 16px 18px; }
-    }
-  </style>
+    <style>
+        /* =========================================
+           MD3 Design Tokens & Variables
+           ========================================= */
+        :root {
+            /* 基础色相 (Violet) */
+            --md-primary: #6750a4;
+            --md-on-primary: #ffffff;
+            --md-primary-container: #eaddff;
+            --md-on-primary-container: #21005d;
+            
+            --md-surface: #fdf8fd;
+            --md-surface-container: #f3edf7;
+            --md-surface-container-high: #ece6f0;
+            
+            --md-on-surface: #1c1b1f;
+            --md-outline: #79747e;
+
+            /* 编辑器特定 */
+            --editor-bg: #fff;
+            --editor-fg: #1c1b1f;
+            
+            /* 尺寸 */
+            --radius-l: 24px;
+            --radius-m: 16px;
+            --radius-s: 8px;
+            
+            --header-height: 64px;
+        }
+
+        /* 暗黑模式 */
+        [data-theme="dark"] {
+            --md-primary: #d0bcff;
+            --md-on-primary: #381e72;
+            --md-primary-container: #4f378b;
+            --md-on-primary-container: #eaddff;
+            
+            --md-surface: #141218;
+            --md-surface-container: #1d1b20;
+            --md-surface-container-high: #2b2930;
+            
+            --md-on-surface: #e6e1e5;
+            --md-outline: #938f99;
+
+            --editor-bg: #141218;
+            --editor-fg: #e6e1e5;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--md-surface);
+            color: var(--md-on-surface);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* =========================================
+           UI Components
+           ========================================= */
+        
+        /* 顶部应用栏 (Top App Bar) */
+        header {
+            height: var(--header-height);
+            background-color: var(--md-surface);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            justify-content: space-between;
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 22px;
+            font-weight: 500;
+            color: var(--md-on-surface);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* 图标按钮 */
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--md-on-surface);
+            width: 40px; /* 48px touch target */
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .icon-btn:hover { background-color: rgba(var(--md-on-surface), 0.08); }
+        .material-symbols-rounded { font-size: 24px; }
+
+        /* 填充按钮 (MD3 Filled Button) */
+        .btn-filled {
+            background-color: var(--md-primary);
+            color: var(--md-on-primary);
+            border: none;
+            height: 40px;
+            padding: 0 24px;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            transition: box-shadow 0.2s, filter 0.2s;
+        }
+        .btn-filled:hover {
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            filter: brightness(1.05);
+        }
+
+        /* =========================================
+           Main Layout (Editor + Preview)
+           ========================================= */
+        main {
+            flex: 1;
+            display: flex;
+            gap: 16px;
+            padding: 0 16px 16px 16px;
+            overflow: hidden;
+        }
+
+        .panel {
+            background-color: var(--md-surface-container);
+            border-radius: var(--radius-m);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: flex 0.3s ease;
+        }
+
+        .panel-header {
+            height: 40px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--md-primary);
+            background-color: var(--md-surface-container-high);
+        }
+
+        /* 编辑器容器 */
+        #editor-container {
+            flex: 1;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            overflow: auto;
+        }
+
+        /* CodeMirror 6 自定义样式修正 */
+        .cm-editor { height: 100%; }
+        .cm-scroller { overflow: auto; font-family: inherit; }
+        .cm-gutters { 
+            background-color: var(--md-surface-container-high) !important; 
+            color: var(--md-outline) !important;
+            border-right: none !important;
+        }
+        .cm-content { padding-bottom: 50px; } /* 底部留白 */
+
+        /* 预览容器 */
+        #preview-container {
+            flex: 1;
+            background-color: white; /* 预览必须是白底除非iframe内部控制 */
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* =========================================
+           Floating Action Button (Mobile Only)
+           ========================================= */
+        .fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            border-radius: 16px; /* MD3 FAB shape */
+            background-color: var(--md-primary-container);
+            color: var(--md-on-primary-container);
+            border: none;
+            display: none; /* 默认隐藏，手机显示 */
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            z-index: 100;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .fab:active { transform: scale(0.95); }
+
+        /* =========================================
+           Responsive Design
+           ========================================= */
+        @media (max-width: 768px) {
+            main {
+                flex-direction: column;
+                padding: 0;
+                gap: 0;
+            }
+            
+            .panel {
+                border-radius: 0;
+                flex: 1;
+            }
+
+            /* 移动端切换逻辑 */
+            .panel { display: none; }
+            .panel.active { display: flex; }
+
+            header {
+                padding: 0 12px;
+            }
+            
+            .desktop-run { display: none; }
+            .fab { display: flex; }
+
+            /* 底部导航栏模拟 (Tabs) */
+            .mobile-tabs {
+                height: 80px; /* Tall for MD3 */
+                background-color: var(--md-surface);
+                display: flex;
+                justify-content: space-around;
+                align-items: center;
+                padding-bottom: 16px;
+                border-top: 1px solid var(--md-surface-container-high);
+            }
+            
+            .tab-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 4px;
+                color: var(--md-on-surface);
+                opacity: 0.7;
+                font-size: 12px;
+                font-weight: 500;
+                padding: 8px 20px;
+                border-radius: 16px;
+                transition: all 0.3s;
+            }
+            
+            .tab-item.active {
+                opacity: 1;
+                color: var(--md-on-surface);
+            }
+            .tab-item.active .icon-box {
+                background-color: var(--md-primary-container);
+                color: var(--md-on-primary-container);
+            }
+
+            .icon-box {
+                width: 64px;
+                height: 32px;
+                border-radius: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: background-color 0.3s;
+            }
+            
+            /* 调整编辑器字体 */
+            #editor-container { font-size: 16px; }
+        }
+    </style>
 </head>
 <body>
-  <!-- 弹窗（默认隐藏，JS 控制显示） -->
-  <div id="performance-modal" style="display:none;">
-    <div class="modal-content">
-      <h3>设备性能提示</h3>
-      <p>Alight Motion 对手机性能要求较高。若您的设备配置较低（如 RAM ≤ 3GB 或处理器较旧），运行时可能出现<strong>卡顿、闪退或导出失败</strong>等问题。</p>
-      <div class="checkbox-wrap">
-        <input type="checkbox" id="dont-show-again">
-        <label for="dont-show-again">7天内不再显示此提示</label>
-      </div>
-      <div class="modal-buttons">
-        <button id="confirm-btn" class="modal-btn">我知道了</button>
-      </div>
-    </div>
-  </div>
 
-  <div class="container">
+    <!-- Header -->
     <header>
-      <div class="title-wrap">
-        <img src="https://imgs.softhouse.com.cn/softhouse/imgfile/20240121/21144936tzmr.png" 
-             alt="Alight Motion" 
-             class="title-icon"
-             loading="lazy"
-             decoding="async">
-        <h1>Alight Motion 下载站</h1>
-      </div>
-      <p class="subtitle">手机极速版 · 第三方导航</p>
+        <div class="logo">
+            <span class="material-symbols-rounded" style="color: var(--md-primary)">code_blocks</span>
+            CodeSpace
+        </div>
+        <div class="actions">
+            <button class="icon-btn" id="theme-toggle" title="切换主题">
+                <span class="material-symbols-rounded">dark_mode</span>
+            </button>
+            <button class="btn-filled desktop-run" id="run-btn-desktop">
+                <span class="material-symbols-rounded">play_arrow</span>
+                运行
+            </button>
+        </div>
     </header>
 
-    <div class="card notice">
-      <strong>⚠️ 免责声明</strong>
-      本页面仅为第三方下载导航，不拥有 Alight Motion 及其相关资源的版权。所有链接来自公开网络，仅供学习交流，请支持正版！
+    <!-- Main Content -->
+    <main>
+        <!-- Code Editor Panel -->
+        <div class="panel active" id="panel-code">
+            <div class="panel-header">INDEX.HTML</div>
+            <div id="editor-container"></div>
+        </div>
+
+        <!-- Preview Panel -->
+        <div class="panel" id="panel-preview">
+            <div class="panel-header">PREVIEW</div>
+            <div id="preview-container">
+                <iframe id="preview-frame"></iframe>
+            </div>
+        </div>
+    </main>
+
+    <!-- Mobile Run FAB -->
+    <button class="fab" id="run-btn-mobile">
+        <span class="material-symbols-rounded">play_arrow</span>
+    </button>
+
+    <!-- Mobile Bottom Navigation -->
+    <div class="mobile-tabs" id="mobile-nav" style="display: none;">
+        <div class="tab-item active" onclick="switchTab('code')">
+            <div class="icon-box"><span class="material-symbols-rounded">edit</span></div>
+            代码
+        </div>
+        <div class="tab-item" onclick="switchTab('preview')">
+            <div class="icon-box"><span class="material-symbols-rounded">preview</span></div>
+            预览
+        </div>
     </div>
 
-    <div class="section">
-      <h2>📁 主流网盘下载</h2>
-      <ul class="links">
-        <li><a href="https://www.123865.com/s/wOw3jv-XfIMv" target="_blank" rel="noopener">123网盘主链接（推荐）</a></li>
-        <li><a href="https://www.123684.com/s/wOw3jv-nfIMv" target="_blank" rel="noopener">123网盘备用链接</a></li>
-        <li><a href="https://pan.quark.cn/s/ebe8c4ee645f" target="_blank" rel="noopener">夸克网盘</a></li>
-        <li><a href="https://drive.almondcloud.cn/s/lgEVca" target="_blank" rel="noopener">杏仁网盘（推荐，但目前崩了）</a></li>
-        <li><a href="https://pan.baidu.com/s/1plXYK8XnXPQV3r9bhvrO6g" target="_blank" rel="noopener">百度网盘（提取码: q45n）</a></li>
-      </ul>
-    </div>
+    <!-- Logic via Modules -->
+    <script type="module">
+        // 使用 ESM 引入 CodeMirror 6 (从 CDN)
+        import {EditorView, basicSetup} from "https://esm.sh/codemirror@6.0.1";
+        import {html} from "https://esm.sh/@codemirror/lang-html@6.4.0";
+        import {oneDark} from "https://esm.sh/@codemirror/theme-one-dark@6.1.2";
+        import {keymap} from "https://esm.sh/@codemirror/view@6.0.0";
+        import {indentWithTab} from "https://esm.sh/@codemirror/commands@6.0.0";
 
-    <div class="section">
-      <h2>🌐 其他下载站</h2>
-      <ul class="links">
-        <li><a href="https://alightmotiondwl.us.kg" target="_blank" rel="noopener">AM Wiki 下载站 ①</a></li>
-        <li><a href="https://www.alightmotionwiki.us.kg" target="_blank" rel="noopener">AM Wiki 下载站 ②</a></li>
-      </ul>
-    </div>
+        // 初始代码
+        const initialCode = `<!-- 欢迎使用 MD3 在线编辑器 -->
+<!-- 手机电脑通用，支持实时预览 -->
 
-    <div class="section">
-      <h2>🛠️ 相关工具与官网</h2>
-      <ul class="links">
-        <li><a href="https://account.apple.com/" target="_blank" rel="noopener">Apple 账户官网</a></li>
-        <li><a href="https://mt2.cn/" target="_blank" rel="noopener">MT管理器官网</a></li>
-        <li><a href="https://mumu.163.com/" target="_blank" rel="noopener">MUMU模拟器官网</a></li>
-        <li><a href="https://b23.tv/xg5WFTo" target="_blank" rel="noopener">电脑模拟器开启VT教程</a></li>
-        <li><a href="https://alightmotion.com/" target="_blank" rel="noopener">Alight Motion 官网</a></li>
-        <li><a href="https://www.123pan.com/s/NlfKVv-3Ie6d.html" target="_blank" rel="noopener">Alemon / Mix3 官方</a></li>
-        <li><a href="https://pan.quark.cn/s/06407149657a" target="_blank" rel="noopener">Ls 官方</a></li>
-        <li><a href="https://www.autsheng.xyz/" target="_blank" rel="noopener">AutSheng 官网</a></li>
-      </ul>
-    </div>
+<!DOCTYPE html>
+<style>
+  body {
+    font-family: sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    margin: 0;
+  }
+  h1 {
+    font-size: 3rem;
+    text-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+  }
+</style>
 
-    <footer>
-      <p>本页面由爱好者维护 · 与 Alight Motion 官方无任何关联</p>
-    </footer>
-  </div>
+<body>
+  <h1>Hello World! ✨</h1>
+</body>
+`;
 
-  <script>
-    (function() {
-      const key = 'am_performance_notice_shown';
-      const now = Date.now();
-      const stored = localStorage.getItem(key);
-      
-      // 如果从未显示过，或超过7天（7 * 24 * 60 * 60 * 1000 = 604800000 ms）
-      if (!stored || (now - parseInt(stored)) > 604800000) {
-        document.getElementById('performance-modal').style.display = 'flex';
-      }
-
-      document.getElementById('confirm-btn').addEventListener('click', function() {
-        const dontShow = document.getElementById('dont-show-again').checked;
-        if (dontShow) {
-          localStorage.setItem(key, now.toString());
+        let editor;
+        const editorContainer = document.getElementById('editor-container');
+        
+        // 1. 初始化编辑器
+        function initEditor(themeExtension = []) {
+            // 清空容器防止重复初始化
+            editorContainer.innerHTML = '';
+            
+            editor = new EditorView({
+                doc: initialCode,
+                extensions: [
+                    basicSetup,
+                    keymap.of([indentWithTab]),
+                    html(), // HTML 语法支持
+                    ...themeExtension, // 主题
+                    EditorView.lineWrapping, // 自动换行
+                    EditorView.updateListener.of((v) => {
+                        if (v.docChanged) {
+                            // 可选：在这里添加自动保存或防抖自动运行
+                        }
+                    })
+                ],
+                parent: editorContainer
+            });
         }
-        document.getElementById('performance-modal').style.display = 'none';
-      });
-    })();
-  </script>
+
+        // 2. 运行代码逻辑
+        function runCode() {
+            const code = editor.state.doc.toString();
+            const frame = document.getElementById('preview-frame');
+            // 重置 iframe 内容
+            frame.srcdoc = code;
+            
+            // 如果在手机端，自动跳转到预览 Tab
+            if (window.innerWidth <= 768) {
+                switchTab('preview');
+            }
+        }
+
+        // 3. 主题切换逻辑
+        let isDark = false;
+        const themeToggle = document.getElementById('theme-toggle');
+        
+        function toggleTheme() {
+            isDark = !isDark;
+            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+            
+            // 切换图标
+            const icon = themeToggle.querySelector('span');
+            icon.textContent = isDark ? 'light_mode' : 'dark_mode';
+            
+            // 重新初始化编辑器以应用/移除代码高亮主题
+            // 注意：生产环境中推荐使用 Compartment 动态配置，这里为了简单直接重建
+            const currentCode = editor ? editor.state.doc.toString() : initialCode;
+            
+            // 编辑器主题配置 (CodeMirror 默认是白的，OneDark 是黑的)
+            const themeExt = isDark ? [oneDark] : []; 
+            
+            editor.destroy(); // 销毁旧实例
+            
+            editor = new EditorView({
+                doc: currentCode,
+                extensions: [
+                    basicSetup,
+                    keymap.of([indentWithTab]),
+                    html(),
+                    ...themeExt,
+                    EditorView.lineWrapping
+                ],
+                parent: editorContainer
+            });
+        }
+
+        // 4. 移动端 Tab 切换逻辑
+        window.switchTab = function(tabName) {
+            const codePanel = document.getElementById('panel-code');
+            const previewPanel = document.getElementById('panel-preview');
+            const tabs = document.querySelectorAll('.tab-item');
+            const fab = document.getElementById('run-btn-mobile');
+            
+            tabs.forEach(t => t.classList.remove('active'));
+            
+            if (tabName === 'code') {
+                codePanel.style.display = 'flex';
+                previewPanel.style.display = 'none';
+                tabs[0].classList.add('active');
+                fab.style.display = 'flex'; // 在代码页显示运行按钮
+            } else {
+                codePanel.style.display = 'none';
+                previewPanel.style.display = 'flex';
+                tabs[1].classList.add('active');
+                fab.style.display = 'none'; // 在预览页隐藏运行按钮
+            }
+        };
+
+        // 5. 检测设备并调整 UI
+        function checkLayout() {
+            const isMobile = window.innerWidth <= 768;
+            const mobileNav = document.getElementById('mobile-nav');
+            
+            if (isMobile) {
+                mobileNav.style.display = 'flex';
+                // 初始化移动端状态
+                switchTab('code'); 
+            } else {
+                mobileNav.style.display = 'none';
+                // 桌面端显示所有面板
+                document.getElementById('panel-code').style.display = 'flex';
+                document.getElementById('panel-preview').style.display = 'flex';
+            }
+        }
+
+        // 事件监听
+        document.getElementById('run-btn-desktop').addEventListener('click', runCode);
+        document.getElementById('run-btn-mobile').addEventListener('click', runCode);
+        themeToggle.addEventListener('click', toggleTheme);
+        window.addEventListener('resize', checkLayout);
+
+        // 启动
+        initEditor(); // 默认亮色
+        checkLayout();
+
+    </script>
 </body>
 </html>
