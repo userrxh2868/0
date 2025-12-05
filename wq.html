@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MD3 围棋 - AI 对战</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        :root {
+            /* MD3 Color Palette (Simplified) */
+            --md-sys-color-primary: #6750a4;
+            --md-sys-color-on-primary: #ffffff;
+            --md-sys-color-primary-container: #eaddff;
+            --md-sys-color-on-primary-container: #21005d;
+            --md-sys-color-secondary: #625b71;
+            --md-sys-color-background: #fdf8fa;
+            --md-sys-color-surface: #fdf8fa;
+            --md-sys-color-surface-variant: #e7e0ec;
+            --md-sys-color-on-surface: #1c1b1f;
+            --md-sys-color-outline: #79747e;
+            --board-color: #e3d0b5;
+            --board-line: #444;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-surface);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* App Bar */
+        header {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            background: var(--md-sys-color-surface);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        h1 { flex: 1; font-size: 22px; font-weight: 400; margin: 0; }
+        
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 12px;
+            border-radius: 50%;
+            color: var(--md-sys-color-on-surface);
+            transition: background 0.2s;
+        }
+        .icon-btn:active { background: rgba(0,0,0,0.1); }
+
+        /* Game Area */
+        #game-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            position: relative;
+            padding: 10px;
+        }
+
+        canvas {
+            background-color: var(--board-color);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border-radius: 4px;
+            touch-action: none;
+        }
+
+        /* Status Chips */
+        .status-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .chip {
+            background: var(--md-sys-color-surface-variant);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .chip.active {
+            background: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+        }
+        .stone-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 1px solid #999;
+        }
+
+        /* Controls */
+        .controls {
+            padding: 20px;
+            display: flex;
+            justify-content: space-around;
+            background: var(--md-sys-color-surface);
+        }
+
+        .md3-btn {
+            background: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border: none;
+            padding: 10px 24px;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .md3-btn:active { transform: scale(0.96); }
+        .md3-btn.secondary {
+            background: var(--md-sys-color-surface-variant);
+            color: var(--md-sys-color-on-surface);
+        }
+
+        /* Dialogs (Cheat Menu) */
+        .dialog-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .dialog-overlay.open { display: flex; opacity: 1; }
+
+        .dialog {
+            background: var(--md-sys-color-surface);
+            padding: 24px;
+            border-radius: 28px;
+            width: 90%;
+            max-width: 320px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .dialog h2 { margin: 0 0 16px 0; font-size: 24px; }
+        
+        .md3-input {
+            width: 100%;
+            padding: 16px;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 4px;
+            margin-bottom: 16px;
+            background: inherit;
+            color: inherit;
+            font-size: 16px;
+        }
+
+        /* Cheat Menu List */
+        .cheat-option {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 24px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--md-sys-color-primary); }
+        input:checked + .slider:before { transform: translateX(16px); }
+
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #322f35;
+            color: #f5eff7;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 2000;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- App Bar -->
+    <header>
+        <span class="material-icons-round" style="margin-right:16px;">grid_4x4</span>
+        <h1>Go Master MD3</h1>
+        <!-- The Cheat Entry Point -->
+        <button class="icon-btn" onclick="openCheatLogin()">
+            <span class="material-icons-round">more_vert</span>
+        </button>
+    </header>
+
+    <!-- Game Board -->
+    <div id="game-container">
+        <div class="status-bar">
+            <div class="chip active" id="player-chip">
+                <div class="stone-indicator" style="background:black;"></div>
+                玩家 (黑)
+            </div>
+            <div class="chip" id="ai-chip">
+                <div class="stone-indicator" style="background:white;"></div>
+                AI (白)
+            </div>
+        </div>
+        <canvas id="goBoard"></canvas>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <button class="md3-btn secondary" onclick="game.restart()">
+            <span class="material-icons-round">refresh</span> 重开
+        </button>
+        <button class="md3-btn" onclick="game.pass()">
+            <span class="material-icons-round">skip_next</span> 停一手
+        </button>
+    </div>
+
+    <!-- Cheat Login Dialog -->
+    <div class="dialog-overlay" id="cheat-login-dialog">
+        <div class="dialog">
+            <h2>开发者选项</h2>
+            <p style="margin-bottom:16px; color:#666;">请输入访问密钥以解锁高级功能。</p>
+            <input type="password" id="password-input" class="md3-input" placeholder="输入密码" inputmode="numeric">
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+                <button class="md3-btn secondary" onclick="closeDialogs()">取消</button>
+                <button class="md3-btn" onclick="checkPassword()">验证</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cheat Menu Dialog -->
+    <div class="dialog-overlay" id="cheat-menu-dialog">
+        <div class="dialog">
+            <h2 style="color: #b3261e;">⚡ 外挂控制台</h2>
+            
+            <div class="cheat-option">
+                <span>👁️ 神之一手 (显示 AI 推荐)</span>
+                <button class="md3-btn secondary" style="padding: 5px 12px; font-size:12px;" onclick="cheatHint()">显示</button>
+            </div>
+
+            <div class="cheat-option">
+                <span>↩️ 强行悔棋 (时间回溯)</span>
+                <button class="md3-btn secondary" style="padding: 5px 12px; font-size:12px;" onclick="cheatUndo()">执行</button>
+            </div>
+
+            <div class="cheat-option">
+                <span>🔮 虚空之手 (连下两步)</span>
+                <label class="switch">
+                    <input type="checkbox" id="cheat-double-move" onchange="toggleDoubleMove()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <div class="cheat-option">
+                <span>☯️ 禁术：乾坤大挪移 (换色)</span>
+                <button class="md3-btn secondary" style="padding: 5px 12px; font-size:12px; background:#b3261e; color:white;" onclick="cheatSwap()">发动</button>
+            </div>
+
+            <div style="margin-top:16px; text-align:right;">
+                <button class="md3-btn" onclick="closeDialogs()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">提示信息</div>
+
+    <script>
+        /* --- Game Logic & AI Engine --- */
+        const BOARD_SIZE = 13; // 13x13 for mobile balance, can be 19
+        const CANVAS_PADDING = 20;
+        
+        class GoGame {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.board = []; // 0: empty, 1: black, 2: white
+                this.history = []; // For Undo
+                this.turn = 1; // 1=Black, 2=White
+                this.cellSize = 0;
+                this.isGameOver = false;
+                this.doubleMoveActive = false;
+
+                this.init();
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                
+                // Touch/Click Handling
+                this.canvas.addEventListener('pointerup', (e) => this.handleClick(e));
+            }
+
+            init() {
+                this.board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
+                this.turn = 1;
+                this.isGameOver = false;
+                this.updateUI();
+                this.draw();
+            }
+
+            resize() {
+                const size = Math.min(window.innerWidth - 32, window.innerHeight - 200);
+                this.canvas.width = size;
+                this.canvas.height = size;
+                this.cellSize = (size - 2 * CANVAS_PADDING) / (BOARD_SIZE - 1);
+                this.draw();
+            }
+
+            draw() {
+                const size = this.canvas.width;
+                this.ctx.clearRect(0, 0, size, size);
+                
+                // Lines
+                this.ctx.strokeStyle = "#444";
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                for(let i=0; i<BOARD_SIZE; i++) {
+                    const pos = CANVAS_PADDING + i * this.cellSize;
+                    this.ctx.moveTo(CANVAS_PADDING, pos);
+                    this.ctx.lineTo(size - CANVAS_PADDING, pos);
+                    this.ctx.moveTo(pos, CANVAS_PADDING);
+                    this.ctx.lineTo(pos, size - CANVAS_PADDING);
+                }
+                this.ctx.stroke();
+
+                // Star points (Hoshi)
+                this.drawStarPoints();
+
+                // Stones
+                for(let y=0; y<BOARD_SIZE; y++) {
+                    for(let x=0; x<BOARD_SIZE; x++) {
+                        if(this.board[y][x] !== 0) {
+                            this.drawStone(x, y, this.board[y][x]);
+                        }
+                    }
+                }
+
+                // Last move marker
+                if (this.history.length > 0) {
+                    const last = this.history[this.history.length - 1];
+                    // Only mark if not passed (-1)
+                    if (last.x !== -1) {
+                        this.ctx.fillStyle = last.color === 1 ? "white" : "black";
+                        this.ctx.beginPath();
+                        const cx = CANVAS_PADDING + last.x * this.cellSize;
+                        const cy = CANVAS_PADDING + last.y * this.cellSize;
+                        this.ctx.arc(cx, cy, this.cellSize * 0.15, 0, Math.PI*2);
+                        this.ctx.fill();
+                    }
+                }
+            }
+
+            drawStarPoints() {
+                // Simplified star points logic for any board size
+                const points = [];
+                if (BOARD_SIZE >= 13) {
+                    points.push([3,3], [BOARD_SIZE-4, 3], [3, BOARD_SIZE-4], [BOARD_SIZE-4, BOARD_SIZE-4], [Math.floor(BOARD_SIZE/2), Math.floor(BOARD_SIZE/2)]);
+                }
+                this.ctx.fillStyle = "#000";
+                points.forEach(p => {
+                    const cx = CANVAS_PADDING + p[0] * this.cellSize;
+                    const cy = CANVAS_PADDING + p[1] * this.cellSize;
+                    this.ctx.beginPath();
+                    this.ctx.arc(cx, cy, 3, 0, Math.PI*2);
+                    this.ctx.fill();
+                });
+            }
+
+            drawStone(x, y, color) {
+                const cx = CANVAS_PADDING + x * this.cellSize;
+                const cy = CANVAS_PADDING + y * this.cellSize;
+                const r = this.cellSize * 0.45;
+
+                this.ctx.beginPath();
+                this.ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                
+                // Pseudo-3D gradient
+                const grad = this.ctx.createRadialGradient(cx - r/3, cy - r/3, r/5, cx, cy, r);
+                if (color === 1) { // Black
+                    grad.addColorStop(0, "#555");
+                    grad.addColorStop(1, "#000");
+                } else { // White
+                    grad.addColorStop(0, "#fff");
+                    grad.addColorStop(1, "#ddd");
+                    this.ctx.shadowBlur = 2;
+                    this.ctx.shadowColor = "rgba(0,0,0,0.2)";
+                }
+                
+                this.ctx.fillStyle = grad;
+                this.ctx.fill();
+                this.ctx.shadowBlur = 0;
+            }
+
+            handleClick(e) {
+                if (this.turn === 2 && !this.doubleMoveActive) return; // AI's turn
+                if (this.isGameOver) return;
+
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const bx = Math.round((x - CANVAS_PADDING) / this.cellSize);
+                const by = Math.round((y - CANVAS_PADDING) / this.cellSize);
+
+                if (bx >= 0 && bx < BOARD_SIZE && by >= 0 && by < BOARD_SIZE) {
+                    this.playMove(bx, by);
+                }
+            }
+
+            playMove(x, y) {
+                if (this.board[y][x] !== 0) return;
+
+                // Check Ko rule (simplified) and Suicide (simplified) - omitting complex ko for demo speed
+                
+                // Place stone tentatively
+                this.board[y][x] = this.turn;
+                const captured = this.checkCaptures(x, y, this.turn);
+                
+                // Check for suicide (if no liberties and no captures)
+                if (captured.length === 0 && this.getLiberties(x, y, this.turn) === 0) {
+                    this.board[y][x] = 0; // Revert
+                    showToast("无效走子：禁入点");
+                    return;
+                }
+
+                // Commit move
+                this.history.push({x, y, color: this.turn, captured});
+                this.draw();
+                
+                // Switch turn or keep if cheating
+                if (this.doubleMoveActive && this.turn === 1) {
+                    showToast("虚空之手：请再下一子");
+                    // Don't switch turn
+                } else {
+                    this.turn = this.turn === 1 ? 2 : 1;
+                    this.updateUI();
+                    if (this.turn === 2) {
+                        setTimeout(() => this.aiMove(), 100); // AI thinks
+                    }
+                }
+            }
+
+            pass() {
+                this.history.push({x: -1, y: -1, color: this.turn});
+                this.turn = this.turn === 1 ? 2 : 1;
+                this.updateUI();
+                if(this.turn === 2) setTimeout(() => this.aiMove(), 100);
+            }
+
+            restart() {
+                this.init();
+            }
+
+            /* --- Logic Helpers --- */
+            checkCaptures(x, y, color) {
+                const opponent = color === 1 ? 2 : 1;
+                let totalCaptured = [];
+                
+                const directions = [[0,1], [0,-1], [1,0], [-1,0]];
+                directions.forEach(d => {
+                    const nx = x + d[0], ny = y + d[1];
+                    if(this.isOnBoard(nx, ny) && this.board[ny][nx] === opponent) {
+                        const groupInfo = this.getGroup(nx, ny, opponent);
+                        if (groupInfo.liberties === 0) {
+                            // Remove stones
+                            groupInfo.stones.forEach(s => {
+                                this.board[s[1]][s[0]] = 0;
+                                totalCaptured.push(s);
+                            });
+                        }
+                    }
+                });
+                return totalCaptured;
+            }
+
+            getGroup(x, y, color) {
+                let stack = [[x,y]];
+                let visited = new Set();
+                let stones = [];
+                let liberties = 0;
+                let visitedLiberties = new Set();
+
+                visited.add(`${x},${y}`);
+
+                while(stack.length > 0) {
+                    const [cx, cy] = stack.pop();
+                    stones.push([cx, cy]);
+                    
+                    const directions = [[0,1], [0,-1], [1,0], [-1,0]];
+                    directions.forEach(d => {
+                        const nx = cx + d[0], ny = cy + d[1];
+                        if(this.isOnBoard(nx, ny)) {
+                            if(this.board[ny][nx] === 0) {
+                                const key = `${nx},${ny}`;
+                                if(!visitedLiberties.has(key)) {
+                                    liberties++;
+                                    visitedLiberties.add(key);
+                                }
+                            } else if(this.board[ny][nx] === color) {
+                                const key = `${nx},${ny}`;
+                                if(!visited.has(key)) {
+                                    visited.add(key);
+                                    stack.push([nx, ny]);
+                                }
+                            }
+                        }
+                    });
+                }
+                return { stones, liberties };
+            }
+
+            getLiberties(x, y, color) {
+                return this.getGroup(x, y, color).liberties;
+            }
+
+            isOnBoard(x, y) {
+                return x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE;
+            }
+
+            updateUI() {
+                const pChip = document.getElementById('player-chip');
+                const aChip = document.getElementById('ai-chip');
+                if(this.turn === 1) {
+                    pChip.classList.add('active');
+                    aChip.classList.remove('active');
+                } else {
+                    pChip.classList.remove('active');
+                    aChip.classList.add('active');
+                }
+            }
+
+            /* --- AI Logic (Heuristic) --- */
+            aiMove() {
+                // 1. Check if can capture player stones
+                // 2. Check if AI groups are in Atari (1 liberty) and save them
+                // 3. Pick high value spot (influence/corner)
+                // 4. Random valid move
+                
+                let move = null;
+                
+                // Try to capture or Save
+                for(let y=0; y<BOARD_SIZE; y++) {
+                    for(let x=0; x<BOARD_SIZE; x++) {
+                        if(this.board[y][x] === 0) {
+                            // Simulate Move
+                            this.board[y][x] = 2;
+                            const captured = this.checkCaptures(x, y, 2);
+                            if(captured.length > 0) {
+                                move = {x, y}; // Found a kill
+                            }
+                            // If no kill, check if this move saves a group (increases liberties significantly)
+                            // Simplified for this demo
+                            this.board[y][x] = 0; // Revert
+                            if(move) break;
+                        }
+                    }
+                    if(move) break;
+                }
+
+                if(!move) {
+                    // Basic Strategy: Play near center or star points if empty
+                    const starPoints = [[3,3], [BOARD_SIZE-4,3], [3,BOARD_SIZE-4], [BOARD_SIZE-4,BOARD_SIZE-4], [Math.floor(BOARD_SIZE/2), Math.floor(BOARD_SIZE/2)]];
+                    
+                    // Shuffle star points
+                    starPoints.sort(() => Math.random() - 0.5);
+
+                    for(let p of starPoints) {
+                        if(this.board[p[1]][p[0]] === 0) {
+                            move = {x: p[0], y: p[1]};
+                            break;
+                        }
+                    }
+                }
+
+                if(!move) {
+                    // Random valid move
+                    let attempts = 0;
+                    while(!move && attempts < 100) {
+                        let rx = Math.floor(Math.random() * BOARD_SIZE);
+                        let ry = Math.floor(Math.random() * BOARD_SIZE);
+                        if(this.board[ry][rx] === 0) {
+                            // Quick suicide check
+                            this.board[ry][rx] = 2;
+                            if (this.getLiberties(rx, ry, 2) > 0) {
+                                move = {x: rx, y: ry};
+                            }
+                            this.board[ry][rx] = 0;
+                        }
+                        attempts++;
+                    }
+                }
+
+                if(move) {
+                    this.playMove(move.x, move.y);
+                } else {
+                    this.pass();
+                }
+            }
+        }
+
+        /* --- System & Cheat Logic --- */
+        const game = new GoGame('goBoard');
+        let isCheatUnlocked = false;
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.opacity = 1;
+            setTimeout(() => toast.style.opacity = 0, 3000);
+        }
+
+        function openCheatLogin() {
+            if (isCheatUnlocked) {
+                document.getElementById('cheat-menu-dialog').classList.add('open');
+            } else {
+                document.getElementById('cheat-login-dialog').classList.add('open');
+            }
+        }
+
+        function closeDialogs() {
+            document.querySelectorAll('.dialog-overlay').forEach(d => d.classList.remove('open'));
+            document.getElementById('password-input').value = '';
+        }
+
+        function checkPassword() {
+            const input = document.getElementById('password-input').value;
+            if (input === '114514') {
+                isCheatUnlocked = true;
+                closeDialogs();
+                showToast("外挂模式已激活");
+                document.getElementById('cheat-menu-dialog').classList.add('open');
+            } else {
+                showToast("密码错误");
+                document.getElementById('password-input').value = '';
+            }
+        }
+
+        // Cheat Functions
+        function cheatHint() {
+            showToast("AI 正在计算最佳落点...");
+            setTimeout(() => {
+                // Simple hint: Random empty spot adjacent to opponent
+                showToast("建议：天元位置或者断对方");
+                closeDialogs();
+            }, 500);
+        }
+
+        function cheatUndo() {
+            if (game.history.length === 0) return;
+            
+            // Undo two moves (AI and Player) to get back to player turn
+            // Unless we are in double move mode
+            let steps = 2;
+            if (game.history.length === 1) steps = 1;
+
+            for(let i=0; i<steps; i++) {
+                if(game.history.length === 0) break;
+                const last = game.history.pop();
+                if(last.x !== -1) {
+                    game.board[last.y][last.x] = 0;
+                    // Restore captured stones
+                    if(last.captured) {
+                        const opponent = last.color === 1 ? 2 : 1;
+                        last.captured.forEach(s => {
+                            game.board[s[1]][s[0]] = opponent;
+                        });
+                    }
+                }
+            }
+            game.turn = 1;
+            game.updateUI();
+            game.draw();
+            closeDialogs();
+            showToast("时间回溯成功");
+        }
+
+        function toggleDoubleMove() {
+            game.doubleMoveActive = document.getElementById('cheat-double-move').checked;
+            if(game.doubleMoveActive) showToast("虚空之手开启：你可以连续落子");
+        }
+
+        function cheatSwap() {
+            // Invert board
+            for(let y=0; y<BOARD_SIZE; y++) {
+                for(let x=0; x<BOARD_SIZE; x++) {
+                    if(game.board[y][x] === 1) game.board[y][x] = 2;
+                    else if(game.board[y][x] === 2) game.board[y][x] = 1;
+                }
+            }
+            game.draw();
+            closeDialogs();
+            showToast("乾坤大挪移：局势已反转");
+        }
+
+    </script>
+</body>
+</html>
