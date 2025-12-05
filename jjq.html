@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MD3 井字棋 + 外挂</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* MD3 Color Tokens (Purple Theme) */
+            --md-sys-color-primary: #6750a4;
+            --md-sys-color-on-primary: #ffffff;
+            --md-sys-color-primary-container: #eaddff;
+            --md-sys-color-on-primary-container: #21005d;
+            --md-sys-color-secondary: #625b71;
+            --md-sys-color-secondary-container: #e8def8;
+            --md-sys-color-background: #fffbfe;
+            --md-sys-color-surface: #fffbfe;
+            --md-sys-color-surface-variant: #e7e0ec;
+            --md-sys-color-on-surface: #1c1b1f;
+            --md-sys-color-outline: #79747e;
+            --md-sys-color-error: #b3261e;
+            
+            --md-ref-typeface-brand: 'Roboto', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-surface);
+            font-family: var(--md-ref-typeface-brand);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            margin: 0;
+            font-weight: 500;
+            font-size: 2rem;
+            color: var(--md-sys-color-primary);
+        }
+
+        .status-bar {
+            margin-top: 10px;
+            background-color: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-primary-container);
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-weight: 500;
+            font-size: 1.1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+
+        /* Game Board */
+        .game-container {
+            background-color: var(--md-sys-color-surface-variant);
+            padding: 16px;
+            border-radius: 28px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            width: 300px;
+            height: 300px;
+        }
+
+        .cell {
+            background-color: var(--md-sys-color-surface);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--md-sys-color-on-surface);
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s, transform 0.1s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .cell:active {
+            background-color: var(--md-sys-color-primary-container);
+            transform: scale(0.95);
+        }
+
+        .cell.x { color: var(--md-sys-color-primary); }
+        .cell.o { color: var(--md-sys-color-error); }
+
+        /* Controls */
+        .controls {
+            margin-top: 30px;
+        }
+
+        .btn {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border: none;
+            padding: 12px 32px;
+            border-radius: 100px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: box-shadow 0.2s, background-color 0.2s;
+        }
+
+        .btn:active {
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            opacity: 0.9;
+        }
+
+        /* Floating Action Button (Cheat Trigger) */
+        .fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background-color: var(--md-sys-color-secondary);
+            color: var(--md-sys-color-on-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            cursor: pointer;
+            border: none;
+            transition: transform 0.2s;
+            z-index: 100;
+        }
+
+        .fab:active {
+            transform: scale(0.9);
+        }
+
+        .fab svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        /* Modals (Dialogs) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 200;
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .dialog {
+            background: var(--md-sys-color-surface);
+            padding: 24px;
+            border-radius: 28px;
+            width: 80%;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transform: scale(0.8);
+            transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        .modal-overlay.open .dialog {
+            transform: scale(1);
+        }
+
+        .dialog h2 {
+            margin-top: 0;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .md3-input {
+            width: 100%;
+            padding: 12px;
+            margin: 16px 0;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        .md3-input:focus {
+            border-color: var(--md-sys-color-primary);
+            border-width: 2px;
+            padding: 11px; /* Prevent layout shift */
+        }
+
+        .dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .text-btn {
+            background: none;
+            border: none;
+            color: var(--md-sys-color-primary);
+            font-weight: 500;
+            padding: 10px 20px;
+            border-radius: 100px;
+            cursor: pointer;
+        }
+        
+        .text-btn:hover {
+            background-color: rgba(103, 80, 164, 0.08);
+        }
+
+        /* Cheat Menu List */
+        .cheat-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .cheat-btn {
+            background-color: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-primary-container);
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .cheat-btn:active {
+            opacity: 0.8;
+        }
+
+        .error-msg {
+            color: var(--md-sys-color-error);
+            font-size: 0.8rem;
+            margin-top: -10px;
+            margin-bottom: 10px;
+            display: none;
+            text-align: left;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>井字棋 MD3</h1>
+        <div class="status-bar" id="status">轮到玩家: X</div>
+    </header>
+
+    <div class="game-container">
+        <div class="board" id="board">
+            <div class="cell" data-index="0"></div>
+            <div class="cell" data-index="1"></div>
+            <div class="cell" data-index="2"></div>
+            <div class="cell" data-index="3"></div>
+            <div class="cell" data-index="4"></div>
+            <div class="cell" data-index="5"></div>
+            <div class="cell" data-index="6"></div>
+            <div class="cell" data-index="7"></div>
+            <div class="cell" data-index="8"></div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" id="restartBtn">重新开始</button>
+    </div>
+
+    <!-- Floating Action Button for Cheats -->
+    <button class="fab" id="fabBtn">
+        <!-- Magic Wand Icon -->
+        <svg viewBox="0 0 24 24">
+            <path d="M7.5 5.6L10 7 8.6 4.5 10 2 7.5 3.4 5 2 6.4 4.5 5 7zM19 2l-1.4 2.5L15 5.9l2.6 1.4L19 9.8l1.4-2.5L23 5.9l-2.6-1.4zM16.8 11.6c-2.5-.4-4.8-2.5-5.2-5L10 15.2l6.8 6.8 8.4-8.4-8.4-2z"/>
+        </svg>
+    </button>
+
+    <!-- Password Modal -->
+    <div class="modal-overlay" id="passwordModal">
+        <div class="dialog">
+            <h2>开发者模式</h2>
+            <p style="color: var(--md-sys-color-secondary); margin-bottom: 15px;">请输入授权码以开启外挂功能。</p>
+            <input type="password" id="passwordInput" class="md3-input" placeholder="输入密码 (114514)" inputmode="numeric">
+            <div class="error-msg" id="passwordError">密码错误！这么臭的密码都记不住？</div>
+            <div class="dialog-actions">
+                <button class="text-btn" onclick="closeModal('passwordModal')">取消</button>
+                <button class="text-btn" onclick="checkPassword()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cheat Menu Modal -->
+    <div class="modal-overlay" id="cheatModal">
+        <div class="dialog">
+            <h2 style="color: var(--md-sys-color-error);">外挂菜单</h2>
+            <div class="cheat-options">
+                <button class="cheat-btn" onclick="cheatInstantWin()">🚀 直接获胜</button>
+                <button class="cheat-btn" onclick="cheatUndo()">↩️ 悔棋 (撤销一步)</button>
+                <button class="cheat-btn" onclick="cheatForceTurn()">🔄 强制换人</button>
+                <button class="cheat-btn" onclick="cheatClearBoard()">🧹 强力清屏 (保留回合)</button>
+            </div>
+            <div class="dialog-actions">
+                <button class="text-btn" onclick="closeModal('cheatModal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* --- Game Logic --- */
+        const statusDisplay = document.getElementById('status');
+        const cells = document.querySelectorAll('.cell');
+        const restartBtn = document.getElementById('restartBtn');
+        
+        let gameActive = true;
+        let currentPlayer = "X";
+        let gameState = ["", "", "", "", "", "", "", "", ""];
+        let moveHistory = []; // For Undo cheat
+
+        const winningConditions = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+            [0, 4, 8], [2, 4, 6]             // Diagonals
+        ];
+
+        const winningMessage = () => `🎉 玩家 ${currentPlayer} 获胜!`;
+        const drawMessage = () => `😴 平局!`;
+        const currentPlayerTurn = () => `轮到玩家: ${currentPlayer}`;
+
+        function handleCellPlayed(clickedCell, clickedCellIndex) {
+            gameState[clickedCellIndex] = currentPlayer;
+            clickedCell.innerText = currentPlayer;
+            clickedCell.classList.add(currentPlayer.toLowerCase());
+            moveHistory.push(clickedCellIndex); // Store for undo
+        }
+
+        function handlePlayerChange() {
+            currentPlayer = currentPlayer === "X" ? "O" : "X";
+            statusDisplay.innerText = currentPlayerTurn();
+        }
+
+        function handleResultValidation() {
+            let roundWon = false;
+            for (let i = 0; i <= 7; i++) {
+                const winCondition = winningConditions[i];
+                let a = gameState[winCondition[0]];
+                let b = gameState[winCondition[1]];
+                let c = gameState[winCondition[2]];
+                if (a === '' || b === '' || c === '') {
+                    continue;
+                }
+                if (a === b && b === c) {
+                    roundWon = true;
+                    break;
+                }
+            }
+
+            if (roundWon) {
+                statusDisplay.innerText = winningMessage();
+                gameActive = false;
+                return;
+            }
+
+            let roundDraw = !gameState.includes("");
+            if (roundDraw) {
+                statusDisplay.innerText = drawMessage();
+                gameActive = false;
+                return;
+            }
+
+            handlePlayerChange();
+        }
+
+        function handleCellClick(clickedCellEvent) {
+            const clickedCell = clickedCellEvent.target;
+            const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
+
+            if (gameState[clickedCellIndex] !== "" || !gameActive) {
+                return;
+            }
+
+            handleCellPlayed(clickedCell, clickedCellIndex);
+            handleResultValidation();
+        }
+
+        function handleRestartGame() {
+            gameActive = true;
+            currentPlayer = "X";
+            gameState = ["", "", "", "", "", "", "", "", ""];
+            moveHistory = [];
+            statusDisplay.innerText = currentPlayerTurn();
+            cells.forEach(cell => {
+                cell.innerText = "";
+                cell.classList.remove('x', 'o');
+            });
+        }
+
+        cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+        restartBtn.addEventListener('click', handleRestartGame);
+
+        /* --- Cheat Logic --- */
+        const fabBtn = document.getElementById('fabBtn');
+        const passwordModal = document.getElementById('passwordModal');
+        const passwordInput = document.getElementById('passwordInput');
+        const passwordError = document.getElementById('passwordError');
+        const cheatModal = document.getElementById('cheatModal');
+        
+        let isUnlocked = false;
+
+        fabBtn.addEventListener('click', () => {
+            if (isUnlocked) {
+                openModal('cheatModal');
+            } else {
+                passwordInput.value = "";
+                passwordError.style.display = "none";
+                openModal('passwordModal');
+            }
+        });
+
+        function openModal(id) {
+            document.getElementById(id).classList.add('open');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('open');
+        }
+
+        function checkPassword() {
+            const pwd = passwordInput.value;
+            if (pwd === "114514") {
+                isUnlocked = true;
+                closeModal('passwordModal');
+                // Short delay before opening cheat menu
+                setTimeout(() => openModal('cheatModal'), 200);
+            } else {
+                passwordError.style.display = "block";
+                passwordInput.classList.add('shake');
+                setTimeout(() => passwordInput.classList.remove('shake'), 500);
+            }
+        }
+
+        // Allow pressing Enter in password field
+        passwordInput.addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                checkPassword();
+            }
+        });
+
+        /* --- Cheat Functions --- */
+
+        // 1. Instant Win
+        function cheatInstantWin() {
+            if (!gameActive) {
+                alert("游戏已经结束了！请先重新开始。");
+                return;
+            }
+            statusDisplay.innerText = `🛑 作弊生效: ${currentPlayer} 强制获胜!`;
+            gameActive = false;
+            closeModal('cheatModal');
+            // Visual effect: fill empty cells with current player
+            gameState.forEach((cell, index) => {
+                if (cell === "") {
+                    const c = document.querySelector(`.cell[data-index='${index}']`);
+                    c.innerText = currentPlayer;
+                    c.classList.add(currentPlayer.toLowerCase());
+                    c.style.opacity = "0.5"; // Ghost effect
+                }
+            });
+        }
+
+        // 2. Undo
+        function cheatUndo() {
+            if (moveHistory.length === 0) {
+                alert("还没走棋呢，悔什么？");
+                return;
+            }
+            
+            // Remove logic
+            const lastIndex = moveHistory.pop();
+            gameState[lastIndex] = "";
+            
+            // Remove UI
+            const cell = document.querySelector(`.cell[data-index='${lastIndex}']`);
+            cell.innerText = "";
+            cell.classList.remove('x', 'o');
+
+            // If game was over, reactivate it
+            if (!gameActive) {
+                gameActive = true;
+            } else {
+                // If game wasn't over, we need to switch turn back to the person who made the move
+                handlePlayerChange(); 
+            }
+            
+            closeModal('cheatModal');
+            statusDisplay.innerText = `${currentPlayerTurn()} (已悔棋)`;
+        }
+
+        // 3. Force Turn Switch
+        function cheatForceTurn() {
+            handlePlayerChange();
+            closeModal('cheatModal');
+        }
+
+        // 4. Clear Board (keep players)
+        function cheatClearBoard() {
+            gameState = ["", "", "", "", "", "", "", "", ""];
+            moveHistory = [];
+            cells.forEach(cell => {
+                cell.innerText = "";
+                cell.classList.remove('x', 'o');
+            });
+            gameActive = true;
+            closeModal('cheatModal');
+            statusDisplay.innerText = `🧹 棋盘已清空，${currentPlayerTurn()}`;
+        }
+
+    </script>
+</body>
+</html>
