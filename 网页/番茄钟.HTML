@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#fffbfe">
+    <title>MD3 Focus</title>
+    <!-- 引入 Google Material Symbols -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <!-- 引入 Roboto 字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            /* MD3 Color Tokens (基于深紫色种子色) */
+            --md-sys-color-primary: #6750a4;
+            --md-sys-color-on-primary: #ffffff;
+            --md-sys-color-primary-container: #eaddff;
+            --md-sys-color-on-primary-container: #21005d;
+            --md-sys-color-secondary: #625b71;
+            --md-sys-color-secondary-container: #e8def8;
+            --md-sys-color-on-secondary-container: #1d192b;
+            --md-sys-color-background: #fffbfe;
+            --md-sys-color-surface: #fffbfe;
+            --md-sys-color-surface-container: #f3edf7;
+            --md-sys-color-outline: #79747e;
+            --md-sys-color-surface-variant: #e7e0ec;
+            --md-sys-color-on-surface: #1c1b1f;
+            --md-sys-color-on-surface-variant: #49454f;
+            
+            /* 字体 */
+            --font-family: 'Roboto', sans-serif;
+            
+            /* 动画曲线 */
+            --ease-standard: cubic-bezier(0.2, 0.0, 0, 1.0);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100dvh;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-surface);
+            font-family: var(--font-family);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* 像 App 一样禁止滚动 */
+        }
+
+        /* --- 顶部栏 --- */
+        .app-bar {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            justify-content: space-between;
+        }
+        
+        .app-title {
+            font-size: 22px;
+            font-weight: 400;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            padding: 12px;
+            border-radius: 50%;
+            color: var(--md-sys-color-on-surface-variant);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .icon-btn:active {
+            background-color: rgba(28, 27, 31, 0.12);
+        }
+
+        /* --- 主要内容区 --- */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* 模式切换胶囊 */
+        .mode-selector {
+            background-color: var(--md-sys-color-surface-container);
+            border-radius: 100px;
+            padding: 4px;
+            display: flex;
+            margin-bottom: 40px;
+            border: 1px solid var(--md-sys-color-surface-variant);
+        }
+
+        .mode-btn {
+            padding: 8px 24px;
+            border-radius: 100px;
+            border: none;
+            background: transparent;
+            color: var(--md-sys-color-on-surface-variant);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s var(--ease-standard);
+        }
+
+        .mode-btn.active {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            box-shadow: 0 1px 3px 1px rgba(0,0,0,0.15);
+        }
+
+        /* 计时器圆环容器 */
+        .timer-container {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* SVG 圆环 */
+        .progress-ring {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+
+        .progress-ring__circle-bg {
+            stroke: var(--md-sys-color-surface-variant);
+            stroke-width: 8;
+            fill: transparent;
+        }
+
+        .progress-ring__circle {
+            stroke: var(--md-sys-color-primary);
+            stroke-width: 8;
+            fill: transparent;
+            stroke-linecap: round;
+            /* r=130, C = 2*pi*130 ≈ 816.8 */
+            stroke-dasharray: 816.8;
+            stroke-dashoffset: 0;
+            transition: stroke-dashoffset 1s linear, stroke 0.3s;
+        }
+
+        /* 时间文字 */
+        .timer-text {
+            position: absolute;
+            font-size: 80px;
+            font-weight: 400; /* MD3 Display Large */
+            letter-spacing: -2px;
+            color: var(--md-sys-color-on-surface);
+            font-variant-numeric: tabular-nums; /* 防止数字跳动 */
+        }
+        
+        .timer-status {
+            position: absolute;
+            bottom: 60px;
+            font-size: 16px;
+            color: var(--md-sys-color-secondary);
+            font-weight: 500;
+            opacity: 0.8;
+        }
+
+        /* --- 底部控制区 --- */
+        .controls {
+            height: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 32px;
+            padding-bottom: 32px;
+        }
+
+        /* 主要 FAB (悬浮按钮) */
+        .fab {
+            width: 80px;
+            height: 80px;
+            border-radius: 28px; /* MD3 Large FAB radius */
+            background-color: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 8px 3px rgba(0,0,0,0.15);
+            transition: transform 0.1s, box-shadow 0.2s;
+        }
+        
+        .fab:active {
+            transform: scale(0.96);
+            box-shadow: 0 2px 4px 2px rgba(0,0,0,0.15);
+        }
+
+        .fab span {
+            font-size: 36px;
+        }
+
+        /* 次要按钮 */
+        .secondary-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background-color: var(--md-sys-color-surface-variant);
+            color: var(--md-sys-color-on-surface-variant);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .secondary-btn:active {
+            background-color: rgba(29, 25, 43, 0.12);
+        }
+
+        /* --- Settings Bottom Sheet (仿 Android 底部抽屉) --- */
+        .bottom-sheet-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 10;
+        }
+        
+        .bottom-sheet-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .bottom-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: var(--md-sys-color-surface);
+            border-radius: 28px 28px 0 0;
+            padding: 24px;
+            transform: translateY(100%);
+            transition: transform 0.3s var(--ease-standard);
+            z-index: 11;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+
+        .bottom-sheet.open {
+            transform: translateY(0);
+        }
+
+        .sheet-handle {
+            width: 32px;
+            height: 4px;
+            background-color: var(--md-sys-color-outline);
+            opacity: 0.4;
+            border-radius: 2px;
+            margin: 0 auto 24px auto;
+        }
+
+        .sheet-title {
+            font-size: 24px;
+            margin-bottom: 24px;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        
+        .setting-label {
+            font-size: 16px;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        /* MD3 Slider 模拟 */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100px;
+            background: transparent;
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: var(--md-sys-color-primary);
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 0 2px 0 rgba(0,0,0,0.5);
+        }
+        
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: var(--md-sys-color-surface-variant);
+            border-radius: 2px;
+        }
+
+        .value-display {
+            font-weight: 500;
+            color: var(--md-sys-color-primary);
+            margin-left: 10px;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        /* Ripple 效果简单实现 */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple 0.6s linear;
+            background-color: rgba(255, 255, 255, 0.3);
+            pointer-events: none;
+        }
+
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 顶部导航 -->
+    <div class="app-bar">
+        <button class="icon-btn" onclick="alert('菜单功能待开发')">
+            <span class="material-symbols-rounded">menu</span>
+        </button>
+        <div class="app-title">Focus Timer</div>
+        <button class="icon-btn" onclick="toggleSettings()">
+            <span class="material-symbols-rounded">settings</span>
+        </button>
+    </div>
+
+    <!-- 主体内容 -->
+    <div class="main-content">
+        
+        <!-- 模式切换 -->
+        <div class="mode-selector">
+            <button class="mode-btn active" onclick="switchMode('focus')" id="btn-focus">专注</button>
+            <button class="mode-btn" onclick="switchMode('short')" id="btn-short">短休</button>
+            <button class="mode-btn" onclick="switchMode('long')" id="btn-long">长休</button>
+        </div>
+
+        <!-- 计时器 -->
+        <div class="timer-container">
+            <svg class="progress-ring">
+                <circle class="progress-ring__circle-bg" cx="140" cy="140" r="130"/>
+                <circle class="progress-ring__circle" id="progress-ring" cx="140" cy="140" r="130"/>
+            </svg>
+            <div class="timer-text" id="timer-display">25:00</div>
+            <div class="timer-status" id="timer-status">准备专注</div>
+        </div>
+
+    </div>
+
+    <!-- 底部控制 -->
+    <div class="controls">
+        <button class="secondary-btn" onclick="resetTimer()">
+            <span class="material-symbols-rounded">replay</span>
+        </button>
+        
+        <button class="fab" id="main-action-btn" onclick="toggleTimer()">
+            <span class="material-symbols-rounded" id="play-icon">play_arrow</span>
+        </button>
+    </div>
+
+    <!-- 设置面板 (Bottom Sheet) -->
+    <div class="bottom-sheet-overlay" id="sheet-overlay" onclick="toggleSettings()"></div>
+    <div class="bottom-sheet" id="settings-sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title">计时器设置</div>
+        
+        <div class="setting-item">
+            <span class="setting-label">专注时长</span>
+            <div style="display: flex; align-items: center;">
+                <input type="range" min="1" max="60" value="25" id="focus-slider" oninput="updateSettings()">
+                <span class="value-display" id="focus-val">25</span>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <span class="setting-label">短休时长</span>
+            <div style="display: flex; align-items: center;">
+                <input type="range" min="1" max="30" value="5" id="short-slider" oninput="updateSettings()">
+                <span class="value-display" id="short-val">5</span>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <span class="setting-label">长休时长</span>
+            <div style="display: flex; align-items: center;">
+                <input type="range" min="1" max="45" value="15" id="long-slider" oninput="updateSettings()">
+                <span class="value-display" id="long-val">15</span>
+            </div>
+        </div>
+
+        <button class="mode-btn active" style="width: 100%; background: var(--md-sys-color-primary); margin-top: 20px; height: 48px; font-size: 16px;" onclick="toggleSettings()">
+            完成
+        </button>
+    </div>
+
+    <script>
+        // --- 配置与状态 ---
+        const CONFIG = {
+            focus: 25,
+            short: 5,
+            long: 15
+        };
+
+        let state = {
+            mode: 'focus', // focus, short, long
+            timeLeft: CONFIG.focus * 60,
+            totalTime: CONFIG.focus * 60,
+            isRunning: false,
+            intervalId: null
+        };
+
+        // --- DOM 元素 ---
+        const elDisplay = document.getElementById('timer-display');
+        const elStatus = document.getElementById('timer-status');
+        const elRing = document.getElementById('progress-ring');
+        const elPlayIcon = document.getElementById('play-icon');
+        const elMainBtn = document.getElementById('main-action-btn');
+        const elSheet = document.getElementById('settings-sheet');
+        const elOverlay = document.getElementById('sheet-overlay');
+
+        // 圆环参数
+        const radius = 130;
+        const circumference = 2 * Math.PI * radius;
+        
+        // --- 初始化 ---
+        function init() {
+            elRing.style.strokeDasharray = `${circumference} ${circumference}`;
+            elRing.style.strokeDashoffset = 0;
+            updateDisplay();
+        }
+
+        // --- 核心逻辑 ---
+        
+        function toggleTimer() {
+            if (state.isRunning) {
+                pauseTimer();
+            } else {
+                startTimer();
+            }
+        }
+
+        function startTimer() {
+            state.isRunning = true;
+            elPlayIcon.textContent = 'pause';
+            elMainBtn.style.backgroundColor = 'var(--md-sys-color-tertiary-container)'; // 视觉反馈
+            elStatus.textContent = getStatusText(true);
+            
+            state.intervalId = setInterval(() => {
+                if (state.timeLeft > 0) {
+                    state.timeLeft--;
+                    updateDisplay();
+                    updateProgress();
+                } else {
+                    completeTimer();
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            state.isRunning = false;
+            elPlayIcon.textContent = 'play_arrow';
+            clearInterval(state.intervalId);
+            elStatus.textContent = '已暂停';
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            state.timeLeft = CONFIG[state.mode] * 60;
+            state.totalTime = state.timeLeft;
+            updateDisplay();
+            setProgress(0); // 重置进度条
+            elStatus.textContent = getStatusText(false);
+        }
+
+        function completeTimer() {
+            pauseTimer();
+            // 播放提示音 (简单 beep)
+            playNotificationSound();
+            elStatus.textContent = '已完成';
+            setProgress(100); // 填满或清空，看喜好
+            setTimeout(() => {
+                alert('时间到！休息一下吧。');
+                resetTimer();
+            }, 100);
+        }
+
+        // --- 界面更新 ---
+
+        function updateDisplay() {
+            const m = Math.floor(state.timeLeft / 60);
+            const s = state.timeLeft % 60;
+            elDisplay.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            document.title = `${elDisplay.textContent} - Focus`;
+        }
+
+        function updateProgress() {
+            const elapsed = state.totalTime - state.timeLeft;
+            // 计算百分比，MD3 风格通常是时间减少圆环减少
+            // offset = circumference * (1 - percent)
+            const percent = state.timeLeft / state.totalTime;
+            const offset = circumference * (1 - percent);
+            elRing.style.strokeDashoffset = offset;
+        }
+        
+        function setProgress(percent) {
+             // 手动设置进度 (0-100)
+             // 这里反转逻辑，0的时候是满圆
+             const offset = circumference * (percent / 100);
+             elRing.style.strokeDashoffset = offset;
+        }
+
+        function switchMode(mode) {
+            // 切换 Tab 样式
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${mode}`).classList.add('active');
+
+            // 颜色主题切换 (模拟 MD3 Dynamic Color)
+            const root = document.documentElement;
+            if (mode === 'focus') {
+                root.style.setProperty('--md-sys-color-primary', '#6750a4');
+                root.style.setProperty('--md-sys-color-primary-container', '#eaddff');
+            } else if (mode === 'short') {
+                root.style.setProperty('--md-sys-color-primary', '#006c4c'); // 绿色系
+                root.style.setProperty('--md-sys-color-primary-container', '#8bf8c6');
+                root.style.setProperty('--md-sys-color-on-primary-container', '#002114');
+            } else {
+                root.style.setProperty('--md-sys-color-primary', '#984061'); // 红色/粉色系
+                root.style.setProperty('--md-sys-color-primary-container', '#ffd9e2');
+                root.style.setProperty('--md-sys-color-on-primary-container', '#3e001d');
+            }
+
+            state.mode = mode;
+            resetTimer();
+        }
+
+        function getStatusText(running) {
+            const map = {
+                'focus': running ? '保持专注...' : '准备专注',
+                'short': running ? '休息中...' : '短休息',
+                'long': running ? '深度休息...' : '长休息'
+            };
+            return map[state.mode];
+        }
+
+        // --- 设置逻辑 ---
+
+        function toggleSettings() {
+            const isOpen = elSheet.classList.contains('open');
+            if (isOpen) {
+                elSheet.classList.remove('open');
+                elOverlay.classList.remove('open');
+            } else {
+                // 同步当前值到 slider
+                document.getElementById('focus-slider').value = CONFIG.focus;
+                document.getElementById('short-slider').value = CONFIG.short;
+                document.getElementById('long-slider').value = CONFIG.long;
+                updateSettingsUI(); // 更新数字显示
+                
+                elSheet.classList.add('open');
+                elOverlay.classList.add('open');
+            }
+        }
+
+        function updateSettings() {
+            CONFIG.focus = parseInt(document.getElementById('focus-slider').value);
+            CONFIG.short = parseInt(document.getElementById('short-slider').value);
+            CONFIG.long = parseInt(document.getElementById('long-slider').value);
+            
+            updateSettingsUI();
+            
+            // 如果当前没有运行，且正在对应的模式下，实时更新时间显示
+            if (!state.isRunning) {
+                if (state.mode === 'focus') state.timeLeft = CONFIG.focus * 60;
+                if (state.mode === 'short') state.timeLeft = CONFIG.short * 60;
+                if (state.mode === 'long') state.timeLeft = CONFIG.long * 60;
+                state.totalTime = state.timeLeft;
+                updateDisplay();
+            }
+        }
+
+        function updateSettingsUI() {
+            document.getElementById('focus-val').textContent = CONFIG.focus;
+            document.getElementById('short-val').textContent = CONFIG.short;
+            document.getElementById('long-val').textContent = CONFIG.long;
+        }
+
+        // --- 音频辅助 ---
+        function playNotificationSound() {
+            // 使用 Web Audio API 生成简单的提示音，避免加载外部文件
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.value = 880; // A5
+            gain.gain.value = 0.1;
+            
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.5);
+            osc.stop(ctx.currentTime + 0.5);
+        }
+
+        // 启动初始化
+        init();
+
+    </script>
+</body>
+</html>
