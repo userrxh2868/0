@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>小壮浏览器</title>
+    <!-- 引入 Google Material Symbols -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <style>
+        /* --- MD3 Design Tokens & Variables --- */
+        :root {
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            --md-sys-color-surface: #FEF7FF;
+            --md-sys-color-surface-container: #F3EDF7;
+            --md-sys-color-on-surface: #1D1B20;
+            --md-sys-color-outline: #79747E;
+            --md-sys-color-secondary-container: #E8DEF8;
+            
+            --md-ref-typeface-plain: system-ui, -apple-system, 'Roboto', sans-serif;
+            --md-sys-motion-easing-standard: cubic-bezier(0.2, 0.0, 0.0, 1.0); /* MD3 标准非线性动画 */
+            --md-sys-shape-corner-extra-large: 28px;
+            --md-sys-shape-corner-full: 9999px;
+        }
+
+        /* 暗色模式适配 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --md-sys-color-primary: #D0BCFF;
+                --md-sys-color-on-primary: #381E72;
+                --md-sys-color-primary-container: #4F378B;
+                --md-sys-color-on-primary-container: #EADDFF;
+                --md-sys-color-surface: #141218;
+                --md-sys-color-surface-container: #211F26;
+                --md-sys-color-on-surface: #E6E1E5;
+                --md-sys-color-outline: #938F99;
+                --md-sys-color-secondary-container: #4A4458;
+            }
+        }
+
+        /* --- 全局重置 --- */
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
+            font-family: var(--md-ref-typeface-plain);
+            height: 100vh;
+            overflow: hidden; /* 像App一样禁止整体滚动 */
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- 页面容器 --- */
+        .page {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.5s var(--md-sys-motion-easing-standard), 
+                        opacity 0.4s var(--md-sys-motion-easing-standard);
+            display: flex;
+            flex-direction: column;
+            background-color: var(--md-sys-color-surface);
+            z-index: 1;
+        }
+
+        .page.hidden {
+            transform: scale(0.95);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* --- 首页布局 --- */
+        #home-page {
+            padding: 20px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .logo-area {
+            margin-bottom: 40px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--md-sys-color-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo-icon {
+            font-size: 64px;
+        }
+
+        /* 搜索框 (MD3 Style) */
+        .search-bar-container {
+            width: 100%;
+            max-width: 400px;
+            height: 56px;
+            background-color: var(--md-sys-color-surface-container);
+            border-radius: var(--md-sys-shape-corner-full);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            margin-bottom: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            transition: box-shadow 0.2s ease;
+        }
+
+        .search-bar-container:focus-within {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            background-color: var(--md-sys-color-secondary-container);
+        }
+
+        .search-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            height: 100%;
+            font-size: 16px;
+            color: var(--md-sys-color-on-surface);
+            outline: none;
+            margin-left: 12px;
+        }
+
+        /* 快捷图标网格 */
+        .shortcuts-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .shortcut-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .shortcut-icon-box {
+            width: 56px;
+            height: 56px;
+            background-color: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            transition: transform 0.2s var(--md-sys-motion-easing-standard);
+        }
+        
+        .shortcut-item:active .shortcut-icon-box {
+            transform: scale(0.9);
+        }
+
+        .shortcut-label {
+            font-size: 12px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #B3261E;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            display: none; /* 默认隐藏 */
+        }
+
+        .shortcut-item.editing .delete-btn {
+            display: flex;
+            animation: popIn 0.2s var(--md-sys-motion-easing-standard);
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
+        }
+
+        /* 底部设置栏 */
+        .bottom-actions {
+            position: absolute;
+            bottom: 20px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--md-sys-color-on-surface);
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        /* --- 浏览器页面布局 --- */
+        #browser-page {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .browser-top-bar {
+            height: 64px;
+            background-color: var(--md-sys-color-surface);
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            border-bottom: 1px solid var(--md-sys-color-outline);
+            opacity: 0.1; /* Divider opacity */
+        }
+
+        .url-display {
+            flex: 1;
+            background-color: var(--md-sys-color-surface-container);
+            height: 40px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            font-size: 14px;
+            margin: 0 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .browser-content {
+            flex: 1;
+            width: 100%;
+            border: none;
+            background: white;
+            position: relative;
+        }
+        
+        .browser-placeholder {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            pointer-events: none;
+        }
+
+        .browser-nav-bar {
+            height: 56px;
+            background-color: var(--md-sys-color-surface);
+            border-top: 1px solid rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        /* --- 设置抽屉 (Bottom Sheet) --- */
+        .bottom-sheet-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4);
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .bottom-sheet-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .bottom-sheet {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: var(--md-sys-color-surface-container);
+            border-radius: 28px 28px 0 0;
+            padding: 24px;
+            transform: translateY(100%);
+            transition: transform 0.4s var(--md-sys-motion-easing-standard);
+        }
+
+        .bottom-sheet-overlay.active .bottom-sheet {
+            transform: translateY(0);
+        }
+
+        .sheet-handle {
+            width: 32px;
+            height: 4px;
+            background-color: var(--md-sys-color-outline);
+            opacity: 0.4;
+            border-radius: 2px;
+            margin: 0 auto 20px auto;
+        }
+
+        .sheet-title {
+            font-size: 22px;
+            margin-bottom: 20px;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chip-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            padding: 8px 16px;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .chip.selected {
+            background-color: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+            border-color: transparent;
+        }
+        
+        /* 对话框 */
+        .dialog-backdrop {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .dialog-backdrop.active { opacity: 1; pointer-events: auto; }
+        
+        .dialog {
+            background: var(--md-sys-color-surface-container);
+            padding: 24px;
+            border-radius: 28px;
+            width: 80%;
+            max-width: 320px;
+        }
+        
+        .dialog input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 4px;
+            background: transparent;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        /* 按钮样式 */
+        .md-btn {
+            background: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border: none;
+            padding: 10px 24px;
+            border-radius: 20px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .md-btn-text {
+            background: transparent;
+            color: var(--md-sys-color-primary);
+            border: none;
+            padding: 10px 24px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 首页 -->
+    <div id="home-page" class="page">
+        <div class="logo-area">
+            <span class="material-symbols-rounded logo-icon">rocket_launch</span>
+            <div>小壮浏览器</div>
+        </div>
+
+        <!-- 搜索框 -->
+        <div class="search-bar-container">
+            <span class="material-symbols-rounded" style="color: var(--md-sys-color-outline);">search</span>
+            <input type="text" class="search-input" id="main-search-input" placeholder="搜索或输入网址...">
+            <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary); cursor: pointer;" onclick="goSearch()">arrow_forward</span>
+        </div>
+
+        <!-- 快捷方式 -->
+        <div class="shortcuts-grid" id="shortcuts-container">
+            <!-- JS 动态生成 -->
+            <div class="shortcut-item" onclick="openAddShortcutDialog()">
+                <div class="shortcut-icon-box" style="background: transparent; border: 1px dashed var(--md-sys-color-outline); color: var(--md-sys-color-on-surface);">
+                    <span class="material-symbols-rounded">add</span>
+                </div>
+                <span class="shortcut-label">添加</span>
+            </div>
+        </div>
+
+        <!-- 底部设置按钮 -->
+        <div class="bottom-actions">
+            <button class="icon-btn" onclick="toggleEditMode()">
+                <span class="material-symbols-rounded">edit</span>
+            </button>
+            <button class="icon-btn" onclick="openSettings()">
+                <span class="material-symbols-rounded">settings</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 浏览器内页 -->
+    <div id="browser-page" class="page hidden">
+        <!-- 只有真正的App才能完全去掉这个，Web模拟需要显示状态 -->
+        
+        <!-- 内页内容区 -->
+        <div class="browser-content">
+            <iframe id="content-frame" src="" style="width:100%; height:100%; border:none;"></iframe>
+            <div id="browser-error" class="browser-placeholder hidden">
+                <span class="material-symbols-rounded" style="font-size: 48px; margin-bottom:10px;">block</span>
+                <p>无法在网页版Demo中嵌入该网站。<br>这是浏览器同源策略限制。</p>
+            </div>
+        </div>
+
+        <!-- 底部导航栏 -->
+        <div class="browser-nav-bar">
+            <button class="icon-btn" onclick="goBackHome()">
+                <span class="material-symbols-rounded">home</span>
+            </button>
+            <button class="icon-btn" onclick="alert('后退功能在iframe中受限')">
+                <span class="material-symbols-rounded">arrow_back_ios</span>
+            </button>
+            
+            <!-- 显示当前搜索词或简略URL -->
+            <div class="url-display" id="mini-url-bar" onclick="goBackHome()">...</div>
+            
+            <button class="icon-btn" onclick="alert('前进功能在iframe中受限')">
+                <span class="material-symbols-rounded">arrow_forward_ios</span>
+            </button>
+            <button class="icon-btn" onclick="openSettings()">
+                <span class="material-symbols-rounded">menu</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 设置抽屉 -->
+    <div class="bottom-sheet-overlay" id="settings-overlay" onclick="closeSettings(event)">
+        <div class="bottom-sheet" onclick="event.stopPropagation()">
+            <div class="sheet-handle"></div>
+            <h2 class="sheet-title">设置</h2>
+            
+            <div class="setting-row">
+                <span>搜索引擎</span>
+                <div class="chip-group">
+                    <div class="chip selected" onclick="setEngine('bing', this)">必应</div>
+                    <div class="chip" onclick="setEngine('baidu', this)">百度</div>
+                    <div class="chip" onclick="setEngine('google', this)">谷歌</div>
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <span>主题风格</span>
+                <div class="chip-group">
+                    <div class="chip" onclick="setTheme('light')">浅色</div>
+                    <div class="chip" onclick="setTheme('dark')">深色</div>
+                    <div class="chip" onclick="setTheme('auto')">跟随系统</div>
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <span>个性化颜色</span>
+                <div class="chip-group">
+                    <div class="chip" style="background:#6750A4; width:30px; height:30px; padding:0;" onclick="setPrimaryColor('#6750A4')"></div>
+                    <div class="chip" style="background:#9c27b0; width:30px; height:30px; padding:0;" onclick="setPrimaryColor('#9c27b0')"></div>
+                    <div class="chip" style="background:#009688; width:30px; height:30px; padding:0;" onclick="setPrimaryColor('#009688')"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 添加快捷方式对话框 -->
+    <div class="dialog-backdrop" id="add-shortcut-dialog">
+        <div class="dialog">
+            <h3>添加快捷方式</h3>
+            <input type="text" id="new-shortcut-name" placeholder="名称 (如: 微博)">
+            <input type="text" id="new-shortcut-url" placeholder="链接 (如: https://weibo.com)">
+            <div style="text-align: right; margin-top: 20px;">
+                <button class="md-btn-text" onclick="closeDialog()">取消</button>
+                <button class="md-btn" onclick="saveShortcut()">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 数据与状态 ---
+        let currentEngine = 'bing';
+        let isEditMode = false;
+        
+        let shortcuts = [
+            { name: '必应', url: 'https://cn.bing.com', icon: 'search' },
+            { name: '维基', url: 'https://zh.m.wikipedia.org', icon: 'menu_book' }, // Wikipedia 允许 iframe
+            { name: '知乎', url: 'https://www.zhihu.com', icon: 'question_mark' }
+        ];
+
+        const engines = {
+            bing: 'https://cn.bing.com/search?q=',
+            baidu: 'https://www.baidu.com/s?wd=',
+            google: 'https://www.google.com/search?q='
+        };
+
+        // --- 初始化 ---
+        window.onload = () => {
+            renderShortcuts();
+            
+            // 绑定回车搜索
+            document.getElementById('main-search-input').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    goSearch();
+                }
+            });
+        };
+
+        // --- 核心逻辑: 搜索与浏览 ---
+        function goSearch(query = null) {
+            const input = document.getElementById('main-search-input');
+            const val = query || input.value.trim();
+            
+            if (!val) return;
+
+            let targetUrl = '';
+            
+            // 简单判断是URL还是搜索词
+            if (val.startsWith('http://') || val.startsWith('https://')) {
+                targetUrl = val;
+            } else if (val.includes('.') && !val.includes(' ')) {
+                 targetUrl = 'https://' + val;
+            } else {
+                targetUrl = engines[currentEngine] + encodeURIComponent(val);
+            }
+
+            // 切换界面
+            document.getElementById('home-page').classList.add('hidden');
+            document.getElementById('browser-page').classList.remove('hidden');
+            
+            // 加载内容
+            const iframe = document.getElementById('content-frame');
+            const errorMsg = document.getElementById('browser-error');
+            const miniUrl = document.getElementById('mini-url-bar');
+
+            miniUrl.innerText = val; // 显示搜索词
+            iframe.src = targetUrl;
+            
+            // 模拟加载
+            iframe.onload = () => {
+                // 注意：跨域无法准确检测iframe内容是否加载成功
+                // 如果是 Wikipedia 这种允许嵌入的，会显示
+                // 如果是 Baidu/Google，控制台会报错Refused to display
+            };
+        }
+
+        function goBackHome() {
+            document.getElementById('browser-page').classList.add('hidden');
+            document.getElementById('home-page').classList.remove('hidden');
+            document.getElementById('content-frame').src = 'about:blank'; // 停止加载
+            document.getElementById('main-search-input').value = ''; // 清空搜索栏
+        }
+
+        // --- 快捷方式管理 ---
+        function renderShortcuts() {
+            const container = document.getElementById('shortcuts-container');
+            // 保留最后一个添加按钮，清空前面的
+            const addButton = container.lastElementChild;
+            container.innerHTML = '';
+            
+            shortcuts.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'shortcut-item';
+                if (isEditMode) div.classList.add('editing');
+                
+                div.innerHTML = `
+                    <div class="shortcut-icon-box" onclick="handleShortcutClick(${index})">
+                        <span class="material-symbols-rounded">${item.icon || 'public'}</span>
+                    </div>
+                    <span class="shortcut-label">${item.name}</span>
+                    <div class="delete-btn" onclick="deleteShortcut(${index})">
+                        <span class="material-symbols-rounded" style="font-size:14px">close</span>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            
+            container.appendChild(addButton);
+        }
+
+        function handleShortcutClick(index) {
+            if (isEditMode) return; // 编辑模式下点击图标不跳转
+            goSearch(shortcuts[index].url);
+        }
+
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            renderShortcuts();
+        }
+
+        function deleteShortcut(index) {
+            shortcuts.splice(index, 1);
+            renderShortcuts();
+        }
+        
+        function openAddShortcutDialog() {
+            document.getElementById('add-shortcut-dialog').classList.add('active');
+        }
+        
+        function closeDialog() {
+            document.getElementById('add-shortcut-dialog').classList.remove('active');
+            document.getElementById('new-shortcut-name').value = '';
+            document.getElementById('new-shortcut-url').value = '';
+        }
+        
+        function saveShortcut() {
+            const name = document.getElementById('new-shortcut-name').value;
+            const url = document.getElementById('new-shortcut-url').value;
+            if(name && url) {
+                shortcuts.push({ name: name, url: url, icon: 'link' });
+                renderShortcuts();
+                closeDialog();
+            }
+        }
+
+        // --- 设置逻辑 ---
+        function openSettings() {
+            document.getElementById('settings-overlay').classList.add('active');
+        }
+
+        function closeSettings(e) {
+            if(e.target.id === 'settings-overlay') {
+                document.getElementById('settings-overlay').classList.remove('active');
+            }
+        }
+
+        function setEngine(engine, el) {
+            currentEngine = engine;
+            // 更新UI选中状态
+            const chips = el.parentElement.querySelectorAll('.chip');
+            chips.forEach(c => c.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+        
+        function setTheme(mode) {
+            // 这里是简单的模拟
+            alert('主题切换逻辑已触发：' + mode + '\n(需配合完整CSS变量切换，当前根据系统自动适配)');
+        }
+        
+        function setPrimaryColor(color) {
+            document.documentElement.style.setProperty('--md-sys-color-primary', color);
+            document.documentElement.style.setProperty('--md-sys-color-primary-container', color + '40'); // 40 is hex for 25% opacity
+        }
+
+    </script>
+</body>
+</html>
