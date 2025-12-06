@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Windows 11 Web Simulator</title>
+    <style>
+        /* --- 全局重置与变量 --- */
+        :root {
+            --bg-color: #000;
+            --taskbar-color: rgba(243, 243, 243, 0.85);
+            --window-bg: #fff;
+            --accent-color: #0078d4;
+            --text-color: #333;
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+
+        /* --- 桌面背景 --- */
+        #desktop {
+            width: 100%;
+            height: 100%;
+            background: url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?ixlib=rb-1.2.1&auto=format&fit=crop&w=1920&q=80') no-repeat center center fixed;
+            background-size: cover;
+            position: relative;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-content: flex-start;
+            flex-wrap: wrap;
+        }
+
+        /* --- 桌面图标 --- */
+        .desktop-icon {
+            width: 80px;
+            height: 90px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.2s;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+        }
+        .desktop-icon:hover { background: rgba(255, 255, 255, 0.1); }
+        .desktop-icon:active { background: rgba(255, 255, 255, 0.2); }
+        .desktop-icon i { font-size: 32px; margin-bottom: 5px; }
+        .desktop-icon span { font-size: 12px; text-align: center; word-break: break-word; }
+
+        /* --- 窗口系统 --- */
+        .window {
+            position: absolute;
+            background: var(--window-bg);
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 300px;
+            min-height: 200px;
+            opacity: 0;
+            transform: scale(0.95);
+            transition: opacity 0.2s, transform 0.2s, width 0.3s, height 0.3s;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .window.open { opacity: 1; transform: scale(1); }
+        .window.minimized { opacity: 0; transform: scale(0.8) translateY(100vh); pointer-events: none; }
+        
+        /* 窗口标题栏 */
+        .title-bar {
+            height: 36px;
+            background: #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px;
+            cursor: grab;
+            border-bottom: 1px solid #ddd;
+        }
+        .title-bar:active { cursor: grabbing; }
+        .title-text { font-size: 12px; font-weight: bold; }
+        .window-controls { display: flex; gap: 10px; }
+        .control-btn {
+            width: 12px; height: 12px; border-radius: 50%; border: none; cursor: pointer;
+        }
+        .btn-min { background: #ffbd2e; }
+        .btn-max { background: #27c93f; }
+        .btn-close { background: #ff5f56; }
+
+        /* 窗口内容 */
+        .window-content {
+            flex: 1;
+            overflow: auto;
+            background: #fff;
+            position: relative;
+        }
+        
+        iframe { width: 100%; height: 100%; border: none; }
+
+        /* --- 任务栏 --- */
+        #taskbar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 48px;
+            background: var(--taskbar-color);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            display: flex;
+            justify-content: center; /* Win11 居中风格 */
+            align-items: center;
+            z-index: 9999;
+            border-top: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .taskbar-icon {
+            width: 40px;
+            height: 40px;
+            margin: 0 4px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: 0.2s;
+            position: relative;
+        }
+        .taskbar-icon:hover { background: rgba(255,255,255,0.5); }
+        .taskbar-icon.active::after {
+            content: ''; position: absolute; bottom: 2px; width: 12px; height: 3px;
+            background: var(--accent-color); border-radius: 2px;
+        }
+        .taskbar-icon img { width: 24px; height: 24px; }
+
+        /* 系统托盘 (右下角时间) */
+        .system-tray {
+            position: absolute;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            font-size: 11px;
+            color: #333;
+            cursor: default;
+        }
+
+        /* --- 开始菜单 --- */
+        #start-menu {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            width: 600px;
+            height: 500px;
+            background: rgba(243, 243, 243, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            z-index: 9998;
+            display: none;
+            padding: 20px;
+            flex-direction: column;
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+        #start-menu.show { display: flex; animation: popUp 0.2s ease-out forwards; }
+        
+        @keyframes popUp {
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+
+        .search-bar {
+            width: 100%;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin-bottom: 20px;
+        }
+        .pinned-apps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+        .pinned-app { display: flex; flex-direction: column; align-items: center; cursor: pointer; padding: 10px; border-radius: 4px; }
+        .pinned-app:hover { background: rgba(255,255,255,0.5); }
+        .pinned-app span { font-size: 11px; margin-top: 5px; }
+
+        /* --- 移动端适配 --- */
+        @media (max-width: 768px) {
+            #start-menu { width: 95%; bottom: 55px; height: 70%; }
+            .pinned-apps { grid-template-columns: repeat(4, 1fr); }
+            
+            /* 手机上窗口默认较大，方便操作 */
+            .window { 
+                width: 90% !important; 
+                height: 70% !important; 
+                left: 5% !important;
+                top: 10% !important;
+            }
+            
+            #desktop { flex-direction: row; align-content: flex-start; }
+            .desktop-icon { margin: 10px; }
+        }
+    </style>
+    <!-- 引入图标库 (使用 emoji 代替图片以简化代码) -->
+</head>
+<body>
+
+    <!-- 桌面区域 -->
+    <div id="desktop" onclick="closeStartMenu()">
+        
+        <!-- 桌面图标 -->
+        <div class="desktop-icon" ondblclick="openWindow('pc')" ontouchend="openWindow('pc')">
+            <div style="font-size:35px;">💻</div>
+            <span>此电脑</span>
+        </div>
+        <div class="desktop-icon" ondblclick="openWindow('browser')" ontouchend="openWindow('browser')">
+            <div style="font-size:35px;">🌐</div>
+            <span>Edge 浏览器</span>
+        </div>
+        <div class="desktop-icon" ondblclick="openWindow('notepad')" ontouchend="openWindow('notepad')">
+            <div style="font-size:35px;">📝</div>
+            <span>记事本</span>
+        </div>
+        <div class="desktop-icon" ondblclick="openWindow('settings')" ontouchend="openWindow('settings')">
+            <div style="font-size:35px;">⚙️</div>
+            <span>设置</span>
+        </div>
+        <div class="desktop-icon" onclick="bsod()">
+            <div style="font-size:35px;">⚠️</div>
+            <span>不要点我</span>
+        </div>
+
+        <!-- 窗口：此电脑 -->
+        <div id="win-pc" class="window" style="left: 20%; top: 10%; width: 600px; height: 400px; z-index: 10;">
+            <div class="title-bar" onmousedown="startDrag(event, 'win-pc')" ontouchstart="startDrag(event, 'win-pc')">
+                <span class="title-text">此电脑</span>
+                <div class="window-controls">
+                    <button class="control-btn btn-min" onclick="minimizeWindow('win-pc')"></button>
+                    <button class="control-btn btn-max" onclick="maximizeWindow('win-pc')"></button>
+                    <button class="control-btn btn-close" onclick="closeWindow('win-pc')"></button>
+                </div>
+            </div>
+            <div class="window-content" style="padding: 20px; background: #f9f9f9;">
+                <h3>设备和驱动器</h3>
+                <div style="display:flex; gap:20px; margin-top:20px;">
+                    <div style="display:flex; align-items:center; width:200px; background:#fff; padding:10px; border:1px solid #ddd;">
+                        <div style="font-size:30px; margin-right:10px;">💾</div>
+                        <div>
+                            <div style="font-size:12px; font-weight:bold;">本地磁盘 (C:)</div>
+                            <div style="width:100px; height:5px; background:#eee; margin-top:5px;"><div style="width:70%; height:100%; background:#0078d4;"></div></div>
+                            <div style="font-size:10px; color:#666;">60GB 可用，共 200GB</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 窗口：浏览器 -->
+        <div id="win-browser" class="window" style="left: 15%; top: 15%; width: 800px; height: 500px; z-index: 9;">
+            <div class="title-bar" onmousedown="startDrag(event, 'win-browser')" ontouchstart="startDrag(event, 'win-browser')">
+                <span class="title-text">Edge 浏览器 - Bing</span>
+                <div class="window-controls">
+                    <button class="control-btn btn-min" onclick="minimizeWindow('win-browser')"></button>
+                    <button class="control-btn btn-max" onclick="maximizeWindow('win-browser')"></button>
+                    <button class="control-btn btn-close" onclick="closeWindow('win-browser')"></button>
+                </div>
+            </div>
+            <div class="window-content">
+                <!-- 注意：很多网站禁止 iframe 嵌入，这里用 Wikipedia 演示 -->
+                <iframe src="https://zh.m.wikipedia.org/wiki/Microsoft_Windows"></iframe>
+                <!-- 拖拽遮罩：防止鼠标拖拽时被 iframe 捕获 -->
+                <div class="iframe-shield" style="position:absolute; top:0; left:0; width:100%; height:100%; display:none;"></div>
+            </div>
+        </div>
+
+        <!-- 窗口：记事本 -->
+        <div id="win-notepad" class="window" style="left: 30%; top: 20%; width: 400px; height: 300px; z-index: 11;">
+            <div class="title-bar" onmousedown="startDrag(event, 'win-notepad')" ontouchstart="startDrag(event, 'win-notepad')">
+                <span class="title-text">无标题 - 记事本</span>
+                <div class="window-controls">
+                    <button class="control-btn btn-min" onclick="minimizeWindow('win-notepad')"></button>
+                    <button class="control-btn btn-max" onclick="maximizeWindow('win-notepad')"></button>
+                    <button class="control-btn btn-close" onclick="closeWindow('win-notepad')"></button>
+                </div>
+            </div>
+            <div class="window-content">
+                <textarea style="width:100%; height:100%; border:none; resize:none; padding:10px; outline:none;" placeholder="在此输入..."></textarea>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 开始菜单 -->
+    <div id="start-menu" onclick="event.stopPropagation()">
+        <input type="text" class="search-bar" placeholder="在此键入以搜索应用、文件和设置...">
+        <div style="font-size:12px; margin-bottom:10px; font-weight:bold;">已固定</div>
+        <div class="pinned-apps">
+            <div class="pinned-app" onclick="openWindow('browser')"><div style="font-size:24px;">🌐</div><span>Edge</span></div>
+            <div class="pinned-app" onclick="openWindow('notepad')"><div style="font-size:24px;">📝</div><span>Word</span></div>
+            <div class="pinned-app"><div style="font-size:24px;">✉️</div><span>Mail</span></div>
+            <div class="pinned-app"><div style="font-size:24px;">📷</div><span>Photos</span></div>
+            <div class="pinned-app" onclick="openWindow('settings')"><div style="font-size:24px;">⚙️</div><span>Settings</span></div>
+            <div class="pinned-app"><div style="font-size:24px;">🎮</div><span>Xbox</span></div>
+        </div>
+    </div>
+
+    <!-- 任务栏 -->
+    <div id="taskbar">
+        <div class="taskbar-icon" onclick="toggleStartMenu(event)" title="开始">
+            <div style="font-size:20px;">🪟</div>
+        </div>
+        <div class="taskbar-icon" onclick="openWindow('browser')" title="搜索">
+            <div style="font-size:20px;">🔍</div>
+        </div>
+        <!-- 应用图标 -->
+        <div class="taskbar-icon" id="icon-pc" onclick="restoreWindow('win-pc')" style="display:none;">
+            <div style="font-size:20px;">💻</div>
+        </div>
+        <div class="taskbar-icon" id="icon-browser" onclick="restoreWindow('win-browser')" style="display:none;">
+            <div style="font-size:20px;">🌐</div>
+        </div>
+        <div class="taskbar-icon" id="icon-notepad" onclick="restoreWindow('win-notepad')" style="display:none;">
+            <div style="font-size:20px;">📝</div>
+        </div>
+
+        <!-- 系统托盘 -->
+        <div class="system-tray">
+            <div id="clock-time">12:00</div>
+            <div id="clock-date">2023/10/01</div>
+        </div>
+    </div>
+
+    <script>
+        // --- 时钟逻辑 ---
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock-time').innerText = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+            document.getElementById('clock-date').innerText = now.getFullYear() + '/' + (now.getMonth() + 1) + '/' + now.getDate();
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // --- 窗口管理 (Z-Index) ---
+        let zIndexCounter = 100;
+
+        function bringToFront(id) {
+            zIndexCounter++;
+            document.getElementById(id).style.zIndex = zIndexCounter;
+            
+            // 处理 iframe 遮罩（拖动时防止卡顿）
+            const allShields = document.querySelectorAll('.iframe-shield');
+            allShields.forEach(s => s.style.display = 'none');
+        }
+
+        // --- 窗口操作 ---
+        function openWindow(app) {
+            const winId = 'win-' + app;
+            const iconId = 'icon-' + app;
+            const win = document.getElementById(winId);
+            
+            if (!win) {
+                alert("应用 " + app + " 正在开发中...");
+                return;
+            }
+
+            win.classList.remove('minimized');
+            win.classList.add('open');
+            document.getElementById(iconId).style.display = 'flex';
+            document.getElementById(iconId).classList.add('active');
+            
+            bringToFront(winId);
+            closeStartMenu();
+        }
+
+        function closeWindow(winId) {
+            const win = document.getElementById(winId);
+            win.classList.remove('open');
+            // 稍微延迟以播放动画
+            setTimeout(() => {
+                const appName = winId.replace('win-', '');
+                document.getElementById('icon-' + appName).style.display = 'none';
+                document.getElementById('icon-' + appName).classList.remove('active');
+            }, 200);
+        }
+
+        function minimizeWindow(winId) {
+            const win = document.getElementById(winId);
+            win.classList.add('minimized');
+            const appName = winId.replace('win-', '');
+            document.getElementById('icon-' + appName).classList.remove('active');
+        }
+
+        function restoreWindow(winId) {
+            const win = document.getElementById(winId);
+            if (win.classList.contains('minimized') || !win.classList.contains('open')) {
+                win.classList.remove('minimized');
+                win.classList.add('open');
+                bringToFront(winId);
+                const appName = winId.replace('win-', '');
+                document.getElementById('icon-' + appName).classList.add('active');
+            } else {
+                // 如果已经打开且在最前，则最小化
+                minimizeWindow(winId);
+            }
+        }
+
+        function maximizeWindow(winId) {
+            const win = document.getElementById(winId);
+            if (win.style.width === '100%') {
+                // 还原
+                win.style.width = win.dataset.prevWidth || '600px';
+                win.style.height = win.dataset.prevHeight || '400px';
+                win.style.top = win.dataset.prevTop || '10%';
+                win.style.left = win.dataset.prevLeft || '10%';
+            } else {
+                // 最大化
+                win.dataset.prevWidth = win.style.width;
+                win.dataset.prevHeight = win.style.height;
+                win.dataset.prevTop = win.style.top;
+                win.dataset.prevLeft = win.style.left;
+                
+                win.style.width = '100%';
+                win.style.height = 'calc(100% - 48px)'; // 减去任务栏
+                win.style.top = '0';
+                win.style.left = '0';
+            }
+        }
+
+        // --- 开始菜单 ---
+        function toggleStartMenu(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('start-menu');
+            menu.classList.toggle('show');
+        }
+        
+        function closeStartMenu() {
+            document.getElementById('start-menu').classList.remove('show');
+        }
+
+        // --- 拖拽逻辑 (支持鼠标和触摸) ---
+        let isDragging = false;
+        let currentWindow = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        function startDrag(e, winId) {
+            // 如果是点击了按钮，不要开始拖拽
+            if(e.target.tagName === 'BUTTON') return;
+
+            isDragging = true;
+            currentWindow = document.getElementById(winId);
+            bringToFront(winId);
+
+            // 显示 iframe 遮罩，防止拖动过快时鼠标进入 iframe 导致拖动失效
+            const shield = currentWindow.querySelector('.iframe-shield');
+            if(shield) shield.style.display = 'block';
+
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            const rect = currentWindow.getBoundingClientRect();
+            dragOffsetX = clientX - rect.left;
+            dragOffsetY = clientY - rect.top;
+        }
+
+        function onDrag(e) {
+            if (!isDragging || !currentWindow) return;
+            
+            // 阻止手机上的默认滚动行为
+            e.preventDefault(); 
+
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            let newLeft = clientX - dragOffsetX;
+            let newTop = clientY - dragOffsetY;
+
+            // 边界检查 (不让窗口完全拖出去)
+            if (newTop < 0) newTop = 0;
+            
+            currentWindow.style.left = newLeft + 'px';
+            currentWindow.style.top = newTop + 'px';
+            
+            // 拖动时取消最大化状态
+            if(currentWindow.style.width === '100%') {
+                currentWindow.style.width = '600px';
+                currentWindow.style.height = '400px';
+            }
+        }
+
+        function stopDrag() {
+            isDragging = false;
+            if (currentWindow) {
+                const shield = currentWindow.querySelector('.iframe-shield');
+                if(shield) shield.style.display = 'none';
+            }
+            currentWindow = null;
+        }
+
+        // 全局监听拖拽事件
+        document.addEventListener('mousemove', onDrag);
+        document.addEventListener('mouseup', stopDrag);
+        document.addEventListener('touchmove', onDrag, { passive: false });
+        document.addEventListener('touchend', stopDrag);
+
+        // --- 蓝屏彩蛋 ---
+        function bsod() {
+            document.body.innerHTML = `
+                <div style="background:#0078d7; color:white; width:100%; height:100%; padding:10%; font-family: 'Segoe UI', sans-serif;">
+                    <h1 style="font-size:100px; margin:0;">:(</h1>
+                    <h2>Your PC ran into a problem and needs to restart.</h2>
+                    <p>We're just collecting some error info, and then we'll restart for you.</p>
+                    <p>0% complete</p>
+                    <br>
+                    <button onclick="location.reload()" style="padding:10px 20px; cursor:pointer;">Restart Now</button>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
