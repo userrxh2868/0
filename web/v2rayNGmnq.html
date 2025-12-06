@@ -1,0 +1,2021 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>v2rayNG</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        :root {
+            /* MD3 Color Scheme - Dark Theme */
+            --md-sys-color-primary: #A8C7FA;
+            --md-sys-color-on-primary: #062E6F;
+            --md-sys-color-primary-container: #1E4A8A;
+            --md-sys-color-on-primary-container: #D3E4FF;
+            --md-sys-color-secondary: #BEC6DC;
+            --md-sys-color-on-secondary: #283141;
+            --md-sys-color-secondary-container: #3E4758;
+            --md-sys-color-on-secondary-container: #DAE2F9;
+            --md-sys-color-tertiary: #DEBCDF;
+            --md-sys-color-on-tertiary: #402843;
+            --md-sys-color-tertiary-container: #583E5B;
+            --md-sys-color-on-tertiary-container: #FBD7FC;
+            --md-sys-color-error: #FFB4AB;
+            --md-sys-color-on-error: #690005;
+            --md-sys-color-error-container: #93000A;
+            --md-sys-color-on-error-container: #FFDAD6;
+            --md-sys-color-background: #111318;
+            --md-sys-color-on-background: #E2E2E9;
+            --md-sys-color-surface: #111318;
+            --md-sys-color-on-surface: #E2E2E9;
+            --md-sys-color-surface-variant: #44474E;
+            --md-sys-color-on-surface-variant: #C4C6D0;
+            --md-sys-color-outline: #8E9099;
+            --md-sys-color-outline-variant: #44474E;
+            --md-sys-color-surface-container: #1D2024;
+            --md-sys-color-surface-container-high: #282A2F;
+            --md-sys-color-surface-container-highest: #33353A;
+            --md-sys-color-inverse-surface: #E2E2E9;
+            --md-sys-color-inverse-on-surface: #2E3036;
+            --md-sys-color-success: #81C995;
+            --md-sys-color-warning: #FFB74D;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-background);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Top App Bar */
+        .top-app-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background-color: var(--md-sys-color-surface);
+            display: flex;
+            align-items: center;
+            padding: 0 4px;
+            z-index: 100;
+        }
+
+        .top-app-bar .icon-button {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: var(--md-sys-color-on-surface);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .top-app-bar .icon-button:hover {
+            background-color: var(--md-sys-color-surface-container-high);
+        }
+
+        .top-app-bar .icon-button:active {
+            background-color: var(--md-sys-color-surface-container-highest);
+        }
+
+        .top-app-bar .title {
+            font-size: 22px;
+            font-weight: 400;
+            margin-left: 4px;
+            flex: 1;
+        }
+
+        /* Connection Status Card */
+        .status-card {
+            margin: 80px 16px 16px 16px;
+            background: linear-gradient(135deg, var(--md-sys-color-primary-container) 0%, var(--md-sys-color-secondary-container) 100%);
+            border-radius: 28px;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -30%;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .status-icon-container {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background-color: rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .status-icon-container .material-icons-round {
+            font-size: 32px;
+            color: var(--md-sys-color-on-primary-container);
+        }
+
+        .status-text h2 {
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--md-sys-color-on-primary-container);
+        }
+
+        .status-text p {
+            font-size: 14px;
+            color: var(--md-sys-color-on-primary-container);
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+
+        .status-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-item .value {
+            font-size: 20px;
+            font-weight: 500;
+            color: var(--md-sys-color-on-primary-container);
+        }
+
+        .stat-item .label {
+            font-size: 12px;
+            color: var(--md-sys-color-on-primary-container);
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+
+        /* Connect Button */
+        .connect-button-container {
+            display: flex;
+            justify-content: center;
+            margin: 24px 0;
+        }
+
+        .connect-button {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: none;
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(168, 199, 250, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .connect-button::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: transparent;
+            transition: background-color 0.2s;
+        }
+
+        .connect-button:hover::before {
+            background-color: rgba(0, 0, 0, 0.08);
+        }
+
+        .connect-button:active {
+            transform: scale(0.95);
+        }
+
+        .connect-button.connected {
+            background-color: var(--md-sys-color-success);
+            animation: pulse 2s infinite;
+        }
+
+        .connect-button .material-icons-round {
+            font-size: 40px;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(129, 201, 149, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 20px rgba(129, 201, 149, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(129, 201, 149, 0);
+            }
+        }
+
+        /* Section Header */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+        }
+
+        .section-header h3 {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--md-sys-color-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .section-header .badge {
+            background-color: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* Server List */
+        .server-list {
+            padding: 0 16px 100px 16px;
+        }
+
+        .server-item {
+            background-color: var(--md-sys-color-surface-container);
+            border-radius: 16px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .server-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background-color: var(--md-sys-color-outline);
+            border-radius: 0 4px 4px 0;
+        }
+
+        .server-item.active::before {
+            background-color: var(--md-sys-color-success);
+        }
+
+        .server-item.selected {
+            background-color: var(--md-sys-color-surface-container-high);
+        }
+
+        .server-item-content {
+            padding: 16px;
+            padding-left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .server-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background-color: var(--md-sys-color-surface-container-highest);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .server-icon img {
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+        }
+
+        .server-icon .material-icons-round {
+            font-size: 24px;
+            color: var(--md-sys-color-primary);
+        }
+
+        .server-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .server-name {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--md-sys-color-on-surface);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .server-address {
+            font-size: 13px;
+            color: var(--md-sys-color-on-surface-variant);
+            margin-top: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .server-tags {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .server-tag {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 8px;
+            background-color: var(--md-sys-color-surface-container-highest);
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        .server-tag.protocol {
+            background-color: var(--md-sys-color-tertiary-container);
+            color: var(--md-sys-color-on-tertiary-container);
+        }
+
+        .server-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .server-latency {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .server-latency.fast {
+            color: var(--md-sys-color-success);
+        }
+
+        .server-latency.medium {
+            color: var(--md-sys-color-warning);
+        }
+
+        .server-latency.slow {
+            color: var(--md-sys-color-error);
+        }
+
+        .server-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .server-action-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: var(--md-sys-color-on-surface-variant);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .server-action-btn:hover {
+            background-color: var(--md-sys-color-surface-container-highest);
+        }
+
+        .server-action-btn .material-icons-round {
+            font-size: 20px;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background-color: var(--md-sys-color-surface-container);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding-bottom: env(safe-area-inset-bottom);
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            padding: 12px 24px;
+            border-radius: 16px;
+            transition: all 0.2s;
+            border: none;
+            background: transparent;
+        }
+
+        .nav-item.active {
+            background-color: var(--md-sys-color-secondary-container);
+        }
+
+        .nav-item .material-icons-round {
+            font-size: 24px;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        .nav-item.active .material-icons-round {
+            color: var(--md-sys-color-on-secondary-container);
+        }
+
+        .nav-item span {
+            font-size: 12px;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        .nav-item.active span {
+            color: var(--md-sys-color-on-secondary-container);
+            font-weight: 500;
+        }
+
+        /* Navigation Drawer */
+        .drawer-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .drawer-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .drawer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 320px;
+            max-width: 85vw;
+            background-color: var(--md-sys-color-surface-container);
+            z-index: 201;
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+            border-radius: 0 28px 28px 0;
+        }
+
+        .drawer.open {
+            transform: translateX(0);
+        }
+
+        .drawer-header {
+            padding: 24px;
+            background: linear-gradient(135deg, var(--md-sys-color-primary-container) 0%, var(--md-sys-color-tertiary-container) 100%);
+        }
+
+        .drawer-header h2 {
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--md-sys-color-on-primary-container);
+        }
+
+        .drawer-header p {
+            font-size: 14px;
+            color: var(--md-sys-color-on-primary-container);
+            opacity: 0.8;
+            margin-top: 8px;
+        }
+
+        .drawer-section {
+            padding: 8px;
+        }
+
+        .drawer-section-title {
+            padding: 16px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--md-sys-color-on-surface-variant);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .drawer-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            border-radius: 28px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border: none;
+            background: transparent;
+            width: 100%;
+            text-align: left;
+        }
+
+        .drawer-item:hover {
+            background-color: var(--md-sys-color-surface-container-high);
+        }
+
+        .drawer-item.active {
+            background-color: var(--md-sys-color-secondary-container);
+        }
+
+        .drawer-item .material-icons-round {
+            font-size: 24px;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        .drawer-item.active .material-icons-round {
+            color: var(--md-sys-color-on-secondary-container);
+        }
+
+        .drawer-item span {
+            font-size: 14px;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .drawer-item.active span {
+            color: var(--md-sys-color-on-secondary-container);
+            font-weight: 500;
+        }
+
+        /* FAB */
+        .fab {
+            position: fixed;
+            bottom: 96px;
+            right: 16px;
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            border: none;
+            background-color: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s;
+            z-index: 50;
+        }
+
+        .fab:hover {
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .fab:active {
+            transform: scale(0.95);
+        }
+
+        .fab .material-icons-round {
+            font-size: 24px;
+        }
+
+        /* Bottom Sheet */
+        .bottom-sheet-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 300;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .bottom-sheet-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .bottom-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--md-sys-color-surface-container-high);
+            border-radius: 28px 28px 0 0;
+            z-index: 301;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .bottom-sheet.open {
+            transform: translateY(0);
+        }
+
+        .bottom-sheet-handle {
+            width: 32px;
+            height: 4px;
+            background-color: var(--md-sys-color-outline);
+            border-radius: 2px;
+            margin: 16px auto;
+        }
+
+        .bottom-sheet-content {
+            padding: 0 24px 24px;
+        }
+
+        .bottom-sheet-title {
+            font-size: 20px;
+            font-weight: 500;
+            margin-bottom: 24px;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .sheet-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 0;
+            cursor: pointer;
+            border-bottom: 1px solid var(--md-sys-color-outline-variant);
+        }
+
+        .sheet-item:last-child {
+            border-bottom: none;
+        }
+
+        .sheet-item .material-icons-round {
+            font-size: 24px;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        .sheet-item span {
+            font-size: 16px;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        /* Snackbar */
+        .snackbar {
+            position: fixed;
+            bottom: 100px;
+            left: 16px;
+            right: 16px;
+            background-color: var(--md-sys-color-inverse-surface);
+            color: var(--md-sys-color-inverse-on-surface);
+            padding: 16px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 400;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .snackbar.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .snackbar-text {
+            font-size: 14px;
+        }
+
+        .snackbar-action {
+            background: transparent;
+            border: none;
+            color: var(--md-sys-color-primary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+        }
+
+        /* Dialog */
+        .dialog-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+        }
+
+        .dialog-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .dialog {
+            background-color: var(--md-sys-color-surface-container-high);
+            border-radius: 28px;
+            padding: 24px;
+            width: 100%;
+            max-width: 360px;
+            transform: scale(0.9);
+            transition: transform 0.2s;
+        }
+
+        .dialog-overlay.open .dialog {
+            transform: scale(1);
+        }
+
+        .dialog-title {
+            font-size: 24px;
+            font-weight: 500;
+            margin-bottom: 16px;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .dialog-content {
+            font-size: 14px;
+            color: var(--md-sys-color-on-surface-variant);
+            line-height: 1.5;
+            margin-bottom: 24px;
+        }
+
+        .dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .dialog-btn {
+            padding: 10px 24px;
+            border-radius: 20px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .dialog-btn.text {
+            background: transparent;
+            color: var(--md-sys-color-primary);
+        }
+
+        .dialog-btn.filled {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+        }
+
+        /* Input Fields */
+        .text-field {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .text-field input {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid var(--md-sys-color-outline);
+            border-radius: 16px;
+            background: transparent;
+            color: var(--md-sys-color-on-surface);
+            font-size: 16px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .text-field input:focus {
+            border-color: var(--md-sys-color-primary);
+        }
+
+        .text-field label {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--md-sys-color-on-surface-variant);
+            font-size: 16px;
+            pointer-events: none;
+            transition: all 0.2s;
+            background-color: var(--md-sys-color-surface-container-high);
+            padding: 0 4px;
+        }
+
+        .text-field input:focus + label,
+        .text-field input:not(:placeholder-shown) + label {
+            top: 0;
+            font-size: 12px;
+            color: var(--md-sys-color-primary);
+        }
+
+        /* Ripple Effect */
+        .ripple {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ripple::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            background: radial-gradient(circle, rgba(255,255,255,0.2) 10%, transparent 10%);
+            transform: scale(10);
+            opacity: 0;
+            transition: transform 0.5s, opacity 0.5s;
+        }
+
+        .ripple:active::after {
+            transform: scale(0);
+            opacity: 0.3;
+            transition: 0s;
+        }
+
+        /* Subscription Page */
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* Settings List */
+        .settings-list {
+            padding: 80px 16px 100px;
+        }
+
+        .settings-group {
+            background-color: var(--md-sys-color-surface-container);
+            border-radius: 16px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .settings-group-title {
+            padding: 16px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--md-sys-color-primary);
+        }
+
+        .settings-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .settings-item:hover {
+            background-color: var(--md-sys-color-surface-container-high);
+        }
+
+        .settings-item-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .settings-item-left .material-icons-round {
+            font-size: 24px;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        .settings-item-info h4 {
+            font-size: 16px;
+            font-weight: 400;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .settings-item-info p {
+            font-size: 13px;
+            color: var(--md-sys-color-on-surface-variant);
+            margin-top: 4px;
+        }
+
+        /* Switch */
+        .switch {
+            width: 52px;
+            height: 32px;
+            background-color: var(--md-sys-color-surface-variant);
+            border-radius: 16px;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .switch.active {
+            background-color: var(--md-sys-color-primary);
+        }
+
+        .switch::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background-color: var(--md-sys-color-outline);
+            border-radius: 50%;
+            top: 4px;
+            left: 4px;
+            transition: all 0.2s;
+        }
+
+        .switch.active::after {
+            left: 24px;
+            background-color: var(--md-sys-color-on-primary);
+        }
+
+        /* Log page */
+        .log-container {
+            padding: 80px 16px 100px;
+        }
+
+        .log-content {
+            background-color: var(--md-sys-color-surface-container);
+            border-radius: 16px;
+            padding: 16px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 12px;
+            color: var(--md-sys-color-on-surface-variant);
+            line-height: 1.8;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        .log-line {
+            padding: 4px 0;
+        }
+
+        .log-line.info {
+            color: var(--md-sys-color-primary);
+        }
+
+        .log-line.warning {
+            color: var(--md-sys-color-warning);
+        }
+
+        .log-line.error {
+            color: var(--md-sys-color-error);
+        }
+
+        .log-line.success {
+            color: var(--md-sys-color-success);
+        }
+
+        /* Loading Animation */
+        .loading-spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--md-sys-color-surface-variant);
+            border-top-color: var(--md-sys-color-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Subscriptions Page */
+        .subscription-list {
+            padding: 80px 16px 100px;
+        }
+
+        .subscription-item {
+            background-color: var(--md-sys-color-surface-container);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .subscription-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .subscription-name {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .subscription-url {
+            font-size: 13px;
+            color: var(--md-sys-color-on-surface-variant);
+            word-break: break-all;
+        }
+
+        .subscription-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--md-sys-color-outline-variant);
+        }
+
+        .subscription-meta span {
+            font-size: 12px;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        /* Chip */
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 8px;
+            background-color: var(--md-sys-color-surface-container-high);
+            color: var(--md-sys-color-on-surface);
+            font-size: 14px;
+        }
+
+        .chip.selected {
+            background-color: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
+        }
+
+        /* Filter chips container */
+        .filter-chips {
+            display: flex;
+            gap: 8px;
+            padding: 16px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .filter-chips::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Status indicator */
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--md-sys-color-outline);
+        }
+
+        .status-indicator.active {
+            background-color: var(--md-sys-color-success);
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top App Bar -->
+    <header class="top-app-bar">
+        <button class="icon-button" onclick="toggleDrawer()">
+            <span class="material-icons-round">menu</span>
+        </button>
+        <h1 class="title">v2rayNG</h1>
+        <button class="icon-button" onclick="showAddMenu()">
+            <span class="material-icons-round">add</span>
+        </button>
+        <button class="icon-button" onclick="testAllLatency()">
+            <span class="material-icons-round">speed</span>
+        </button>
+        <button class="icon-button" onclick="showMoreMenu()">
+            <span class="material-icons-round">more_vert</span>
+        </button>
+    </header>
+
+    <!-- Navigation Drawer -->
+    <div class="drawer-overlay" onclick="toggleDrawer()"></div>
+    <nav class="drawer">
+        <div class="drawer-header">
+            <h2>v2rayNG</h2>
+            <p>版本 1.8.29</p>
+        </div>
+        <div class="drawer-section">
+            <button class="drawer-item active" onclick="switchPage('home')">
+                <span class="material-icons-round">home</span>
+                <span>主页</span>
+            </button>
+            <button class="drawer-item" onclick="switchPage('subscription')">
+                <span class="material-icons-round">subscriptions</span>
+                <span>订阅设置</span>
+            </button>
+            <button class="drawer-item" onclick="switchPage('settings')">
+                <span class="material-icons-round">settings</span>
+                <span>设置</span>
+            </button>
+            <button class="drawer-item" onclick="switchPage('routing')">
+                <span class="material-icons-round">alt_route</span>
+                <span>路由设置</span>
+            </button>
+            <button class="drawer-item" onclick="switchPage('logs')">
+                <span class="material-icons-round">article</span>
+                <span>日志</span>
+            </button>
+        </div>
+        <div class="drawer-section">
+            <div class="drawer-section-title">其他</div>
+            <button class="drawer-item">
+                <span class="material-icons-round">backup</span>
+                <span>备份</span>
+            </button>
+            <button class="drawer-item">
+                <span class="material-icons-round">info</span>
+                <span>关于</span>
+            </button>
+            <button class="drawer-item">
+                <span class="material-icons-round">help</span>
+                <span>帮助文档</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Home Page -->
+    <main class="page active" id="page-home">
+        <!-- Status Card -->
+        <div class="status-card">
+            <div class="status-header">
+                <div class="status-icon-container">
+                    <span class="material-icons-round" id="status-icon">cloud_off</span>
+                </div>
+                <div class="status-text">
+                    <h2 id="connection-status">未连接</h2>
+                    <p id="connection-server">选择服务器开始连接</p>
+                </div>
+            </div>
+            <div class="status-stats">
+                <div class="stat-item">
+                    <div class="value" id="stat-upload">0 B</div>
+                    <div class="label">上传</div>
+                </div>
+                <div class="stat-item">
+                    <div class="value" id="stat-download">0 B</div>
+                    <div class="label">下载</div>
+                </div>
+                <div class="stat-item">
+                    <div class="value" id="stat-duration">00:00:00</div>
+                    <div class="label">时长</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Connect Button -->
+        <div class="connect-button-container">
+            <button class="connect-button ripple" id="connect-btn" onclick="toggleConnection()">
+                <span class="material-icons-round">power_settings_new</span>
+            </button>
+        </div>
+
+        <!-- Filter Chips -->
+        <div class="filter-chips">
+            <button class="chip selected" onclick="filterServers('all', this)">全部</button>
+            <button class="chip" onclick="filterServers('vmess', this)">VMess</button>
+            <button class="chip" onclick="filterServers('vless', this)">VLESS</button>
+            <button class="chip" onclick="filterServers('trojan', this)">Trojan</button>
+            <button class="chip" onclick="filterServers('ss', this)">Shadowsocks</button>
+        </div>
+
+        <!-- Server List -->
+        <div class="section-header">
+            <h3>服务器列表</h3>
+            <span class="badge" id="server-count">8 个配置</span>
+        </div>
+
+        <div class="server-list" id="server-list">
+            <!-- Server items will be generated by JavaScript -->
+        </div>
+    </main>
+
+    <!-- Subscription Page -->
+    <main class="page" id="page-subscription">
+        <div class="subscription-list">
+            <div class="section-header" style="padding: 0 0 16px 0;">
+                <h3>订阅管理</h3>
+                <button class="chip" onclick="updateAllSubscriptions()">
+                    <span class="material-icons-round" style="font-size: 18px;">sync</span>
+                    更新全部
+                </button>
+            </div>
+
+            <div class="subscription-item">
+                <div class="subscription-header">
+                    <span class="subscription-name">机场订阅 1</span>
+                    <button class="server-action-btn" onclick="editSubscription(0)">
+                        <span class="material-icons-round">edit</span>
+                    </button>
+                </div>
+                <div class="subscription-url">https://sub.example.com/api/v1/client/subscribe?token=xxx</div>
+                <div class="subscription-meta">
+                    <span>上次更新: 2024-01-15 12:30</span>
+                    <span>12 个节点</span>
+                </div>
+            </div>
+
+            <div class="subscription-item">
+                <div class="subscription-header">
+                    <span class="subscription-name">备用订阅</span>
+                    <button class="server-action-btn" onclick="editSubscription(1)">
+                        <span class="material-icons-round">edit</span>
+                    </button>
+                </div>
+                <div class="subscription-url">https://backup.example.net/subscribe/abcdef</div>
+                <div class="subscription-meta">
+                    <span>上次更新: 2024-01-14 08:45</span>
+                    <span>6 个节点</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Settings Page -->
+    <main class="page" id="page-settings">
+        <div class="settings-list">
+            <div class="settings-group">
+                <div class="settings-group-title">基本设置</div>
+                <div class="settings-item" onclick="toggleSwitch(this)">
+                    <div class="settings-item-left">
+                        <span class="material-icons-round">wifi_tethering</span>
+                        <div class="settings-item-info">
+                            <h4>VPN 模式</h4>
+                            <p>使用 VPN 代理所有流量</p>
+                        </div>
+                    </div>
+                    <div class="switch active"></div>
+                </div>
+                <div class="settings-item" onclick="toggleSwitch(this)">
+                    <div class="settings-item-left">
+                        <span class="material-icons-round">dns</span>
+                        <div class="settings-item-info">
+                            <h4>本地 DNS</h4>
+                            <p>启用本地 DNS 代理</p>
+                        </div>
+                    </div>
+                    <div class="switch"></div>
+                </div>
+                <div class="settings-item" onclick="toggleSwitch(this)">
+                    <div class="settings-item-left">
+                        <span class="material-icons-round">play_arrow</span>
+                        <div class="settings-item-info">
+                            <h4>开机自启</h4>
+                            <p>设备启动时自动连接</p>
+                        </div>
+                    </div>
+                    <div class="switch"></div>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <div class="settings-group-title">核心设置</div>
+                <div class="settings-item">
+                    <div class="settings-item-left">
+                        <span class="material-icons-round">memory</span>
+                        <div class="settings-item-info">
+                            <h4>核心类型</h4>
+                            <p>Xray-core</p>
+                        </div>
+                    </div>
+                    <span class="material-icons-round" style="color: var(--md-sys-color-on-surface-variant);">chevron_right</span>
+                </div>
+                <div class="settings-item">
+                    <div class="settings-item-left">
+                        <span class="material-icons-round">lan</span>
+                        <div class="settings-item-info">
+                            <h4>本地端口</h4>
+                            <p>10808</p>
+                        </div>
+                    </div>
+                    <span class="material-icons-round" style="color: var(--md-sys-color-on-surface-variant);">chevron_right</span>
+                </div>
+                <div class="settings-item">
+                    <div class="settings-item-left">
+                        <span class="material-icons-round">http</span>
+                        <div class="settings-item-info">
+                            <h4>HTTP 端口</h4>
+                            <p>10809</p>
+                        </div>
+                    </div>
+                    <span class="material-icons-round" style="color: var(--md-sys-color-on-surface-variant);">chevron_right</span>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <div class="settings-group-title">其他</div>
+                <div class="settings-item" onclick="toggleSwitch(this)">
+                    <div class="settings-item-left">
+                        <span class="material-icons-round">speed</span>
+                        <div class="settings-item-info">
+                            <h4>启用速度显示</h4>
+                            <p>在通知栏显示实时速度</p>
+                        </div>
+                    </div>
+                    <div class="switch active"></div>
+                </div>
+                <div class="settings-item" onclick="toggleSwitch(this)">
+                    <div class="settings-item-left">
+                        <span class="material-icons-round">dark_mode</span>
+                        <div class="settings-item-info">
+                            <h4>深色模式</h4>
+                            <p>使用深色主题</p>
+                        </div>
+                    </div>
+                    <div class="switch active"></div>
+                </div>
+                <div class="settings-item">
+                    <div class="settings-item-left">
+                        <span class="material-icons-round">language</span>
+                        <div class="settings-item-info">
+                            <h4>语言</h4>
+                            <p>简体中文</p>
+                        </div>
+                    </div>
+                    <span class="material-icons-round" style="color: var(--md-sys-color-on-surface-variant);">chevron_right</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Routing Page -->
+    <main class="page" id="page-routing">
+        <div class="settings-list">
+            <div class="settings-group">
+                <div class="settings-group-title">预设规则</div>
+                <div class="settings-item" onclick="selectRouting(this)">
+                    <div class="settings-item-left">
+                        <span class="material-icons-round">public</span>
+                        <div class="settings-item-info">
+                            <h4>全局代理</h4>
+                            <p>所有流量通过代理</p>
+                        </div>
+                    </div>
+                    <span class="material-icons-round" style="color: var(--md-sys-color-primary);">radio_button_unchecked</span>
+                </div>
+                <div class="settings-item" onclick="selectRouting(this)">
+                    <div class="settings-item-left">
+                        <span class="material-icons-round">rule</span>
+                        <div class="settings-item-info">
+                            <h4>绕过大陆</h4>
+                            <p>大陆网站直连</p>
+                        </div>
+                    </div>
+                    <span class="material-icons-round" style="color: var(--md-sys-color-primary);">radio_button_checked</span>
+                </div>
+                <div class="settings-item" onclick="selectRouting(this)">
+                    <div class="settings-item-left">
+                        <span class="material-icons-round">block</span>
+                        <div class="settings-item-info">
+                            <h4>绕过局域网</h4>
+                            <p>仅绕过局域网地址</p>
+                        </div>
+                    </div>
+                    <span class="material-icons-round" style="color: var(--md-sys-color-primary);">radio_button_unchecked</span>
+                </div>
+                <div class="settings-item" onclick="selectRouting(this)">
+                    <div class="settings-item-left">
+                        <span class="material-icons-round">edit_note</span>
+                        <div class="settings-item-info">
+                            <h4>自定义规则</h4>
+                            <p>使用自定义路由规则</p>
+                        </div>
+                    </div>
+                    <span class="material-icons-round" style="color: var(--md-sys-color-primary);">radio_button_unchecked</span>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <div class="settings-group-title">GeoIP & GeoSite</div>
+                <div class="settings-item">
+                    <div class="settings-item-left">
+                        <span class="material-icons-round">map</span>
+                        <div class="settings-item-info">
+                            <h4>GeoIP 数据</h4>
+                            <p>2024-01-10 更新</p>
+                        </div>
+                    </div>
+                    <button class="chip" style="padding: 4px 12px; font-size: 12px;">更新</button>
+                </div>
+                <div class="settings-item">
+                    <div class="settings-item-left">
+                        <span class="material-icons-round">public</span>
+                        <div class="settings-item-info">
+                            <h4>GeoSite 数据</h4>
+                            <p>2024-01-10 更新</p>
+                        </div>
+                    </div>
+                    <button class="chip" style="padding: 4px 12px; font-size: 12px;">更新</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Logs Page -->
+    <main class="page" id="page-logs">
+        <div class="log-container">
+            <div class="log-content" id="log-content">
+                <div class="log-line info">[2024-01-15 14:30:01] [Info] v2rayNG 启动</div>
+                <div class="log-line">[2024-01-15 14:30:01] [Info] 正在加载配置...</div>
+                <div class="log-line success">[2024-01-15 14:30:02] [Info] 配置加载成功</div>
+                <div class="log-line">[2024-01-15 14:30:02] [Info] 核心版本: Xray 1.8.7</div>
+                <div class="log-line">[2024-01-15 14:30:15] [Info] 开始连接服务器...</div>
+                <div class="log-line">[2024-01-15 14:30:15] [Info] 服务器: 香港 IPLC 01</div>
+                <div class="log-line">[2024-01-15 14:30:16] [Info] 正在建立连接...</div>
+                <div class="log-line success">[2024-01-15 14:30:17] [Info] 连接成功!</div>
+                <div class="log-line">[2024-01-15 14:30:17] [Info] 本地监听: 127.0.0.1:10808</div>
+                <div class="log-line">[2024-01-15 14:30:17] [Info] HTTP代理: 127.0.0.1:10809</div>
+                <div class="log-line warning">[2024-01-15 14:35:22] [Warning] 连接超时，正在重试...</div>
+                <div class="log-line success">[2024-01-15 14:35:24] [Info] 重新连接成功</div>
+                <div class="log-line">[2024-01-15 14:45:00] [Info] 流量统计: ↑ 12.5 MB ↓ 156.8 MB</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- FAB -->
+    <button class="fab" onclick="showAddMenu()">
+        <span class="material-icons-round">add</span>
+    </button>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="switchTab(this, 'home')">
+            <span class="material-icons-round">dns</span>
+            <span>配置</span>
+        </button>
+        <button class="nav-item" onclick="switchTab(this, 'subscription')">
+            <span class="material-icons-round">subscriptions</span>
+            <span>订阅</span>
+        </button>
+        <button class="nav-item" onclick="switchTab(this, 'settings')">
+            <span class="material-icons-round">settings</span>
+            <span>设置</span>
+        </button>
+        <button class="nav-item" onclick="switchTab(this, 'logs')">
+            <span class="material-icons-round">article</span>
+            <span>日志</span>
+        </button>
+    </nav>
+
+    <!-- Add Server Bottom Sheet -->
+    <div class="bottom-sheet-overlay" id="add-sheet-overlay" onclick="closeAddSheet()"></div>
+    <div class="bottom-sheet" id="add-sheet">
+        <div class="bottom-sheet-handle"></div>
+        <div class="bottom-sheet-content">
+            <h3 class="bottom-sheet-title">添加配置</h3>
+            <div class="sheet-item" onclick="addFromClipboard()">
+                <span class="material-icons-round">content_paste</span>
+                <span>从剪贴板导入</span>
+            </div>
+            <div class="sheet-item" onclick="scanQRCode()">
+                <span class="material-icons-round">qr_code_scanner</span>
+                <span>扫描二维码</span>
+            </div>
+            <div class="sheet-item" onclick="manualInput()">
+                <span class="material-icons-round">edit</span>
+                <span>手动输入</span>
+            </div>
+            <div class="sheet-item" onclick="addSubscription()">
+                <span class="material-icons-round">add_link</span>
+                <span>添加订阅</span>
+            </div>
+            <div class="sheet-item" onclick="importFromFile()">
+                <span class="material-icons-round">folder_open</span>
+                <span>从文件导入</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- More Menu Bottom Sheet -->
+    <div class="bottom-sheet-overlay" id="more-sheet-overlay" onclick="closeMoreSheet()"></div>
+    <div class="bottom-sheet" id="more-sheet">
+        <div class="bottom-sheet-handle"></div>
+        <div class="bottom-sheet-content">
+            <h3 class="bottom-sheet-title">更多选项</h3>
+            <div class="sheet-item" onclick="updateSubscription()">
+                <span class="material-icons-round">sync</span>
+                <span>更新订阅</span>
+            </div>
+            <div class="sheet-item" onclick="exportConfig()">
+                <span class="material-icons-round">ios_share</span>
+                <span>导出配置</span>
+            </div>
+            <div class="sheet-item" onclick="clearServers()">
+                <span class="material-icons-round">delete_sweep</span>
+                <span>清除全部配置</span>
+            </div>
+            <div class="sheet-item" onclick="sortServers()">
+                <span class="material-icons-round">sort</span>
+                <span>排序</span>
+            </div>
+            <div class="sheet-item" onclick="shareConfig()">
+                <span class="material-icons-round">share</span>
+                <span>分享配置</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Snackbar -->
+    <div class="snackbar" id="snackbar">
+        <span class="snackbar-text" id="snackbar-text">消息内容</span>
+        <button class="snackbar-action" onclick="hideSnackbar()">关闭</button>
+    </div>
+
+    <!-- Dialog -->
+    <div class="dialog-overlay" id="dialog-overlay">
+        <div class="dialog">
+            <h3 class="dialog-title" id="dialog-title">确认操作</h3>
+            <p class="dialog-content" id="dialog-content">您确定要执行此操作吗?</p>
+            <div class="dialog-actions">
+                <button class="dialog-btn text" onclick="closeDialog()">取消</button>
+                <button class="dialog-btn filled" onclick="confirmDialog()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Server Data
+        const servers = [
+            {
+                id: 1,
+                name: '🇭🇰 香港 IPLC 01',
+                address: 'hk1.example.com:443',
+                protocol: 'VMess',
+                network: 'WS',
+                latency: 45,
+                active: true
+            },
+            {
+                id: 2,
+                name: '🇭🇰 香港 BGP 02',
+                address: 'hk2.example.com:443',
+                protocol: 'VLESS',
+                network: 'gRPC',
+                latency: 68,
+                active: false
+            },
+            {
+                id: 3,
+                name: '🇯🇵 日本 东京 01',
+                address: 'jp1.example.com:443',
+                protocol: 'Trojan',
+                network: 'TCP',
+                latency: 89,
+                active: false
+            },
+            {
+                id: 4,
+                name: '🇸🇬 新加坡 01',
+                address: 'sg1.example.com:443',
+                protocol: 'VMess',
+                network: 'WS',
+                latency: 120,
+                active: false
+            },
+            {
+                id: 5,
+                name: '🇺🇸 美国 洛杉矶 01',
+                address: 'us1.example.com:443',
+                protocol: 'VLESS',
+                network: 'Reality',
+                latency: 180,
+                active: false
+            },
+            {
+                id: 6,
+                name: '🇹🇼 台湾 高雄 01',
+                address: 'tw1.example.com:443',
+                protocol: 'Shadowsocks',
+                network: 'TCP',
+                latency: 55,
+                active: false
+            },
+            {
+                id: 7,
+                name: '🇰🇷 韩国 首尔 01',
+                address: 'kr1.example.com:443',
+                protocol: 'VMess',
+                network: 'H2',
+                latency: 75,
+                active: false
+            },
+            {
+                id: 8,
+                name: '🇬🇧 英国 伦敦 01',
+                address: 'uk1.example.com:443',
+                protocol: 'Trojan',
+                network: 'WS',
+                latency: 250,
+                active: false
+            }
+        ];
+
+        let isConnected = false;
+        let selectedServer = servers[0];
+        let connectionTimer = null;
+        let connectionSeconds = 0;
+        let uploadBytes = 0;
+        let downloadBytes = 0;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            renderServerList();
+        });
+
+        // Render Server List
+        function renderServerList(filter = 'all') {
+            const container = document.getElementById('server-list');
+            let filteredServers = servers;
+            
+            if (filter !== 'all') {
+                filteredServers = servers.filter(s => s.protocol.toLowerCase().includes(filter.toLowerCase()));
+            }
+
+            container.innerHTML = filteredServers.map(server => `
+                <div class="server-item ${server.active ? 'active selected' : ''}" onclick="selectServer(${server.id})">
+                    <div class="server-item-content">
+                        <div class="server-icon">
+                            <span class="material-icons-round">${getProtocolIcon(server.protocol)}</span>
+                        </div>
+                        <div class="server-info">
+                            <div class="server-name">${server.name}</div>
+                            <div class="server-address">${server.address}</div>
+                            <div class="server-tags">
+                                <span class="server-tag protocol">${server.protocol}</span>
+                                <span class="server-tag">${server.network}</span>
+                            </div>
+                        </div>
+                        <div class="server-meta">
+                            <div class="server-latency ${getLatencyClass(server.latency)}">${server.latency}ms</div>
+                            <div class="server-actions">
+                                <button class="server-action-btn" onclick="event.stopPropagation(); testLatency(${server.id})">
+                                    <span class="material-icons-round">speed</span>
+                                </button>
+                                <button class="server-action-btn" onclick="event.stopPropagation(); editServer(${server.id})">
+                                    <span class="material-icons-round">edit</span>
+                                </button>
+                                <button class="server-action-btn" onclick="event.stopPropagation(); deleteServer(${server.id})">
+                                    <span class="material-icons-round">delete</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('server-count').textContent = `${filteredServers.length} 个配置`;
+        }
+
+        function getProtocolIcon(protocol) {
+            const icons = {
+                'VMess': 'vpn_key',
+                'VLESS': 'key',
+                'Trojan': 'security',
+                'Shadowsocks': 'shield'
+            };
+            return icons[protocol] || 'dns';
+        }
+
+        function getLatencyClass(latency) {
+            if (latency < 80) return 'fast';
+            if (latency < 150) return 'medium';
+            return 'slow';
+        }
+
+        // Select Server
+        function selectServer(id) {
+            servers.forEach(s => s.active = (s.id === id));
+            selectedServer = servers.find(s => s.id === id);
+            renderServerList();
+            
+            if (isConnected) {
+                showSnackbar('已切换服务器，正在重新连接...');
+            } else {
+                showSnackbar(`已选择: ${selectedServer.name}`);
+            }
+        }
+
+        // Toggle Connection
+        function toggleConnection() {
+            const btn = document.getElementById('connect-btn');
+            const statusIcon = document.getElementById('status-icon');
+            const statusText = document.getElementById('connection-status');
+            const serverText = document.getElementById('connection-server');
+
+            if (!isConnected) {
+                // Connect
+                btn.classList.add('connected');
+                btn.innerHTML = '<span class="material-icons-round">stop</span>';
+                statusIcon.textContent = 'cloud_done';
+                statusText.textContent = '已连接';
+                serverText.textContent = selectedServer.name;
+                isConnected = true;
+                
+                // Start timer
+                connectionTimer = setInterval(updateConnectionTime, 1000);
+                
+                // Simulate traffic
+                simulateTraffic();
+                
+                showSnackbar('已连接到 ' + selectedServer.name);
+            } else {
+                // Disconnect
+                btn.classList.remove('connected');
+                btn.innerHTML = '<span class="material-icons-round">power_settings_new</span>';
+                statusIcon.textContent = 'cloud_off';
+                statusText.textContent = '未连接';
+                serverText.textContent = '选择服务器开始连接';
+                isConnected = false;
+                
+                // Stop timer
+                clearInterval(connectionTimer);
+                connectionSeconds = 0;
+                document.getElementById('stat-duration').textContent = '00:00:00';
+                document.getElementById('stat-upload').textContent = '0 B';
+                document.getElementById('stat-download').textContent = '0 B';
+                uploadBytes = 0;
+                downloadBytes = 0;
+                
+                showSnackbar('已断开连接');
+            }
+        }
+
+        function updateConnectionTime() {
+            connectionSeconds++;
+            const hours = Math.floor(connectionSeconds / 3600);
+            const minutes = Math.floor((connectionSeconds % 3600) / 60);
+            const seconds = connectionSeconds % 60;
+            document.getElementById('stat-duration').textContent = 
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function simulateTraffic() {
+            if (!isConnected) return;
+            
+            uploadBytes += Math.random() * 50000;
+            downloadBytes += Math.random() * 200000;
+            
+            document.getElementById('stat-upload').textContent = formatBytes(uploadBytes);
+            document.getElementById('stat-download').textContent = formatBytes(downloadBytes);
+            
+            setTimeout(simulateTraffic, 1000);
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        // Test Latency
+        function testLatency(id) {
+            const server = servers.find(s => s.id === id);
+            showSnackbar(`正在测试 ${server.name} 的延迟...`);
+            
+            setTimeout(() => {
+                server.latency = Math.floor(Math.random() * 200) + 30;
+                renderServerList();
+                showSnackbar(`${server.name}: ${server.latency}ms`);
+            }, 1500);
+        }
+
+        function testAllLatency() {
+            showSnackbar('正在测试所有服务器延迟...');
+            
+            servers.forEach((server, index) => {
+                setTimeout(() => {
+                    server.latency = Math.floor(Math.random() * 200) + 30;
+                    renderServerList();
+                }, index * 500);
+            });
+
+            setTimeout(() => {
+                showSnackbar('延迟测试完成');
+            }, servers.length * 500);
+        }
+
+        // Filter Servers
+        function filterServers(filter, element) {
+            document.querySelectorAll('.filter-chips .chip').forEach(c => c.classList.remove('selected'));
+            element.classList.add('selected');
+            renderServerList(filter);
+        }
+
+        // Navigation
+        function toggleDrawer() {
+            document.querySelector('.drawer').classList.toggle('open');
+            document.querySelector('.drawer-overlay').classList.toggle('open');
+        }
+
+        function switchPage(page) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(`page-${page}`).classList.add('active');
+            
+            document.querySelectorAll('.drawer-item').forEach(item => item.classList.remove('active'));
+            event.target.closest('.drawer-item').classList.add('active');
+            
+            toggleDrawer();
+        }
+
+        function switchTab(element, page) {
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            element.classList.add('active');
+            
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(`page-${page}`).classList.add('active');
+        }
+
+        // Bottom Sheets
+        function showAddMenu() {
+            document.getElementById('add-sheet').classList.add('open');
+            document.getElementById('add-sheet-overlay').classList.add('open');
+        }
+
+        function closeAddSheet() {
+            document.getElementById('add-sheet').classList.remove('open');
+            document.getElementById('add-sheet-overlay').classList.remove('open');
+        }
+
+        function showMoreMenu() {
+            document.getElementById('more-sheet').classList.add('open');
+            document.getElementById('more-sheet-overlay').classList.add('open');
+        }
+
+        function closeMoreSheet() {
+            document.getElementById('more-sheet').classList.remove('open');
+            document.getElementById('more-sheet-overlay').classList.remove('open');
+        }
+
+        // Actions
+        function addFromClipboard() {
+            closeAddSheet();
+            showSnackbar('正在从剪贴板导入...');
+            setTimeout(() => showSnackbar('导入成功! 添加了 3 个配置'), 1500);
+        }
+
+        function scanQRCode() {
+            closeAddSheet();
+            showSnackbar('请扫描二维码');
+        }
+
+        function manualInput() {
+            closeAddSheet();
+            showSnackbar('手动输入功能');
+        }
+
+        function addSubscription() {
+            closeAddSheet();
+            showSnackbar('添加订阅');
+        }
+
+        function importFromFile() {
+            closeAddSheet();
+            showSnackbar('从文件导入');
+        }
+
+        function updateSubscription() {
+            closeMoreSheet();
+            showSnackbar('正在更新订阅...');
+            setTimeout(() => showSnackbar('订阅更新成功!'), 2000);
+        }
+
+        function updateAllSubscriptions() {
+            showSnackbar('正在更新所有订阅...');
+            setTimeout(() => showSnackbar('所有订阅更新成功!'), 3000);
+        }
+
+        function exportConfig() {
+            closeMoreSheet();
+            showSnackbar('配置已导出');
+        }
+
+        function clearServers() {
+            closeMoreSheet();
+            showDialog('清除全部配置', '确定要删除所有配置吗？此操作不可恢复。');
+        }
+
+        function sortServers() {
+            closeMoreSheet();
+            showSnackbar('按延迟排序完成');
+        }
+
+        function shareConfig() {
+            closeMoreSheet();
+            showSnackbar('已复制分享链接');
+        }
+
+        function editServer(id) {
+            showSnackbar('编辑服务器 ' + id);
+        }
+
+        function deleteServer(id) {
+            showDialog('删除配置', '确定要删除这个配置吗？');
+        }
+
+        function editSubscription(index) {
+            showSnackbar('编辑订阅');
+        }
+
+        // Toggle Switch
+        function toggleSwitch(element) {
+            const switchEl = element.querySelector('.switch');
+            switchEl.classList.toggle('active');
+        }
+
+        // Routing Selection
+        function selectRouting(element) {
+            document.querySelectorAll('.settings-item .material-icons-round').forEach(icon => {
+                if (icon.textContent === 'radio_button_checked') {
+                    icon.textContent = 'radio_button_unchecked';
+                }
+            });
+            const icon = element.querySelector('.material-icons-round:last-child');
+            icon.textContent = 'radio_button_checked';
+            showSnackbar('路由规则已更改');
+        }
+
+        // Snackbar
+        function showSnackbar(message) {
+            const snackbar = document.getElementById('snackbar');
+            document.getElementById('snackbar-text').textContent = message;
+            snackbar.classList.add('show');
+            setTimeout(hideSnackbar, 3000);
+        }
+
+        function hideSnackbar() {
+            document.getElementById('snackbar').classList.remove('show');
+        }
+
+        // Dialog
+        function showDialog(title, content) {
+            document.getElementById('dialog-title').textContent = title;
+            document.getElementById('dialog-content').textContent = content;
+            document.getElementById('dialog-overlay').classList.add('open');
+        }
+
+        function closeDialog() {
+            document.getElementById('dialog-overlay').classList.remove('open');
+        }
+
+        function confirmDialog() {
+            closeDialog();
+            showSnackbar('操作已执行');
+        }
+
+        // Prevent default touch behaviors
+        document.addEventListener('touchmove', function(e) {
+            if (e.target.closest('.server-list') || e.target.closest('.log-content') || 
+                e.target.closest('.settings-list') || e.target.closest('.drawer') ||
+                e.target.closest('.filter-chips')) {
+                return;
+            }
+        }, { passive: true });
+    </script>
+</body>
+</html>
