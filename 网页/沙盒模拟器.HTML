@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>沙盒沙箱模拟器 MD3</title>
+    <style>
+        /* ==================== MD3 Design System ==================== */
+        :root {
+            /* Color Palette (Deep Purple Theme) */
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            --md-sys-color-secondary: #625B71;
+            --md-sys-color-secondary-container: #E8DEF8;
+            --md-sys-color-on-secondary-container: #1D192B;
+            --md-sys-color-surface: #FFFBFE;
+            --md-sys-color-surface-container: #F3EDF7;
+            --md-sys-color-on-surface: #1C1B1F;
+            --md-sys-color-outline: #79747E;
+            --md-sys-color-surface-variant: #E7E0EC;
+            
+            /* Typography */
+            --md-sys-typescale-title-large: 400 22px/28px 'Roboto', sans-serif;
+            --md-sys-typescale-label-large: 500 14px/20px 'Roboto', sans-serif;
+
+            /* Elevation & Shape */
+            --md-sys-shape-corner-large: 16px;
+            --md-sys-shape-corner-full: 9999px;
+            --md-sys-elevation-2: 0px 4px 8px 3px rgba(0,0,0,0.15);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --md-sys-color-primary: #D0BCFF;
+                --md-sys-color-on-primary: #381E72;
+                --md-sys-color-primary-container: #4F378B;
+                --md-sys-color-on-primary-container: #EADDFF;
+                --md-sys-color-surface: #1C1B1F;
+                --md-sys-color-surface-container: #25232A;
+                --md-sys-color-on-surface: #E6E1E5;
+                --md-sys-color-surface-variant: #49454F;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
+            font-family: 'Roboto', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top App Bar */
+        header {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            background-color: var(--md-sys-color-surface);
+            font: var(--md-sys-typescale-title-large);
+            justify-content: space-between;
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: var(--md-sys-color-on-surface);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .icon-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        /* Canvas Container */
+        #game-container {
+            flex: 1;
+            position: relative;
+            background-color: #000;
+            margin: 0 16px 16px 16px;
+            border-radius: var(--md-sys-shape-corner-large);
+            overflow: hidden;
+            box-shadow: var(--md-sys-elevation-2);
+            touch-action: none; /* Important for drawing */
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated; /* Retro look */
+            display: block;
+        }
+
+        /* Floating Controls (Bottom Bar) */
+        .controls-area {
+            background-color: var(--md-sys-color-surface-container);
+            padding: 12px 16px 24px 16px;
+            border-radius: 24px 24px 0 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chip-scroll {
+            display: flex;
+            overflow-x: auto;
+            gap: 8px;
+            padding-bottom: 4px;
+            scrollbar-width: none;
+        }
+        .chip-scroll::-webkit-scrollbar { display: none; }
+
+        .chip {
+            height: 32px;
+            padding: 0 16px;
+            border-radius: 8px;
+            border: 1px solid var(--md-sys-color-outline);
+            background: transparent;
+            color: var(--md-sys-color-on-surface);
+            font: var(--md-sys-typescale-label-large);
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.2, 0.0, 0, 1.0);
+        }
+
+        .chip.active {
+            background-color: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
+            border-color: transparent;
+        }
+        
+        .chip.active::before {
+            content: "✓";
+            margin-right: 6px;
+            font-weight: bold;
+        }
+
+        /* Bottom Sheet / Dialog for "More" */
+        #more-sheet {
+            position: fixed;
+            bottom: -100%;
+            left: 0;
+            right: 0;
+            background-color: var(--md-sys-color-surface-container);
+            border-radius: 28px 28px 0 0;
+            padding: 24px;
+            transition: bottom 0.3s cubic-bezier(0.2, 0.0, 0, 1.0);
+            z-index: 100;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.2);
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        #more-sheet.open {
+            bottom: 0;
+        }
+
+        .sheet-handle {
+            width: 32px;
+            height: 4px;
+            background: var(--md-sys-color-outline);
+            opacity: 0.4;
+            border-radius: 2px;
+            margin: -10px auto 20px auto;
+        }
+
+        .grid-elements {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 12px;
+        }
+
+        .element-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: var(--md-sys-color-surface);
+            border-radius: 12px;
+            gap: 8px;
+            cursor: pointer;
+        }
+        
+        .element-color-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .backdrop {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 90;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .backdrop.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Ripple Effect */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: 0.1;
+            transform: scale(0);
+            animation: ripple-anim 0.6s linear;
+            pointer-events: none;
+        }
+        @keyframes ripple-anim {
+            to { transform: scale(4); opacity: 0; }
+        }
+        
+        .brush-size-slider {
+            width: 100%;
+            height: 4px;
+            background: var(--md-sys-color-surface-variant);
+            border-radius: 2px;
+            appearance: none;
+            outline: none;
+        }
+        .brush-size-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--md-sys-color-primary);
+            cursor: pointer;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div style="display:flex; align-items:center; gap:12px;">
+            <span>沙箱模拟器</span>
+        </div>
+        <button class="icon-btn" onclick="clearCanvas()" title="清空">
+            <svg viewBox="0 0 24 24"><path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" /></svg>
+        </button>
+    </header>
+
+    <div id="game-container">
+        <canvas id="sandbox"></canvas>
+    </div>
+
+    <div class="controls-area">
+        <!-- 笔刷大小控制 -->
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom: 8px;">
+            <span style="font-size:12px; opacity:0.7">笔刷大小</span>
+            <input type="range" class="brush-size-slider" min="1" max="10" value="3" id="brushSize">
+        </div>
+
+        <!-- 常用元素 -->
+        <div class="chip-scroll" id="quick-bar">
+            <!-- JS Generated -->
+        </div>
+
+        <!-- 更多按钮 -->
+        <button class="icon-btn" style="width:100%; border-radius:12px; height:48px; background:var(--md-sys-color-primary); color:var(--md-sys-color-on-primary); margin-top:8px;" onclick="toggleSheet(true)">
+            更多元素
+        </button>
+    </div>
+
+    <!-- Backdrop -->
+    <div class="backdrop" id="backdrop" onclick="toggleSheet(false)"></div>
+
+    <!-- Bottom Sheet -->
+    <div id="more-sheet">
+        <div class="sheet-handle"></div>
+        <h3 style="margin:0 0 16px 0; font-size:20px;">所有元素</h3>
+        <div class="grid-elements" id="all-elements-grid">
+            <!-- JS Generated -->
+        </div>
+    </div>
+
+    <script>
+        // ================= Configuration & Elements =================
+        const CANVAS_SCALE = 4; // 模拟分辨率比实际像素小，提高性能并产生像素风
+        const GRAVITY = 1;
+        
+        const TYPES = {
+            EMPTY: 0,
+            SOLID: 1, // 不动 (墙)
+            POWDER: 2, // 像沙子
+            LIQUID: 3, // 像水
+            GAS: 4, // 向上飘 (火/烟)
+            ACID: 5, // 腐蚀
+        };
+
+        const ELEMENTS = {
+            AIR: { id: 0, name: '空气', color: [0,0,0,0], type: TYPES.EMPTY },
+            SAND: { id: 1, name: '沙子', color: [226, 197, 139, 255], type: TYPES.POWDER, variance: 20 },
+            WATER: { id: 2, name: '水', color: [79, 151, 232, 255], type: TYPES.LIQUID, variance: 10 },
+            STONE: { id: 3, name: '石头', color: [119, 119, 119, 255], type: TYPES.SOLID },
+            WOOD: { id: 4, name: '木头', color: [139, 69, 19, 255], type: TYPES.SOLID },
+            FIRE: { id: 5, name: '火焰', color: [255, 69, 0, 255], type: TYPES.GAS, variance: 50, life: 50 },
+            SMOKE: { id: 6, name: '烟雾', color: [200, 200, 200, 150], type: TYPES.GAS, life: 100 },
+            ACID: { id: 7, name: '酸液', color: [124, 252, 0, 200], type: TYPES.LIQUID, acidity: true },
+            PLANT: { id: 8, name: '植物', color: [34, 139, 34, 255], type: TYPES.SOLID },
+            ERASER: { id: 99, name: '橡皮擦', color: [255,255,255,50], type: TYPES.SOLID, isEraser: true }
+        };
+
+        let currentElement = ELEMENTS.SAND;
+        let brushSize = 3;
+
+        // ================= Core Engine =================
+        const canvas = document.getElementById('sandbox');
+        const ctx = canvas.getContext('2d', { alpha: false }); // 优化性能
+        
+        let width, height;
+        let grid = [];
+        let imageData;
+        let animationId;
+
+        function initGame() {
+            const container = document.getElementById('game-container');
+            // 设置低分辨率画布，CSS拉伸
+            width = Math.floor(container.clientWidth / CANVAS_SCALE);
+            height = Math.floor(container.clientHeight / CANVAS_SCALE);
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            // 初始化网格 (0 = Air)
+            grid = new Array(width * height).fill(0);
+            imageData = ctx.createImageData(width, height);
+            
+            // 填充背景
+            for(let i=0; i<imageData.data.length; i+=4) {
+                imageData.data[i] = 0;   // R
+                imageData.data[i+1] = 0; // G
+                imageData.data[i+2] = 0; // B
+                imageData.data[i+3] = 255; // Alpha
+            }
+
+            loop();
+        }
+
+        // 获取网格索引
+        const idx = (x, y) => x + y * width;
+        // 检查边界
+        const inBounds = (x, y) => x >= 0 && x < width && y >= 0 && y < height;
+
+        function update() {
+            // 从下往上遍历，防止元素一帧掉到底
+            // 复制一个新状态或使用特定遍历顺序。这里为了简单使用随机左右遍历+从下到上
+            // 为了模拟效果更好，使用两遍扫描往往更稳定，但这里使用简单的In-place更新+方向随机
+            
+            for (let y = height - 1; y >= 0; y--) {
+                // 每一行随机左右遍历顺序，防止堆积偏向一边
+                const startLeft = Math.random() > 0.5;
+                const xStart = startLeft ? 0 : width - 1;
+                const xEnd = startLeft ? width : -1;
+                const xStep = startLeft ? 1 : -1;
+
+                for (let x = xStart; x !== xEnd; x += xStep) {
+                    const i = idx(x, y);
+                    const cellId = grid[i];
+                    if (cellId === 0) continue; // 空气跳过
+
+                    const elem = Object.values(ELEMENTS).find(e => e.id === cellId);
+                    if (!elem) continue;
+
+                    // 特殊逻辑：火焰生命周期
+                    if (elem.id === ELEMENTS.FIRE.id) {
+                        if (Math.random() < 0.1) {
+                             grid[i] = ELEMENTS.SMOKE.id; // 变成烟
+                             continue;
+                        }
+                    }
+                     // 特殊逻辑：烟雾消失
+                    if (elem.id === ELEMENTS.SMOKE.id) {
+                        if (Math.random() < 0.05) {
+                            grid[i] = 0;
+                            continue;
+                        }
+                    }
+
+                    // 物理逻辑
+                    if (elem.type === TYPES.POWDER) {
+                        updatePowder(x, y, i);
+                    } else if (elem.type === TYPES.LIQUID) {
+                        updateLiquid(x, y, i, elem.id);
+                    } else if (elem.type === TYPES.GAS) {
+                        updateGas(x, y, i, elem.id);
+                    }
+                    
+                    // 酸的腐蚀逻辑 (简化)
+                    if (elem.acidity) {
+                        const neighbors = [idx(x, y+1), idx(x, y-1), idx(x+1, y), idx(x-1, y)];
+                        for (let n of neighbors) {
+                            if (grid[n] && grid[n] !== elem.id && grid[n] !== ELEMENTS.SMOKE.id) {
+                                if (Math.random() < 0.05) {
+                                    grid[n] = 0; // 腐蚀掉邻居
+                                    grid[i] = 0; // 自己也消耗掉
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            draw();
+            animationId = requestAnimationFrame(update);
+        }
+
+        function updatePowder(x, y, i) {
+            const below = idx(x, y + 1);
+            const belowLeft = idx(x - 1, y + 1);
+            const belowRight = idx(x + 1, y + 1);
+
+            if (y + 1 < height) {
+                if (grid[below] === 0 || isLiquid(grid[below])) {
+                    swap(i, below);
+                } else {
+                    const moveLeft = Math.random() > 0.5;
+                    if (moveLeft && x - 1 >= 0 && (grid[belowLeft] === 0 || isLiquid(grid[belowLeft]))) {
+                        swap(i, belowLeft);
+                    } else if (!moveLeft && x + 1 < width && (grid[belowRight] === 0 || isLiquid(grid[belowRight]))) {
+                        swap(i, belowRight);
+                    }
+                }
+            }
+        }
+
+        function updateLiquid(x, y, i, typeId) {
+            const below = idx(x, y + 1);
+            const left = idx(x - 1, y);
+            const right = idx(x + 1, y);
+
+            if (y + 1 < height) {
+                if (grid[below] === 0) {
+                    swap(i, below);
+                    return;
+                }
+            }
+            
+            // 水平流动
+            const dir = Math.random() > 0.5 ? 1 : -1;
+            const sideA = idx(x + dir, y);
+            const sideB = idx(x - dir, y);
+
+            if (inBounds(x + dir, y) && grid[sideA] === 0) {
+                swap(i, sideA);
+            } else if (inBounds(x - dir, y) && grid[sideB] === 0) {
+                swap(i, sideB);
+            }
+        }
+
+        function updateGas(x, y, i, typeId) {
+            const above = idx(x, y - 1);
+            if (y - 1 >= 0) {
+                if (grid[above] === 0 || grid[above] === ELEMENTS.WATER.id) { // 气体可以穿过水
+                    swap(i, above);
+                } else {
+                    // 随机扩散
+                    const dir = Math.random() > 0.5 ? 1 : -1;
+                    const aboveSide = idx(x + dir, y - 1);
+                    if (inBounds(x + dir, y - 1) && grid[aboveSide] === 0) {
+                        swap(i, aboveSide);
+                    }
+                }
+            }
+        }
+
+        function isLiquid(id) {
+            const e = Object.values(ELEMENTS).find(el => el.id === id);
+            return e && e.type === TYPES.LIQUID;
+        }
+
+        function swap(i, j) {
+            const temp = grid[i];
+            grid[i] = grid[j];
+            grid[j] = temp;
+        }
+
+        function draw() {
+            const data = imageData.data;
+            // 清空画布 (设为黑色背景)
+            // for (let i = 0; i < data.length; i += 4) { data[i]=0; data[i+1]=0; data[i+2]=0; }
+            // 优化：我们直接把Grid映射到Pixel，无需先清空，因为Grid覆盖全屏
+
+            for (let i = 0; i < grid.length; i++) {
+                const id = grid[i];
+                const pixelIndex = i * 4;
+                
+                if (id === 0) {
+                    data[pixelIndex] = 0;
+                    data[pixelIndex+1] = 0;
+                    data[pixelIndex+2] = 0;
+                    data[pixelIndex+3] = 255;
+                } else {
+                    const el = Object.values(ELEMENTS).find(e => e.id === id);
+                    if (el) {
+                        // 添加一点噪点让画面更有质感
+                        let variance = el.variance ? (Math.random() * el.variance - el.variance/2) : 0;
+                        data[pixelIndex] = clamp(el.color[0] + variance);
+                        data[pixelIndex+1] = clamp(el.color[1] + variance);
+                        data[pixelIndex+2] = clamp(el.color[2] + variance);
+                        data[pixelIndex+3] = el.color[3] !== undefined ? el.color[3] : 255;
+                    }
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        const clamp = (v) => Math.max(0, Math.min(255, v));
+
+        function loop() {
+            update();
+        }
+
+        function clearCanvas() {
+            grid.fill(0);
+        }
+
+        // ================= Interaction Logic =================
+        let isDrawing = false;
+        
+        function getGridPos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+            
+            if (evt.touches && evt.touches.length > 0) {
+                clientX = evt.touches[0].clientX;
+                clientY = evt.touches[0].clientY;
+            } else {
+                clientX = evt.clientX;
+                clientY = evt.clientY;
+            }
+            
+            const x = Math.floor((clientX - rect.left) / rect.width * width);
+            const y = Math.floor((clientY - rect.top) / rect.height * height);
+            return {x, y};
+        }
+
+        function paint(evt) {
+            if (!isDrawing) return;
+            const {x, y} = getGridPos(evt);
+            
+            // 笔刷
+            const r = parseInt(document.getElementById('brushSize').value);
+            
+            for (let dy = -r; dy <= r; dy++) {
+                for (let dx = -r; dx <= r; dx++) {
+                    if (dx*dx + dy*dy <= r*r) {
+                        const px = x + dx;
+                        const py = y + dy;
+                        if (inBounds(px, py)) {
+                            if (currentElement.isEraser) {
+                                grid[idx(px, py)] = 0;
+                            } else {
+                                // 只有空气才能画，或者酸可以覆盖
+                                if (grid[idx(px, py)] === 0 || currentElement.type === TYPES.SOLID) {
+                                    // 随机概率增加自然感
+                                    if(Math.random() > 0.1) grid[idx(px, py)] = currentElement.id;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Mouse Events
+        canvas.addEventListener('mousedown', (e) => { isDrawing = true; paint(e); });
+        window.addEventListener('mouseup', () => isDrawing = false);
+        canvas.addEventListener('mousemove', paint);
+
+        // Touch Events
+        canvas.addEventListener('touchstart', (e) => { isDrawing = true; paint(e); e.preventDefault(); }, {passive: false});
+        window.addEventListener('touchend', () => isDrawing = false);
+        canvas.addEventListener('touchmove', (e) => { paint(e); e.preventDefault(); }, {passive: false});
+
+        // ================= UI Logic =================
+        
+        function selectElement(key) {
+            currentElement = ELEMENTS[key];
+            updateUI();
+            toggleSheet(false);
+        }
+
+        function updateUI() {
+            // Update Chips in Scroll
+            document.querySelectorAll('.chip').forEach(chip => {
+                if (chip.dataset.key === getKeyByValue(currentElement)) {
+                    chip.classList.add('active');
+                } else {
+                    chip.classList.remove('active');
+                }
+            });
+        }
+
+        function getKeyByValue(object) {
+            return Object.keys(ELEMENTS).find(key => ELEMENTS[key] === object);
+        }
+
+        function toggleSheet(open) {
+            const sheet = document.getElementById('more-sheet');
+            const backdrop = document.getElementById('backdrop');
+            if (open) {
+                sheet.classList.add('open');
+                backdrop.classList.add('open');
+            } else {
+                sheet.classList.remove('open');
+                backdrop.classList.remove('open');
+            }
+        }
+
+        // Ripple Effect Helper
+        function createRipple(event) {
+            const button = event.currentTarget;
+            const circle = document.createElement("span");
+            const diameter = Math.max(button.clientWidth, button.clientHeight);
+            const radius = diameter / 2;
+
+            const rect = button.getBoundingClientRect();
+            
+            circle.style.width = circle.style.height = `${diameter}px`;
+            circle.style.left = `${event.clientX - rect.left - radius}px`;
+            circle.style.top = `${event.clientY - rect.top - radius}px`;
+            circle.classList.add("ripple");
+
+            const ripple = button.getElementsByClassName("ripple")[0];
+            if (ripple) ripple.remove();
+
+            button.appendChild(circle);
+        }
+
+        // Initialize UI Elements
+        function initUI() {
+            const quickBar = document.getElementById('quick-bar');
+            const allGrid = document.getElementById('all-elements-grid');
+            
+            const quickKeys = ['SAND', 'WATER', 'STONE', 'ERASER'];
+            
+            // Build Quick Bar
+            quickKeys.forEach(key => {
+                const el = ELEMENTS[key];
+                const btn = document.createElement('button');
+                btn.className = 'chip';
+                btn.dataset.key = key;
+                btn.innerText = el.name;
+                btn.onclick = (e) => { selectElement(key); createRipple(e); };
+                if(key === 'SAND') btn.classList.add('active');
+                quickBar.appendChild(btn);
+            });
+
+            // Build All Elements Grid
+            Object.keys(ELEMENTS).forEach(key => {
+                const el = ELEMENTS[key];
+                if (key === 'AIR') return;
+
+                const card = document.createElement('div');
+                card.className = 'element-card';
+                card.onclick = (e) => { selectElement(key); createRipple(e); };
+                
+                // Color Dot
+                const dot = document.createElement('div');
+                dot.className = 'element-color-dot';
+                if(el.isEraser) {
+                    dot.style.background = '#fff';
+                    dot.style.border = '2px solid #ccc';
+                    dot.style.backgroundImage = 'linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc), linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc)';
+                    dot.style.backgroundSize = '10px 10px';
+                    dot.style.backgroundPosition = '0 0, 5px 5px';
+                } else {
+                    dot.style.backgroundColor = `rgba(${el.color[0]},${el.color[1]},${el.color[2]},1)`;
+                }
+
+                const name = document.createElement('span');
+                name.style.fontSize = '14px';
+                name.innerText = el.name;
+
+                card.appendChild(dot);
+                card.appendChild(name);
+                allGrid.appendChild(card);
+            });
+
+            // Add Ripple to all icon buttons
+            document.querySelectorAll('.icon-btn').forEach(btn => {
+                btn.addEventListener('click', createRipple);
+            });
+        }
+
+        // Boot
+        window.addEventListener('load', () => {
+            initGame();
+            initUI();
+        });
+        
+        window.addEventListener('resize', () => {
+             // 简单的重置大小处理，实际上最好debounce重置
+             // initGame(); // 这会清空画布，暂时不做自动重置
+        });
+
+    </script>
+</body>
+</html>
