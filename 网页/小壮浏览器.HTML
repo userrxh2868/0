@@ -3,144 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>小壮浏览器</title>
-    <!-- 引入 Google Material Symbols -->
+    <title>小壮浏览器 Pro</title>
+    <!-- 引入 Material Symbols -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
     <style>
-        /* --- MD3 Design Tokens & Variables --- */
+        /* --- 核心变量定义 --- */
         :root {
+            /* 默认种子颜色生成的色板 (紫色系) */
+            --seed-color: #6750A4;
             --md-sys-color-primary: #6750A4;
             --md-sys-color-on-primary: #FFFFFF;
             --md-sys-color-primary-container: #EADDFF;
             --md-sys-color-on-primary-container: #21005D;
+            --md-sys-color-secondary: #625B71;
+            --md-sys-color-secondary-container: #E8DEF8;
+            --md-sys-color-on-secondary-container: #1D192B;
             --md-sys-color-surface: #FEF7FF;
             --md-sys-color-surface-container: #F3EDF7;
+            --md-sys-color-surface-container-high: #ECE6F0;
             --md-sys-color-on-surface: #1D1B20;
+            --md-sys-color-on-surface-variant: #49454F;
             --md-sys-color-outline: #79747E;
-            --md-sys-color-secondary-container: #E8DEF8;
+            --md-sys-color-outline-variant: #CAC4D0;
+            --md-sys-color-error: #B3261E;
+            --md-sys-color-on-error: #FFFFFF;
+
+            /* 动画曲线 */
+            --anim-standard: cubic-bezier(0.2, 0.0, 0, 1.0);
+            --anim-emphasized: cubic-bezier(0.2, 0.0, 0, 1.0);
             
-            --md-ref-typeface-plain: system-ui, -apple-system, 'Roboto', sans-serif;
-            --md-sys-motion-easing-standard: cubic-bezier(0.2, 0.0, 0.0, 1.0); /* MD3 标准非线性动画 */
-            --md-sys-shape-corner-extra-large: 28px;
-            --md-sys-shape-corner-full: 9999px;
+            /* 常用尺寸 */
+            --radius-full: 9999px;
+            --radius-lg: 28px;
+            --radius-md: 16px;
+            --radius-sm: 12px;
         }
 
-        /* 暗色模式适配 */
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --md-sys-color-primary: #D0BCFF;
-                --md-sys-color-on-primary: #381E72;
-                --md-sys-color-primary-container: #4F378B;
-                --md-sys-color-on-primary-container: #EADDFF;
-                --md-sys-color-surface: #141218;
-                --md-sys-color-surface-container: #211F26;
-                --md-sys-color-on-surface: #E6E1E5;
-                --md-sys-color-outline: #938F99;
-                --md-sys-color-secondary-container: #4A4458;
-            }
+        /* 深色模式变量覆盖 */
+        [data-theme="dark"] {
+            --md-sys-color-primary: #D0BCFF;
+            --md-sys-color-on-primary: #381E72;
+            --md-sys-color-primary-container: #4F378B;
+            --md-sys-color-on-primary-container: #EADDFF;
+            --md-sys-color-secondary: #CCC2DC;
+            --md-sys-color-secondary-container: #4A4458;
+            --md-sys-color-on-secondary-container: #E8DEF8;
+            --md-sys-color-surface: #141218;
+            --md-sys-color-surface-container: #211F26;
+            --md-sys-color-surface-container-high: #2B2930;
+            --md-sys-color-on-surface: #E6E1E5;
+            --md-sys-color-on-surface-variant: #CAC4D0;
+            --md-sys-color-outline: #938F99;
+            --md-sys-color-outline-variant: #49454F;
         }
 
-        /* --- 全局重置 --- */
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
+        /* --- 全局基础样式 --- */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+        
         body {
-            margin: 0;
-            padding: 0;
+            margin: 0; padding: 0;
             background-color: var(--md-sys-color-surface);
             color: var(--md-sys-color-on-surface);
-            font-family: var(--md-ref-typeface-plain);
+            font-family: system-ui, -apple-system, Roboto, sans-serif;
             height: 100vh;
-            overflow: hidden; /* 像App一样禁止整体滚动 */
+            width: 100vw;
+            overflow: hidden;
+            transition: background-color 0.4s var(--anim-standard), color 0.4s var(--anim-standard);
             display: flex;
             flex-direction: column;
         }
 
-        /* --- 页面容器 --- */
-        .page {
+        /* 图标大小统一 */
+        .material-symbols-rounded { font-size: 24px; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .icon-filled { font-variation-settings: 'FILL' 1 !important; }
+
+        /* --- 视图容器 --- */
+        .view-container {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            transition: transform 0.5s var(--md-sys-motion-easing-standard), 
-                        opacity 0.4s var(--md-sys-motion-easing-standard);
+            top: 0; left: 0; width: 100%; height: 100%;
             display: flex;
             flex-direction: column;
-            background-color: var(--md-sys-color-surface);
+            background: var(--md-sys-color-surface);
+            transition: transform 0.5s var(--anim-emphasized), opacity 0.3s var(--anim-emphasized);
             z-index: 1;
         }
 
-        .page.hidden {
-            transform: scale(0.95);
-            opacity: 0;
+        .view-hidden {
             pointer-events: none;
+            opacity: 0;
+            transform: scale(0.92);
             z-index: 0;
         }
-
-        /* --- 首页布局 --- */
-        #home-page {
-            padding: 20px;
-            justify-content: center;
-            align-items: center;
+        
+        .view-active {
+            opacity: 1;
+            transform: scale(1);
+            z-index: 2;
         }
 
-        .logo-area {
-            margin-bottom: 40px;
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--md-sys-color-primary);
+        /* --- 首页 (Home View) --- */
+        #home-view {
+            padding: 24px;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .brand-header {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
-        }
-        
-        .logo-icon {
-            font-size: 64px;
+            gap: 12px;
+            margin-bottom: 48px;
+            animation: fadeInDown 0.8s var(--anim-emphasized);
         }
 
-        /* 搜索框 (MD3 Style) */
-        .search-bar-container {
+        .brand-logo {
+            font-size: 72px;
+            color: var(--md-sys-color-primary);
+            text-shadow: 0 4px 12px var(--md-sys-color-primary-container);
+        }
+
+        .brand-name {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--md-sys-color-on-surface);
+            letter-spacing: -0.5px;
+        }
+
+        /* 搜索框 */
+        .search-box-wrapper {
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
+            position: relative;
+            margin-bottom: 40px;
+            z-index: 10;
+        }
+
+        .search-box {
+            width: 100%;
             height: 56px;
-            background-color: var(--md-sys-color-surface-container);
-            border-radius: var(--md-sys-shape-corner-full);
+            background: var(--md-sys-color-surface-container-high);
+            border-radius: var(--radius-full);
             display: flex;
             align-items: center;
-            padding: 0 16px;
-            margin-bottom: 30px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-            transition: box-shadow 0.2s ease;
+            padding: 0 20px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            transition: all 0.3s var(--anim-standard);
+            border: 1px solid transparent;
         }
 
-        .search-bar-container:focus-within {
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-            background-color: var(--md-sys-color-secondary-container);
+        .search-box:focus-within {
+            background: var(--md-sys-color-surface-container);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+            border-color: var(--md-sys-color-primary);
         }
 
         .search-input {
             flex: 1;
+            height: 100%;
             border: none;
             background: transparent;
-            height: 100%;
+            margin: 0 12px;
             font-size: 16px;
             color: var(--md-sys-color-on-surface);
-            outline: none;
-            margin-left: 12px;
         }
 
-        /* 快捷图标网格 */
+        /* 快捷方式网格 */
         .shortcuts-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
+            gap: 24px 16px;
             width: 100%;
             max-width: 400px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 4px;
         }
 
         .shortcut-item {
@@ -150,553 +189,682 @@
             gap: 8px;
             position: relative;
             cursor: pointer;
+            animation: popUp 0.4s var(--anim-emphasized) backwards;
         }
 
-        .shortcut-icon-box {
+        .shortcut-icon {
             width: 56px;
             height: 56px;
-            background-color: var(--md-sys-color-primary-container);
-            color: var(--md-sys-color-on-primary-container);
-            border-radius: 16px;
+            background: var(--md-sys-color-surface-container-high);
+            border-radius: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            transition: transform 0.2s var(--md-sys-motion-easing-standard);
+            font-size: 28px;
+            color: var(--md-sys-color-primary);
+            transition: transform 0.2s var(--anim-standard), background 0.2s;
+            position: relative;
+            overflow: hidden;
         }
         
-        .shortcut-item:active .shortcut-icon-box {
-            transform: scale(0.9);
+        /* Ripple effect fake */
+        .shortcut-item:active .shortcut-icon {
+            transform: scale(0.92);
+            background: var(--md-sys-color-primary-container);
         }
 
         .shortcut-label {
             font-size: 12px;
-            text-align: center;
+            color: var(--md-sys-color-on-surface-variant);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             width: 100%;
+            text-align: center;
         }
 
-        .delete-btn {
+        .shortcut-delete {
             position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #B3261E;
-            color: white;
+            top: -6px;
+            right: -6px;
+            width: 22px;
+            height: 22px;
+            background: var(--md-sys-color-error);
             border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 14px;
+            color: white;
             display: flex;
             align-items: center;
             justify-content: center;
-            display: none; /* 默认隐藏 */
+            z-index: 2;
+            transform: scale(0);
+            transition: transform 0.2s var(--anim-standard);
         }
 
-        .shortcut-item.editing .delete-btn {
-            display: flex;
-            animation: popIn 0.2s var(--md-sys-motion-easing-standard);
-        }
+        .editing .shortcut-delete { transform: scale(1); }
+        .editing .shortcut-icon { animation: shake 0.3s infinite alternate; }
 
-        @keyframes popIn {
-            from { transform: scale(0); }
-            to { transform: scale(1); }
-        }
+        @keyframes shake { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+        @keyframes popUp { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* 底部设置栏 */
-        .bottom-actions {
+        /* 底部 FAB 工具栏 */
+        .home-bottom-bar {
             position: absolute;
-            bottom: 20px;
+            bottom: 32px;
             display: flex;
-            gap: 20px;
+            gap: 24px;
         }
 
-        .icon-btn {
-            background: transparent;
+        .fab {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
             border: none;
-            color: var(--md-sys-color-on-surface);
-            padding: 10px;
-            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+            transition: all 0.2s var(--anim-standard);
             cursor: pointer;
         }
+        
+        .fab.active { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
+        .fab:active { transform: scale(0.95); box-shadow: 0 2px 4px rgba(0,0,0,0.12); }
 
-        /* --- 浏览器页面布局 --- */
-        #browser-page {
-            display: flex;
-            flex-direction: column;
-        }
+        /* --- 浏览器 (Browser View) --- */
+        #browser-view { background: var(--md-sys-color-surface); }
 
+        /* 顶部地址栏 */
         .browser-top-bar {
             height: 64px;
-            background-color: var(--md-sys-color-surface);
+            background: var(--md-sys-color-surface);
             display: flex;
             align-items: center;
-            padding: 0 8px;
-            border-bottom: 1px solid var(--md-sys-color-outline);
-            opacity: 0.1; /* Divider opacity */
-        }
-
-        .url-display {
-            flex: 1;
-            background-color: var(--md-sys-color-surface-container);
-            height: 40px;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            padding: 0 16px;
-            font-size: 14px;
-            margin: 0 8px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .browser-content {
-            flex: 1;
-            width: 100%;
-            border: none;
-            background: white;
+            padding: 8px 16px;
+            gap: 12px;
+            border-bottom: 1px solid var(--md-sys-color-outline-variant);
             position: relative;
         }
         
-        .browser-placeholder {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
+        .url-input-wrapper {
+            flex: 1;
+            height: 40px;
+            background: var(--md-sys-color-surface-container-high);
+            border-radius: var(--radius-full);
             display: flex;
-            flex-direction: column;
             align-items: center;
-            justify-content: center;
-            padding: 20px;
-            text-align: center;
-            color: #666;
-            pointer-events: none;
+            padding: 0 16px;
+            transition: background 0.2s;
         }
 
-        .browser-nav-bar {
+        .url-input-wrapper:focus-within { background: var(--md-sys-color-secondary-container); }
+        
+        .url-input {
+            width: 100%;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        /* 加载进度条 */
+        .progress-bar {
+            position: absolute;
+            bottom: -1px; left: 0; height: 2px;
+            background: var(--md-sys-color-primary);
+            width: 0%;
+            transition: width 0.2s linear, opacity 0.3s;
+            z-index: 10;
+        }
+
+        /* 内容区 */
+        .browser-frame-container {
+            flex: 1;
+            width: 100%;
+            position: relative;
+            background: #fff; /* 网页背景通常是白色的 */
+        }
+
+        iframe { width: 100%; height: 100%; border: none; }
+
+        .browser-placeholder {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface-variant);
+            z-index: 5;
+        }
+
+        /* 底部导航 */
+        .browser-bottom-nav {
             height: 56px;
-            background-color: var(--md-sys-color-surface);
-            border-top: 1px solid rgba(0,0,0,0.05);
+            background: var(--md-sys-color-surface-container);
             display: flex;
             justify-content: space-around;
             align-items: center;
+            border-top: 1px solid rgba(0,0,0,0.05);
         }
 
-        /* --- 设置抽屉 (Bottom Sheet) --- */
-        .bottom-sheet-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.4);
-            z-index: 10;
-            opacity: 0;
-            pointer-events: none;
+        .nav-btn {
+            background: transparent;
+            border: none;
+            color: var(--md-sys-color-on-surface-variant);
+            padding: 8px 16px;
+            border-radius: var(--radius-full);
+            transition: background 0.2s;
+        }
+        
+        .nav-btn:active { background: var(--md-sys-color-on-surface-variant); color: var(--md-sys-color-surface); opacity: 0.2; }
+
+        /* --- 对话框 & 抽屉 (Overlays) --- */
+        .overlay-backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            opacity: 0; pointer-events: none;
             transition: opacity 0.3s ease;
+            display: flex;
+            align-items: center; /* 对话框居中 */
+            justify-content: center;
         }
+        
+        .overlay-backdrop.active { opacity: 1; pointer-events: auto; }
 
-        .bottom-sheet-overlay.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
+        /* 底部抽屉 */
         .bottom-sheet {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background-color: var(--md-sys-color-surface-container);
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: var(--md-sys-color-surface-container);
             border-radius: 28px 28px 0 0;
             padding: 24px;
             transform: translateY(100%);
-            transition: transform 0.4s var(--md-sys-motion-easing-standard);
+            transition: transform 0.4s var(--anim-emphasized);
         }
 
-        .bottom-sheet-overlay.active .bottom-sheet {
-            transform: translateY(0);
-        }
-
-        .sheet-handle {
-            width: 32px;
-            height: 4px;
-            background-color: var(--md-sys-color-outline);
-            opacity: 0.4;
-            border-radius: 2px;
-            margin: 0 auto 20px auto;
-        }
-
-        .sheet-title {
-            font-size: 22px;
-            margin-bottom: 20px;
-            color: var(--md-sys-color-on-surface);
-        }
-
-        .setting-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .chip-group {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
+        .overlay-backdrop.active .bottom-sheet { transform: translateY(0); }
+        
+        .sheet-drag-handle { width: 32px; height: 4px; background: var(--md-sys-color-outline-variant); border-radius: 2px; margin: 0 auto 24px; }
+        
+        .setting-section { margin-bottom: 24px; }
+        .setting-title { font-size: 14px; color: var(--md-sys-color-primary); font-weight: 500; margin-bottom: 12px; }
+        
+        .chips-container { display: flex; gap: 8px; flex-wrap: wrap; }
+        
         .chip {
             padding: 8px 16px;
-            border: 1px solid var(--md-sys-color-outline);
             border-radius: 8px;
+            border: 1px solid var(--md-sys-color-outline);
             font-size: 14px;
-            cursor: pointer;
+            background: transparent;
+            color: var(--md-sys-color-on-surface-variant);
             transition: all 0.2s;
         }
-
+        
         .chip.selected {
-            background-color: var(--md-sys-color-primary-container);
-            color: var(--md-sys-color-on-primary-container);
+            background: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
             border-color: transparent;
+            font-weight: 500;
         }
         
-        /* 对话框 */
-        .dialog-backdrop {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 20;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s;
-        }
-        .dialog-backdrop.active { opacity: 1; pointer-events: auto; }
-        
-        .dialog {
-            background: var(--md-sys-color-surface-container);
-            padding: 24px;
+        .color-dot { width: 32px; height: 32px; border-radius: 50%; border: 2px solid transparent; }
+        .color-dot.selected { border-color: var(--md-sys-color-on-surface); }
+
+        /* 对话框 (Dialog) */
+        .dialog-card {
+            background: var(--md-sys-color-surface-container-high);
+            width: 85%; max-width: 320px;
             border-radius: 28px;
-            width: 80%;
-            max-width: 320px;
+            padding: 24px;
+            transform: scale(0.8);
+            opacity: 0;
+            transition: all 0.3s var(--anim-emphasized);
         }
         
-        .dialog input {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
+        .overlay-backdrop.active .dialog-card { transform: scale(1); opacity: 1; }
+        
+        .dialog-title { font-size: 24px; margin-bottom: 16px; color: var(--md-sys-color-on-surface); }
+        
+        .md-input-field {
+            background: var(--md-sys-color-surface);
             border: 1px solid var(--md-sys-color-outline);
             border-radius: 4px;
-            background: transparent;
+            padding: 12px;
+            width: 100%;
+            margin-bottom: 16px;
             color: var(--md-sys-color-on-surface);
-        }
-
-        /* 按钮样式 */
-        .md-btn {
-            background: var(--md-sys-color-primary);
-            color: var(--md-sys-color-on-primary);
-            border: none;
-            padding: 10px 24px;
-            border-radius: 20px;
-            font-weight: 500;
-            cursor: pointer;
+            transition: border 0.2s;
         }
         
-        .md-btn-text {
-            background: transparent;
-            color: var(--md-sys-color-primary);
-            border: none;
-            padding: 10px 24px;
-            font-weight: 500;
-            cursor: pointer;
-        }
+        .md-input-field:focus { border-color: var(--md-sys-color-primary); border-width: 2px; padding: 11px; }
+        
+        .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+        
+        .text-btn { background: none; border: none; color: var(--md-sys-color-primary); font-weight: 500; padding: 10px 20px; border-radius: 20px; font-size: 14px; }
+        .fill-btn { background: var(--md-sys-color-primary); border: none; color: var(--md-sys-color-on-primary); font-weight: 500; padding: 10px 24px; border-radius: 20px; font-size: 14px; }
 
     </style>
 </head>
 <body>
 
-    <!-- 首页 -->
-    <div id="home-page" class="page">
-        <div class="logo-area">
-            <span class="material-symbols-rounded logo-icon">rocket_launch</span>
-            <div>小壮浏览器</div>
+    <!-- 主页视图 -->
+    <div id="home-view" class="view-container view-active">
+        <div class="brand-header">
+            <span class="material-symbols-rounded brand-logo">rocket_launch</span>
+            <div class="brand-name">小壮浏览器</div>
         </div>
 
-        <!-- 搜索框 -->
-        <div class="search-bar-container">
-            <span class="material-symbols-rounded" style="color: var(--md-sys-color-outline);">search</span>
-            <input type="text" class="search-input" id="main-search-input" placeholder="搜索或输入网址...">
-            <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary); cursor: pointer;" onclick="goSearch()">arrow_forward</span>
-        </div>
-
-        <!-- 快捷方式 -->
-        <div class="shortcuts-grid" id="shortcuts-container">
-            <!-- JS 动态生成 -->
-            <div class="shortcut-item" onclick="openAddShortcutDialog()">
-                <div class="shortcut-icon-box" style="background: transparent; border: 1px dashed var(--md-sys-color-outline); color: var(--md-sys-color-on-surface);">
-                    <span class="material-symbols-rounded">add</span>
-                </div>
-                <span class="shortcut-label">添加</span>
+        <div class="search-box-wrapper">
+            <div class="search-box">
+                <span class="material-symbols-rounded" style="color: var(--md-sys-color-outline);">search</span>
+                <input type="text" class="search-input" id="home-search-input" placeholder="搜索或输入网址..." autocomplete="off">
+                <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary); cursor: pointer" onclick="app.navigate()">arrow_forward</span>
             </div>
         </div>
 
-        <!-- 底部设置按钮 -->
-        <div class="bottom-actions">
-            <button class="icon-btn" onclick="toggleEditMode()">
+        <div class="shortcuts-grid" id="shortcuts-grid">
+            <!-- JS 生成 -->
+        </div>
+
+        <div class="home-bottom-bar">
+            <button class="fab" id="edit-mode-btn" onclick="app.toggleEditMode()">
                 <span class="material-symbols-rounded">edit</span>
             </button>
-            <button class="icon-btn" onclick="openSettings()">
+            <button class="fab" onclick="app.openSettings()">
                 <span class="material-symbols-rounded">settings</span>
             </button>
         </div>
     </div>
 
-    <!-- 浏览器内页 -->
-    <div id="browser-page" class="page hidden">
-        <!-- 只有真正的App才能完全去掉这个，Web模拟需要显示状态 -->
+    <!-- 浏览器视图 -->
+    <div id="browser-view" class="view-container view-hidden">
+        <div class="browser-top-bar">
+            <div class="url-input-wrapper">
+                <span class="material-symbols-rounded" style="font-size: 18px; color: var(--md-sys-color-outline); margin-right:8px;">lock</span>
+                <input type="text" class="url-input" id="browser-url-input" onkeydown="if(event.key==='Enter') app.navigateFromBrowser()">
+                <span class="material-symbols-rounded" style="font-size: 20px; color: var(--md-sys-color-on-surface-variant); cursor: pointer" onclick="location.reload()">refresh</span>
+            </div>
+        </div>
         
-        <!-- 内页内容区 -->
-        <div class="browser-content">
-            <iframe id="content-frame" src="" style="width:100%; height:100%; border:none;"></iframe>
-            <div id="browser-error" class="browser-placeholder hidden">
-                <span class="material-symbols-rounded" style="font-size: 48px; margin-bottom:10px;">block</span>
-                <p>无法在网页版Demo中嵌入该网站。<br>这是浏览器同源策略限制。</p>
+        <!-- 进度条 -->
+        <div class="progress-bar" id="progress-bar"></div>
+
+        <div class="browser-frame-container">
+            <iframe id="web-frame" sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation"></iframe>
+            <!-- 如果加载失败或初始状态 -->
+            <div id="frame-placeholder" class="browser-placeholder" style="display: none;">
+                <span class="material-symbols-rounded" style="font-size: 48px; margin-bottom:16px; opacity:0.5">web_asset_off</span>
+                <p>安全策略限制：部分网站禁止嵌入</p>
             </div>
         </div>
 
-        <!-- 底部导航栏 -->
-        <div class="browser-nav-bar">
-            <button class="icon-btn" onclick="goBackHome()">
-                <span class="material-symbols-rounded">home</span>
-            </button>
-            <button class="icon-btn" onclick="alert('后退功能在iframe中受限')">
-                <span class="material-symbols-rounded">arrow_back_ios</span>
-            </button>
-            
-            <!-- 显示当前搜索词或简略URL -->
-            <div class="url-display" id="mini-url-bar" onclick="goBackHome()">...</div>
-            
-            <button class="icon-btn" onclick="alert('前进功能在iframe中受限')">
-                <span class="material-symbols-rounded">arrow_forward_ios</span>
-            </button>
-            <button class="icon-btn" onclick="openSettings()">
-                <span class="material-symbols-rounded">menu</span>
-            </button>
+        <div class="browser-bottom-nav">
+            <button class="nav-btn" onclick="app.goHome()"><span class="material-symbols-rounded icon-filled">home</span></button>
+            <button class="nav-btn" onclick="history.back()"><span class="material-symbols-rounded">arrow_back_ios</span></button>
+            <button class="nav-btn" onclick="history.forward()"><span class="material-symbols-rounded">arrow_forward_ios</span></button>
+            <button class="nav-btn" onclick="app.openSettings()"><span class="material-symbols-rounded">menu</span></button>
         </div>
     </div>
 
     <!-- 设置抽屉 -->
-    <div class="bottom-sheet-overlay" id="settings-overlay" onclick="closeSettings(event)">
-        <div class="bottom-sheet" onclick="event.stopPropagation()">
-            <div class="sheet-handle"></div>
-            <h2 class="sheet-title">设置</h2>
+    <div class="overlay-backdrop" id="settings-overlay" onclick="if(event.target===this) app.closeSettings()">
+        <div class="bottom-sheet">
+            <div class="sheet-drag-handle"></div>
             
-            <div class="setting-row">
-                <span>搜索引擎</span>
-                <div class="chip-group">
-                    <div class="chip selected" onclick="setEngine('bing', this)">必应</div>
-                    <div class="chip" onclick="setEngine('baidu', this)">百度</div>
-                    <div class="chip" onclick="setEngine('google', this)">谷歌</div>
+            <div class="setting-section">
+                <div class="setting-title">搜索引擎</div>
+                <div class="chips-container" id="engine-options">
+                    <button class="chip" onclick="app.setEngine('bing')">必应</button>
+                    <button class="chip" onclick="app.setEngine('baidu')">百度</button>
+                    <button class="chip" onclick="app.setEngine('google')">谷歌</button>
+                    <button class="chip" onclick="app.setEngine('fsou')">F搜</button>
                 </div>
             </div>
 
-            <div class="setting-row">
-                <span>主题风格</span>
-                <div class="chip-group">
-                    <div class="chip" onclick="setTheme('light')">浅色</div>
-                    <div class="chip" onclick="setTheme('dark')">深色</div>
-                    <div class="chip" onclick="setTheme('auto')">跟随系统</div>
+            <div class="setting-section">
+                <div class="setting-title">外观主题</div>
+                <div class="chips-container">
+                    <button class="chip" id="theme-light" onclick="app.setThemeMode('light')">浅色</button>
+                    <button class="chip" id="theme-dark" onclick="app.setThemeMode('dark')">深色</button>
+                    <button class="chip" id="theme-auto" onclick="app.setThemeMode('auto')">跟随系统</button>
                 </div>
             </div>
 
-            <div class="setting-row">
-                <span>个性化颜色</span>
-                <div class="chip-group">
-                    <div class="chip" style="background:#6750A4; width:30px; height:30px; padding:0;" onclick="setPrimaryColor('#6750A4')"></div>
-                    <div class="chip" style="background:#9c27b0; width:30px; height:30px; padding:0;" onclick="setPrimaryColor('#9c27b0')"></div>
-                    <div class="chip" style="background:#009688; width:30px; height:30px; padding:0;" onclick="setPrimaryColor('#009688')"></div>
+            <div class="setting-section">
+                <div class="setting-title">个性化颜色 (Monet)</div>
+                <div class="chips-container">
+                    <div class="color-dot" style="background:#6750A4" onclick="app.setAccentColor('#6750A4')"></div>
+                    <div class="color-dot" style="background:#006C4C" onclick="app.setAccentColor('#006C4C')"></div>
+                    <div class="color-dot" style="background:#9A25AE" onclick="app.setAccentColor('#9A25AE')"></div>
+                    <div class="color-dot" style="background:#B3261E" onclick="app.setAccentColor('#B3261E')"></div>
+                    <div class="color-dot" style="background:#3344AA" onclick="app.setAccentColor('#3344AA')"></div>
                 </div>
             </div>
+            
+            <div style="height: 20px;"></div>
         </div>
     </div>
-    
+
     <!-- 添加快捷方式对话框 -->
-    <div class="dialog-backdrop" id="add-shortcut-dialog">
-        <div class="dialog">
-            <h3>添加快捷方式</h3>
-            <input type="text" id="new-shortcut-name" placeholder="名称 (如: 微博)">
-            <input type="text" id="new-shortcut-url" placeholder="链接 (如: https://weibo.com)">
-            <div style="text-align: right; margin-top: 20px;">
-                <button class="md-btn-text" onclick="closeDialog()">取消</button>
-                <button class="md-btn" onclick="saveShortcut()">添加</button>
+    <div class="overlay-backdrop" id="add-shortcut-overlay">
+        <div class="dialog-card">
+            <div class="dialog-title">添加快捷方式</div>
+            <input type="text" class="md-input-field" id="new-shortcut-name" placeholder="名称 (例如: 哔哩哔哩)">
+            <input type="text" class="md-input-field" id="new-shortcut-url" placeholder="网址 (例如: bilibili.com)">
+            <div class="dialog-actions">
+                <button class="text-btn" onclick="app.closeDialog()">取消</button>
+                <button class="fill-btn" onclick="app.saveShortcut()">添加</button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- 数据与状态 ---
-        let currentEngine = 'bing';
-        let isEditMode = false;
-        
-        let shortcuts = [
-            { name: '必应', url: 'https://cn.bing.com', icon: 'search' },
-            { name: '维基', url: 'https://zh.m.wikipedia.org', icon: 'menu_book' }, // Wikipedia 允许 iframe
-            { name: '知乎', url: 'https://www.zhihu.com', icon: 'question_mark' }
-        ];
-
-        const engines = {
-            bing: 'https://cn.bing.com/search?q=',
-            baidu: 'https://www.baidu.com/s?wd=',
-            google: 'https://www.google.com/search?q='
-        };
-
-        // --- 初始化 ---
-        window.onload = () => {
-            renderShortcuts();
-            
-            // 绑定回车搜索
-            document.getElementById('main-search-input').addEventListener('keypress', function (e) {
-                if (e.key === 'Enter') {
-                    goSearch();
-                }
-            });
-        };
-
-        // --- 核心逻辑: 搜索与浏览 ---
-        function goSearch(query = null) {
-            const input = document.getElementById('main-search-input');
-            const val = query || input.value.trim();
-            
-            if (!val) return;
-
-            let targetUrl = '';
-            
-            // 简单判断是URL还是搜索词
-            if (val.startsWith('http://') || val.startsWith('https://')) {
-                targetUrl = val;
-            } else if (val.includes('.') && !val.includes(' ')) {
-                 targetUrl = 'https://' + val;
-            } else {
-                targetUrl = engines[currentEngine] + encodeURIComponent(val);
-            }
-
-            // 切换界面
-            document.getElementById('home-page').classList.add('hidden');
-            document.getElementById('browser-page').classList.remove('hidden');
-            
-            // 加载内容
-            const iframe = document.getElementById('content-frame');
-            const errorMsg = document.getElementById('browser-error');
-            const miniUrl = document.getElementById('mini-url-bar');
-
-            miniUrl.innerText = val; // 显示搜索词
-            iframe.src = targetUrl;
-            
-            // 模拟加载
-            iframe.onload = () => {
-                // 注意：跨域无法准确检测iframe内容是否加载成功
-                // 如果是 Wikipedia 这种允许嵌入的，会显示
-                // 如果是 Baidu/Google，控制台会报错Refused to display
-            };
-        }
-
-        function goBackHome() {
-            document.getElementById('browser-page').classList.add('hidden');
-            document.getElementById('home-page').classList.remove('hidden');
-            document.getElementById('content-frame').src = 'about:blank'; // 停止加载
-            document.getElementById('main-search-input').value = ''; // 清空搜索栏
-        }
-
-        // --- 快捷方式管理 ---
-        function renderShortcuts() {
-            const container = document.getElementById('shortcuts-container');
-            // 保留最后一个添加按钮，清空前面的
-            const addButton = container.lastElementChild;
-            container.innerHTML = '';
-            
-            shortcuts.forEach((item, index) => {
-                const div = document.createElement('div');
-                div.className = 'shortcut-item';
-                if (isEditMode) div.classList.add('editing');
+        /**
+         * 小壮浏览器核心逻辑类
+         * 包含数据持久化、UI交互、MD3色彩计算
+         */
+        class XiaoZhuangBrowser {
+            constructor() {
+                // 默认配置
+                this.defaultShortcuts = [
+                    { name: '必应', url: 'https://cn.bing.com', icon: 'search' },
+                    { name: '维基', url: 'https://zh.m.wikipedia.org', icon: 'menu_book' },
+                    { name: '知乎', url: 'https://www.zhihu.com', icon: 'question_mark' },
+                    { name: 'Github', url: 'https://github.com', icon: 'code' }
+                ];
                 
-                div.innerHTML = `
-                    <div class="shortcut-icon-box" onclick="handleShortcutClick(${index})">
-                        <span class="material-symbols-rounded">${item.icon || 'public'}</span>
-                    </div>
-                    <span class="shortcut-label">${item.name}</span>
-                    <div class="delete-btn" onclick="deleteShortcut(${index})">
-                        <span class="material-symbols-rounded" style="font-size:14px">close</span>
-                    </div>
-                `;
-                container.appendChild(div);
-            });
-            
-            container.appendChild(addButton);
-        }
+                this.engines = {
+                    bing: { url: 'https://cn.bing.com/search?q=', name: '必应' },
+                    baidu: { url: 'https://www.baidu.com/s?wd=', name: '百度' },
+                    google: { url: 'https://www.google.com/search?q=', name: '谷歌' },
+                    fsou: { url: 'https://fsoufsou.com/search?q=', name: 'F搜' }
+                };
 
-        function handleShortcutClick(index) {
-            if (isEditMode) return; // 编辑模式下点击图标不跳转
-            goSearch(shortcuts[index].url);
-        }
+                this.state = {
+                    engine: 'bing',
+                    themeMode: 'auto',
+                    accentColor: '#6750A4',
+                    shortcuts: [],
+                    isEditMode: false
+                };
 
-        function toggleEditMode() {
-            isEditMode = !isEditMode;
-            renderShortcuts();
-        }
-
-        function deleteShortcut(index) {
-            shortcuts.splice(index, 1);
-            renderShortcuts();
-        }
-        
-        function openAddShortcutDialog() {
-            document.getElementById('add-shortcut-dialog').classList.add('active');
-        }
-        
-        function closeDialog() {
-            document.getElementById('add-shortcut-dialog').classList.remove('active');
-            document.getElementById('new-shortcut-name').value = '';
-            document.getElementById('new-shortcut-url').value = '';
-        }
-        
-        function saveShortcut() {
-            const name = document.getElementById('new-shortcut-name').value;
-            const url = document.getElementById('new-shortcut-url').value;
-            if(name && url) {
-                shortcuts.push({ name: name, url: url, icon: 'link' });
-                renderShortcuts();
-                closeDialog();
+                this.loadState();
+                this.initUI();
             }
-        }
 
-        // --- 设置逻辑 ---
-        function openSettings() {
-            document.getElementById('settings-overlay').classList.add('active');
-        }
+            // --- 初始化与存储 ---
+            loadState() {
+                const localData = localStorage.getItem('xz_browser_data');
+                if (localData) {
+                    const parsed = JSON.parse(localData);
+                    this.state = { ...this.state, ...parsed };
+                } else {
+                    this.state.shortcuts = [...this.defaultShortcuts];
+                }
+                // 首次加载应用设置
+                this.applyTheme();
+                this.updateEngineUI();
+            }
 
-        function closeSettings(e) {
-            if(e.target.id === 'settings-overlay') {
+            saveState() {
+                // 保存除临时状态(isEditMode)外的所有数据
+                const toSave = { ...this.state, isEditMode: false };
+                localStorage.setItem('xz_browser_data', JSON.stringify(toSave));
+            }
+
+            initUI() {
+                this.renderShortcuts();
+                
+                // 绑定主页回车事件
+                document.getElementById('home-search-input').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.navigate();
+                });
+
+                // 监听系统深色模式变化
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                    if (this.state.themeMode === 'auto') this.applyTheme();
+                });
+            }
+
+            // --- 核心浏览功能 ---
+            navigate(url = null) {
+                const input = document.getElementById('home-search-input');
+                const query = url || input.value.trim();
+                if (!query) return;
+
+                // 智能URL识别
+                let targetUrl = '';
+                const urlPattern = /^((http|https):\/\/)?(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(:[0-9]+)?(\/.*)?$/;
+                
+                if (urlPattern.test(query)) {
+                    targetUrl = query.startsWith('http') ? query : 'https://' + query;
+                } else {
+                    targetUrl = this.engines[this.state.engine].url + encodeURIComponent(query);
+                }
+
+                // 切换界面
+                document.getElementById('home-view').classList.remove('view-active');
+                document.getElementById('home-view').classList.add('view-hidden');
+                
+                const browserView = document.getElementById('browser-view');
+                browserView.classList.remove('view-hidden');
+                browserView.classList.add('view-active');
+
+                // 更新浏览器栏
+                document.getElementById('browser-url-input').value = targetUrl;
+                
+                // 加载动画
+                this.loadUrl(targetUrl);
+            }
+
+            navigateFromBrowser() {
+                const val = document.getElementById('browser-url-input').value;
+                this.navigate(val);
+            }
+
+            loadUrl(url) {
+                const iframe = document.getElementById('web-frame');
+                const progressBar = document.getElementById('progress-bar');
+                const placeholder = document.getElementById('frame-placeholder');
+
+                // 重置状态
+                placeholder.style.display = 'none';
+                iframe.style.display = 'block';
+                
+                // 假进度条动画
+                progressBar.style.opacity = 1;
+                progressBar.style.width = '20%';
+                setTimeout(() => progressBar.style.width = '60%', 300);
+                setTimeout(() => progressBar.style.width = '90%', 800);
+
+                iframe.src = url;
+
+                iframe.onload = () => {
+                    progressBar.style.width = '100%';
+                    setTimeout(() => progressBar.style.opacity = 0, 200);
+                    setTimeout(() => progressBar.style.width = '0%', 400);
+                };
+                
+                // 简单的错误处理（实际上跨域无法捕获详细错误，这里做个基本兜底）
+                iframe.onerror = () => {
+                    iframe.style.display = 'none';
+                    placeholder.style.display = 'flex';
+                }
+            }
+
+            goHome() {
+                document.getElementById('browser-view').classList.remove('view-active');
+                document.getElementById('browser-view').classList.add('view-hidden');
+                
+                const homeView = document.getElementById('home-view');
+                homeView.classList.remove('view-hidden');
+                homeView.classList.add('view-active');
+                
+                // 清理 iframe 以释放内存
+                document.getElementById('web-frame').src = 'about:blank';
+                document.getElementById('home-search-input').value = '';
+            }
+
+            // --- 快捷方式管理 ---
+            renderShortcuts() {
+                const grid = document.getElementById('shortcuts-grid');
+                grid.innerHTML = '';
+
+                this.state.shortcuts.forEach((item, index) => {
+                    const el = document.createElement('div');
+                    el.className = `shortcut-item ${this.state.isEditMode ? 'editing' : ''}`;
+                    // 延迟动画
+                    el.style.animationDelay = `${index * 50}ms`;
+                    
+                    el.innerHTML = `
+                        <div class="shortcut-icon" onclick="app.onShortcutClick(${index})">
+                            <span class="material-symbols-rounded">${item.icon || 'public'}</span>
+                            <div class="shortcut-delete" onclick="event.stopPropagation(); app.deleteShortcut(${index})">
+                                <span class="material-symbols-rounded" style="font-size:16px">close</span>
+                            </div>
+                        </div>
+                        <span class="shortcut-label">${item.name}</span>
+                    `;
+                    grid.appendChild(el);
+                });
+
+                // 添加按钮
+                const addBtn = document.createElement('div');
+                addBtn.className = 'shortcut-item';
+                addBtn.innerHTML = `
+                    <div class="shortcut-icon" style="background:transparent; border:1px dashed var(--md-sys-color-outline);" onclick="app.openAddDialog()">
+                        <span class="material-symbols-rounded" style="color:var(--md-sys-color-on-surface)">add</span>
+                    </div>
+                    <span class="shortcut-label">添加</span>
+                `;
+                grid.appendChild(addBtn);
+            }
+
+            onShortcutClick(index) {
+                if (this.state.isEditMode) return;
+                this.navigate(this.state.shortcuts[index].url);
+            }
+
+            toggleEditMode() {
+                this.state.isEditMode = !this.state.isEditMode;
+                const btn = document.getElementById('edit-mode-btn');
+                if (this.state.isEditMode) btn.classList.add('active');
+                else btn.classList.remove('active');
+                this.renderShortcuts();
+            }
+
+            deleteShortcut(index) {
+                this.state.shortcuts.splice(index, 1);
+                this.saveState();
+                this.renderShortcuts();
+            }
+
+            // --- 对话框逻辑 ---
+            openAddDialog() {
+                document.getElementById('add-shortcut-overlay').classList.add('active');
+            }
+
+            closeDialog() {
+                document.getElementById('add-shortcut-overlay').classList.remove('active');
+                document.getElementById('new-shortcut-name').value = '';
+                document.getElementById('new-shortcut-url').value = '';
+            }
+
+            saveShortcut() {
+                const name = document.getElementById('new-shortcut-name').value;
+                let url = document.getElementById('new-shortcut-url').value;
+                
+                if (name && url) {
+                    if (!url.startsWith('http')) url = 'https://' + url;
+                    this.state.shortcuts.push({ name, url, icon: 'link' });
+                    this.saveState();
+                    this.renderShortcuts();
+                    this.closeDialog();
+                }
+            }
+
+            // --- 设置 & 主题逻辑 ---
+            openSettings() {
+                document.getElementById('settings-overlay').classList.add('active');
+                this.updateEngineUI();
+            }
+
+            closeSettings() {
                 document.getElementById('settings-overlay').classList.remove('active');
             }
+
+            setEngine(key) {
+                this.state.engine = key;
+                this.saveState();
+                this.updateEngineUI();
+            }
+
+            updateEngineUI() {
+                const container = document.getElementById('engine-options');
+                Array.from(container.children).forEach(btn => {
+                    btn.classList.remove('selected');
+                    // 简单的文本匹配逻辑来高亮
+                    if(btn.innerText === this.engines[this.state.engine].name) {
+                        btn.classList.add('selected');
+                    }
+                });
+            }
+
+            setThemeMode(mode) {
+                this.state.themeMode = mode;
+                this.saveState();
+                this.applyTheme();
+                
+                // 更新UI高亮
+                ['light', 'dark', 'auto'].forEach(m => {
+                    const el = document.getElementById(`theme-${m}`);
+                    if (m === mode) el.classList.add('selected');
+                    else el.classList.remove('selected');
+                });
+            }
+
+            setAccentColor(hex) {
+                this.state.accentColor = hex;
+                this.saveState();
+                this.applyTheme();
+                // 这里可以遍历 color-dot 添加 selected 样式，略
+            }
+
+            applyTheme() {
+                // 1. 处理深色/浅色模式
+                let isDark = false;
+                if (this.state.themeMode === 'dark') isDark = true;
+                else if (this.state.themeMode === 'auto') {
+                    isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                }
+
+                if (isDark) document.documentElement.setAttribute('data-theme', 'dark');
+                else document.documentElement.removeAttribute('data-theme');
+
+                // 2. 处理主题色 (简化版 Monet 算法模拟)
+                // 实际上完整的动态取色需要复杂的 HSL 转换，这里用透明度模拟变体
+                const root = document.documentElement;
+                const c = this.state.accentColor;
+
+                // 这里是一个非常简单的 hack，真正的 MD3 需要 JS 库如 material-color-utilities
+                // 但为了保持单文件且不依赖外部重型库，我们直接改变 --md-sys-color-primary
+                // 并利用 CSS 变量的 fallback 或透明度
+                
+                if (!isDark) {
+                   root.style.setProperty('--md-sys-color-primary', c);
+                   root.style.setProperty('--md-sys-color-primary-container', c + '25'); // 15% opacity
+                   root.style.setProperty('--md-sys-color-on-primary-container', c); 
+                } else {
+                   // 深色模式下主色通常更亮
+                   root.style.setProperty('--md-sys-color-primary', c); // 理想情况应该调亮
+                   root.style.setProperty('--md-sys-color-primary-container', c + '50');
+                }
+            }
         }
 
-        function setEngine(engine, el) {
-            currentEngine = engine;
-            // 更新UI选中状态
-            const chips = el.parentElement.querySelectorAll('.chip');
-            chips.forEach(c => c.classList.remove('selected'));
-            el.classList.add('selected');
-        }
-        
-        function setTheme(mode) {
-            // 这里是简单的模拟
-            alert('主题切换逻辑已触发：' + mode + '\n(需配合完整CSS变量切换，当前根据系统自动适配)');
-        }
-        
-        function setPrimaryColor(color) {
-            document.documentElement.style.setProperty('--md-sys-color-primary', color);
-            document.documentElement.style.setProperty('--md-sys-color-primary-container', color + '40'); // 40 is hex for 25% opacity
-        }
-
+        // --- 启动应用 ---
+        const app = new XiaoZhuangBrowser();
     </script>
 </body>
 </html>
