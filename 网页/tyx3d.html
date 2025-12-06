@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D太阳系与水晶球</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #02020a; /* 深蓝黑色 */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* 顶部标题 */
+        #header {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: #fff;
+            z-index: 10;
+            pointer-events: none;
+            text-shadow: 0 0 10px rgba(0, 191, 255, 0.7);
+        }
+        #header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            letter-spacing: 2px;
+            font-weight: 300;
+        }
+
+        /* 底部预览条 */
+        #bottom-nav {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 800px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            overflow-x: auto;
+            padding: 0 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 10;
+            /* 隐藏滚动条但保留功能 */
+            scrollbar-width: none; 
+            -ms-overflow-style: none;
+        }
+        #bottom-nav::-webkit-scrollbar { 
+            display: none; 
+        }
+
+        /* 预览项目 */
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 15px;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+            opacity: 0.7;
+            flex-shrink: 0; /* 防止压缩 */
+        }
+        .nav-item:hover, .nav-item.active {
+            transform: scale(1.1);
+            opacity: 1;
+        }
+        .nav-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #444;
+            margin-bottom: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            border: 2px solid rgba(255,255,255,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        /* 简单的CSS模拟行星图标颜色 */
+        .icon-sun { background: radial-gradient(circle, #ffd700, #ff8c00); }
+        .icon-mercury { background: radial-gradient(circle, #a9a9a9, #696969); }
+        .icon-venus { background: radial-gradient(circle, #e6c288, #d2691e); }
+        .icon-earth { background: radial-gradient(circle, #4682b4, #000080); }
+        .icon-mars { background: radial-gradient(circle, #ff6347, #8b0000); }
+        .icon-jupiter { background: radial-gradient(circle, #deb887, #a0522d); }
+        .icon-saturn { background: radial-gradient(circle, #f4a460, #cd853f); }
+        .icon-uranus { background: radial-gradient(circle, #afeeee, #00ced1); }
+        .icon-neptune { background: radial-gradient(circle, #4169e1, #0000cd); }
+
+        .nav-text {
+            color: #fff;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* 加载动画 */
+        #loader {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 100;
+            transition: opacity 0.5s;
+        }
+
+        /* 控制面板自定义样式修正 */
+        .lil-gui { 
+            top: 60px !important; /* 避开标题 */
+            right: 10px !important;
+        }
+        @media (max-width: 600px) {
+            #header h1 { font-size: 1.4rem; }
+            #bottom-nav { height: 80px; width: 95%; }
+            .nav-icon { width: 40px; height: 40px; }
+            .nav-text { font-size: 0.7rem; }
+            .lil-gui { display: none; } /* 手机端隐藏复杂控制面板，以免遮挡 */
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader">正在加载光影引擎...</div>
+
+    <div id="header">
+        <h1>3D太阳系与水晶球</h1>
+    </div>
+
+    <!-- 3D 容器 -->
+    <div id="canvas-container"></div>
+
+    <!-- 底部导航 -->
+    <div id="bottom-nav">
+        <!-- JS 动态生成内容 -->
+    </div>
+
+    <!-- 引入 Three.js 和相关库 -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+        
+        // 简单的动画库，用于相机平滑移动 (GSAP的极简替代实现，为了减少依赖)
+        // 如果想更顺滑，可以引入 GSAP，这里手写一个简单的 lerp 逻辑
+        const TWEEN = {
+            targets: [],
+            update: function() {
+                const now = Date.now();
+                this.targets = this.targets.filter(t => {
+                    const time = (now - t.startTime) / t.duration;
+                    if (time >= 1) {
+                        t.onUpdate(1);
+                        if(t.onComplete) t.onComplete();
+                        return false; 
+                    }
+                    // Ease out cubic
+                    const factor = 1 - Math.pow(1 - time, 3);
+                    t.onUpdate(factor);
+                    return true;
+                });
+            },
+            to: function(obj, target, duration, onUpdate, onComplete) {
+                const startValues = {};
+                for(let k in target) startValues[k] = obj[k];
+                
+                this.targets.push({
+                    startTime: Date.now(),
+                    duration: duration,
+                    onUpdate: (factor) => {
+                        for(let k in target) {
+                            obj[k] = startValues[k] + (target[k] - startValues[k]) * factor;
+                        }
+                        if(onUpdate) onUpdate();
+                    },
+                    onComplete: onComplete
+                });
+            }
+        };
+
+        // --- 1. 场景初始化 ---
+        const scene = new THREE.Scene();
+        // 深蓝背景雾效，增加深空感
+        scene.fog = new THREE.FogExp2(0x02020a, 0.002);
+        scene.background = new THREE.Color(0x02020a);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 40, 80);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.toneMapping = THREE.ReinhardToneMapping; // 电影感色调映射
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxDistance = 200;
+        controls.minDistance = 5;
+
+        // --- 2. 光照设置 (核心光影) ---
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.5); // 基础环境光
+        scene.add(ambientLight);
+
+        // 太阳点光源 (位于中心)
+        const sunLight = new THREE.PointLight(0xffaa00, 3000, 300);
+        sunLight.position.set(0, 0, 0);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        sunLight.shadow.bias = -0.0001;
+        scene.add(sunLight);
+
+        // 辅助光，为了让背光面不至于全黑，并且增加蓝色反光，模拟宇宙环境
+        const rimLight = new THREE.DirectionalLight(0x4455ff, 1);
+        rimLight.position.set(50, 20, -50);
+        scene.add(rimLight);
+
+        // --- 3. 创建对象 ---
+
+        // 3.1 星空背景 (粒子系统)
+        const starGeometry = new THREE.BufferGeometry();
+        const starCount = 5000;
+        const starPos = new Float32Array(starCount * 3);
+        for(let i=0; i<starCount*3; i++) {
+            starPos[i] = (Math.random() - 0.5) * 600; // 散布在 600x600x600 的空间
+        }
+        starGeometry.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, transparent: true, opacity: 0.8 });
+        const stars = new THREE.Points(starGeometry, starMaterial);
+        scene.add(stars);
+
+        // 3.2 中心：水晶球太阳
+        // 使用 MeshPhysicalMaterial 实现玻璃/水晶质感
+        const crystalGeometry = new THREE.IcosahedronGeometry(4, 10); // 高面数球体
+        const crystalMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0xffaa00,        // 基础色
+            emissive: 0xff5500,     // 自发光颜色
+            emissiveIntensity: 2,   // 发光强度
+            metalness: 0.1,
+            roughness: 0.1,
+            transmission: 0.6,      // 透光性 (玻璃效果)
+            thickness: 2.0,
+            ior: 1.5,               // 折射率
+            clearcoat: 1.0,         // 清漆层
+            clearcoatRoughness: 0.1
+        });
+        const sunMesh = new THREE.Mesh(crystalGeometry, crystalMaterial);
+        scene.add(sunMesh);
+
+        // 添加一个内部核心，让水晶球看起来里面有能量
+        const coreGeometry = new THREE.IcosahedronGeometry(2.5, 4);
+        const coreMaterial = new THREE.MeshBasicMaterial({ color: 0xffffaa });
+        const sunCore = new THREE.Mesh(coreGeometry, coreMaterial);
+        sunMesh.add(sunCore);
+
+
+        // 3.3 行星数据
+        const planetsData = [
+            { name: "太阳", id: "sun", radius: 4, distance: 0, speed: 0, color: 0xffaa00, mesh: sunMesh },
+            { name: "水星", id: "mercury", radius: 0.8, distance: 10, speed: 0.02, color: 0xa9a9a9 },
+            { name: "金星", id: "venus", radius: 1.2, distance: 16, speed: 0.015, color: 0xe6c288 },
+            { name: "地球", id: "earth", radius: 1.3, distance: 22, speed: 0.01, color: 0x4682b4 },
+            { name: "火星", id: "mars", radius: 1.0, distance: 30, speed: 0.008, color: 0xff6347 },
+            { name: "木星", id: "jupiter", radius: 3.5, distance: 45, speed: 0.004, color: 0xdeb887 },
+            { name: "土星", id: "saturn", radius: 3.0, distance: 65, speed: 0.003, color: 0xf4a460, hasRing: true },
+            { name: "天王星", id: "uranus", radius: 2.0, distance: 85, speed: 0.002, color: 0xafeeee },
+            { name: "海王星", id: "neptune", radius: 1.9, distance: 100, speed: 0.001, color: 0x4169e1 }
+        ];
+
+        const planets = []; // 存储行星网格对象
+
+        planetsData.forEach(p => {
+            if (p.id === 'sun') return; // 太阳已经创建
+
+            // 创建轨道线 (视觉辅助)
+            const orbitGeo = new THREE.RingGeometry(p.distance - 0.1, p.distance + 0.1, 128);
+            const orbitMat = new THREE.MeshBasicMaterial({ color: 0xffffff, opacity: 0.15, side: THREE.DoubleSide, transparent: true });
+            const orbit = new THREE.Mesh(orbitGeo, orbitMat);
+            orbit.rotation.x = Math.PI / 2;
+            scene.add(orbit);
+
+            // 创建行星主体
+            const geometry = new THREE.SphereGeometry(p.radius, 32, 32);
+            // 使用标准材质接收光照和阴影
+            const material = new THREE.MeshStandardMaterial({ 
+                color: p.color,
+                roughness: 0.7,
+                metalness: 0.2
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            
+            // 存储自定义属性用于动画
+            mesh.userData = { 
+                distance: p.distance, 
+                angle: Math.random() * Math.PI * 2, 
+                speed: p.speed 
+            };
+            
+            scene.add(mesh);
+            p.mesh = mesh; // 关联回数据
+            planets.push(mesh);
+
+            // 土星环特例
+            if (p.hasRing) {
+                const ringGeo = new THREE.RingGeometry(p.radius + 1, p.radius + 4, 64);
+                const ringMat = new THREE.MeshStandardMaterial({ 
+                    color: 0xcd853f, 
+                    side: THREE.DoubleSide, 
+                    transparent: true, 
+                    opacity: 0.8 
+                });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI / 2.2; // 稍微倾斜
+                mesh.add(ring);
+            }
+        });
+
+        // --- 4. 后期处理 (Bloom/辉光) ---
+        const renderScene = new RenderPass(scene, camera);
+        
+        // UnrealBloomPass 参数: resolution, strength, radius, threshold
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+        bloomPass.threshold = 0.2; // 亮度超过多少开始发光
+        bloomPass.strength = 1.2;  // 辉光强度
+        bloomPass.radius = 0.5;    // 扩散半径
+
+        const composer = new EffectComposer(renderer);
+        composer.addPass(renderScene);
+        composer.addPass(bloomPass);
+
+        // --- 5. UI 生成与交互 ---
+        const navContainer = document.getElementById('bottom-nav');
+        let currentFocus = 'sun'; // 当前聚焦的对象 ID
+
+        planetsData.forEach(p => {
+            const item = document.createElement('div');
+            item.className = 'nav-item';
+            if(p.id === 'sun') item.classList.add('active');
+            item.innerHTML = `
+                <div class="nav-icon icon-${p.id}"></div>
+                <div class="nav-text">${p.name}</div>
+            `;
+            item.onclick = () => focusOnPlanet(p.id, item);
+            navContainer.appendChild(item);
+        });
+
+        function focusOnPlanet(id, domElement) {
+            currentFocus = id;
+            
+            // UI 更新
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            if(domElement) domElement.classList.add('active');
+
+            // 寻找目标对象
+            const targetData = planetsData.find(p => p.id === id);
+            if (!targetData) return;
+
+            // 如果是太阳，回到初始视角
+            if (id === 'sun') {
+                animateCamera(new THREE.Vector3(0, 40, 60), new THREE.Vector3(0, 0, 0));
+            }
+            // 如果是行星，逻辑在 update 中动态处理
+        }
+
+        // 相机移动动画函数
+        function animateCamera(targetPos, lookAtPos) {
+            // 这里只是一次性移动到位，对于动态行星，我们在 update 中持续修正 controls.target
+            const startPos = camera.position.clone();
+            const startTarget = controls.target.clone();
+
+            TWEEN.to(camera.position, targetPos, 1500); // 1.5秒移动
+            TWEEN.to(controls.target, lookAtPos, 1500);
+        }
+
+        // --- 6. 动画循环 ---
+        
+        // 动态跟随的平滑处理变量
+        const smoothTarget = new THREE.Vector3();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = Date.now() * 0.001;
+
+            // 1. 行星公转
+            planets.forEach(mesh => {
+                const u = mesh.userData;
+                u.angle += u.speed; // 增加角度
+                mesh.position.x = Math.cos(u.angle) * u.distance;
+                mesh.position.z = Math.sin(u.angle) * u.distance;
+                
+                // 行星自转
+                mesh.rotation.y += 0.01;
+            });
+
+            // 2. 水晶球(太阳)效果
+            sunMesh.rotation.y += 0.005;
+            sunMesh.rotation.z = Math.sin(time) * 0.1;
+            // 脉冲发光效果
+            sunMesh.material.emissiveIntensity = 1.5 + Math.sin(time * 2) * 0.5;
+
+            // 3. 相机逻辑 (核心：点击切换视角)
+            if (currentFocus !== 'sun') {
+                const targetObj = planetsData.find(p => p.id === currentFocus).mesh;
+                if (targetObj) {
+                    // 目标位置：行星位置
+                    const pPos = targetObj.position;
+                    
+                    // 相机理想位置：行星侧后方上方
+                    // 简单的偏移量，根据行星大小调整
+                    const offset = 8 + targetObj.geometry.parameters.radius * 4; 
+                    const camX = pPos.x + offset; 
+                    const camZ = pPos.z + offset;
+                    const camY = pPos.y + 6;
+
+                    // 使用 Lerp 平滑移动相机和聚焦点，而不是生硬的锁定
+                    camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.05);
+                    controls.target.lerp(pPos, 0.05);
+                }
+            } else {
+                // 如果聚焦太阳，controls 由用户手动控制，或者保持在中心
+                // 稍微缓慢自动旋转一点点视角增添动感
+                // controls.autoRotate = true; 
+            }
+
+            TWEEN.update();
+            controls.update();
+
+            // 使用 composer 渲染代替 renderer.render 以显示辉光
+            composer.render();
+        }
+
+        // --- 7. GUI 控制面板 ---
+        const gui = new GUI({ title: '光影控制台' });
+        
+        const params = {
+            bloomStrength: 1.2,
+            bloomThreshold: 0.2,
+            bloomRadius: 0.5,
+            sunIntensity: 2,
+            envLight: 0.5
+        };
+
+        const folderBloom = gui.addFolder('辉光效果 (Bloom)');
+        folderBloom.add(params, 'bloomStrength', 0.0, 3.0).onChange(v => bloomPass.strength = v);
+        folderBloom.add(params, 'bloomRadius', 0.0, 1.0).onChange(v => bloomPass.radius = v);
+        folderBloom.add(params, 'bloomThreshold', 0.0, 1.0).onChange(v => bloomPass.threshold = v);
+
+        const folderLight = gui.addFolder('场景光照');
+        folderLight.add(params, 'sunIntensity', 0, 5).name('水晶亮度').onChange(v => sunMesh.material.emissiveIntensity = v);
+        folderLight.add(params, 'envLight', 0, 2).name('环境亮度').onChange(v => ambientLight.intensity = v);
+
+        // --- 8. 窗口自适应 ---
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // 移除加载遮罩
+        document.getElementById('loader').style.opacity = 0;
+        setTimeout(() => document.getElementById('loader').remove(), 500);
+
+        // 启动
+        animate();
+
+    </script>
+</body>
+</html>
