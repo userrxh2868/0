@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MD3 迷宫生成器与寻路</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- Material Design 3 System Variables (Dark Theme) --- */
+        :root {
+            --md-sys-color-surface: #141218;
+            --md-sys-color-surface-container: #1d1b20;
+            --md-sys-color-surface-container-high: #2b2930;
+            --md-sys-color-primary: #d0bcff;
+            --md-sys-color-on-primary: #381e72;
+            --md-sys-color-primary-container: #4f378b;
+            --md-sys-color-on-primary-container: #eaddff;
+            --md-sys-color-secondary: #ccc2dc;
+            --md-sys-color-tertiary: #efb8c8;
+            --md-sys-color-on-surface: #e6e1e5;
+            --md-sys-color-on-surface-variant: #cac4d0;
+            --md-sys-color-outline: #938f99;
+            --md-sys-elevation-2: 0px 3px 6px rgba(0,0,0,0.16), 0px 3px 6px rgba(0,0,0,0.23);
+            
+            --maze-wall: #49454f;
+            --maze-path: #1d1b20;
+            --maze-visited: rgba(79, 55, 139, 0.3);
+            --maze-solution: #d0bcff;
+            --maze-current: #efb8c8;
+            --maze-start: #4caf50;
+            --maze-end: #f44336;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Header --- */
+        header {
+            padding: 16px 24px;
+            background: var(--md-sys-color-surface-container);
+            display: flex;
+            align-items: center;
+            box-shadow: var(--md-sys-elevation-2);
+            z-index: 10;
+        }
+        h1 { font-size: 22px; font-weight: 400; color: var(--md-sys-color-on-surface); }
+
+        /* --- Layout --- */
+        .app-container {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 64px);
+            flex-direction: row;
+        }
+
+        /* --- Sidebar Controls --- */
+        .sidebar {
+            width: 320px;
+            background: var(--md-sys-color-surface-container-high);
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            border-right: 1px solid #000;
+        }
+
+        /* --- Main Content (Canvas) --- */
+        .main-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background-color: #000;
+            overflow: hidden;
+            position: relative;
+        }
+
+        canvas {
+            border-radius: 4px;
+            background: var(--maze-path);
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        /* --- MD3 Components --- */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .group-title {
+            font-size: 14px;
+            color: var(--md-sys-color-primary);
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* Inputs & Selects */
+        .input-wrapper {
+            position: relative;
+            background: var(--md-sys-color-surface-container);
+            border-radius: 4px 4px 0 0;
+            border-bottom: 1px solid var(--md-sys-color-outline);
+            padding: 8px 16px;
+            transition: 0.2s;
+        }
+        .input-wrapper:focus-within {
+            background: rgba(208, 188, 255, 0.08);
+            border-bottom: 2px solid var(--md-sys-color-primary);
+        }
+        label {
+            display: block;
+            font-size: 12px;
+            color: var(--md-sys-color-on-surface-variant);
+            margin-bottom: 4px;
+        }
+        select, input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--md-sys-color-on-surface);
+            font-size: 16px;
+            outline: none;
+            font-family: inherit;
+        }
+        select option { background: var(--md-sys-color-surface-container-high); }
+
+        /* Buttons */
+        .btn {
+            height: 40px;
+            border-radius: 20px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            gap: 8px;
+        }
+        .btn-filled {
+            background: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+        }
+        .btn-filled:hover {
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            opacity: 0.9;
+        }
+        .btn-filled:disabled {
+            background: rgba(230, 225, 229, 0.12);
+            color: rgba(230, 225, 229, 0.38);
+            cursor: not-allowed;
+        }
+        
+        .btn-tonal {
+            background: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+        }
+        .btn-tonal:hover { opacity: 0.9; }
+
+        .range-wrap { display: flex; align-items: center; gap: 10px; }
+        input[type="range"] { accent-color: var(--md-sys-color-primary); cursor: pointer; }
+
+        /* --- Mobile Responsiveness --- */
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 40%;
+                flex-direction: row;
+                flex-wrap: wrap;
+                padding: 16px;
+                border-right: none;
+                border-top: 1px solid #000;
+                order: 2; /* Controls at bottom on mobile */
+            }
+            .main-content {
+                order: 1;
+            }
+            .control-group {
+                flex: 1 1 45%; /* Two columns on mobile */
+                min-width: 140px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>迷宫生成器 MD3</h1>
+    </header>
+
+    <div class="app-container">
+        <!-- Controls Sidebar -->
+        <aside class="sidebar">
+            <div class="control-group">
+                <span class="group-title">生成设置</span>
+                <div class="input-wrapper">
+                    <label>生成算法</label>
+                    <select id="genAlgorithm">
+                        <option value="recursive">递归回溯 (DFS)</option>
+                        <option value="prim">随机 Prim 算法</option>
+                    </select>
+                </div>
+                <div class="range-wrap input-wrapper" style="border:none; background:none; padding-left:0;">
+                    <label style="width: 40px">大小</label>
+                    <input type="range" id="mazeSize" min="10" max="50" value="20">
+                    <span id="sizeValue">20</span>
+                </div>
+                <button class="btn btn-filled" id="btnGenerate">
+                    生成迷宫
+                </button>
+            </div>
+
+            <div class="control-group">
+                <span class="group-title">寻路工具</span>
+                <div class="input-wrapper">
+                    <label>寻路算法</label>
+                    <select id="solveAlgorithm">
+                        <option value="bfs">BFS (广度优先 - 最短)</option>
+                        <option value="dfs">DFS (深度优先)</option>
+                        <option value="astar">A* (启发式搜索 - 快速)</option>
+                    </select>
+                </div>
+                <div class="range-wrap input-wrapper" style="border:none; background:none; padding-left:0;">
+                    <label style="width: 40px">速度</label>
+                    <input type="range" id="speed" min="1" max="10" value="8">
+                </div>
+                <button class="btn btn-tonal" id="btnSolve">
+                    开始寻路
+                </button>
+                <button class="btn btn-tonal" id="btnClearPath" style="background: transparent; border: 1px solid var(--md-sys-color-outline);">
+                    清除路径
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Canvas -->
+        <main class="main-content" id="canvasContainer">
+            <canvas id="mazeCanvas"></canvas>
+        </main>
+    </div>
+
+    <script>
+        /**
+         * 核心逻辑类
+         */
+        class MazeApp {
+            constructor() {
+                this.canvas = document.getElementById('mazeCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.container = document.getElementById('canvasContainer');
+                
+                // 状态变量
+                this.cols = 20;
+                this.rows = 20;
+                this.cellSize = 0;
+                this.grid = [];
+                this.stack = [];
+                this.current = null; // 生成时的当前格
+                this.isRunning = false;
+                this.abortController = null; // 用于停止异步操作
+                
+                // 配置
+                this.delay = 20; // 动画延迟ms
+
+                // 绑定UI
+                this.bindUI();
+                this.resizeCanvas();
+                window.addEventListener('resize', () => {
+                    this.resizeCanvas();
+                    this.draw();
+                });
+
+                // 初始化
+                this.resetGrid();
+                this.draw();
+            }
+
+            bindUI() {
+                const btnGen = document.getElementById('btnGenerate');
+                const btnSolve = document.getElementById('btnSolve');
+                const btnClear = document.getElementById('btnClearPath');
+                const sizeInput = document.getElementById('mazeSize');
+                const sizeVal = document.getElementById('sizeValue');
+                const speedInput = document.getElementById('speed');
+
+                sizeInput.addEventListener('input', (e) => {
+                    this.cols = this.rows = parseInt(e.target.value);
+                    sizeVal.innerText = this.rows;
+                    if(!this.isRunning) {
+                        this.resetGrid();
+                        this.draw();
+                    }
+                });
+
+                speedInput.addEventListener('input', (e) => {
+                    // Speed 1-10 mapping to delay (100ms to 0ms)
+                    this.delay = 100 - (parseInt(e.target.value) * 10);
+                });
+
+                btnGen.addEventListener('click', () => this.startGeneration());
+                btnSolve.addEventListener('click', () => this.startSolving());
+                btnClear.addEventListener('click', () => {
+                    if(this.isRunning) return;
+                    this.clearPath();
+                    this.draw();
+                });
+            }
+
+            resizeCanvas() {
+                // 适配容器大小
+                const size = Math.min(this.container.clientWidth, this.container.clientHeight) - 40;
+                this.canvas.width = size;
+                this.canvas.height = size;
+                this.cellSize = size / this.cols;
+            }
+
+            resetGrid() {
+                this.grid = [];
+                for (let r = 0; r < this.rows; r++) {
+                    for (let c = 0; c < this.cols; c++) {
+                        this.grid.push(new Cell(c, r, this.cols));
+                    }
+                }
+                this.resizeCanvas(); // Recalculate cell size
+            }
+
+            clearPath() {
+                for(let cell of this.grid) {
+                    cell.isPath = false;
+                    cell.isVisitedSearch = false;
+                    cell.parent = null;
+                }
+            }
+
+            getIndex(c, r) {
+                if (c < 0 || r < 0 || c >= this.cols || r >= this.rows) return -1;
+                return c + r * this.cols;
+            }
+
+            async wait() {
+                if (this.delay <= 0) return;
+                return new Promise(resolve => setTimeout(resolve, this.delay));
+            }
+
+            setRunning(state) {
+                this.isRunning = state;
+                document.getElementById('btnGenerate').disabled = state;
+                document.getElementById('btnSolve').disabled = state;
+                document.getElementById('mazeSize').disabled = state;
+            }
+
+            // --- 绘图 ---
+            draw() {
+                this.ctx.fillStyle = '#1d1b20'; // Background
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                for (let cell of this.grid) {
+                    cell.show(this.ctx, this.cellSize);
+                }
+                
+                // 标记起点终点
+                if(this.grid.length > 0) {
+                    this.drawMarker(0, '#4caf50'); // Start
+                    this.drawMarker(this.grid.length - 1, '#f44336'); // End
+                }
+            }
+            
+            drawMarker(index, color) {
+                const cell = this.grid[index];
+                const x = cell.c * this.cellSize + this.cellSize * 0.25;
+                const y = cell.r * this.cellSize + this.cellSize * 0.25;
+                const w = this.cellSize * 0.5;
+                this.ctx.fillStyle = color;
+                this.ctx.beginPath();
+                this.ctx.arc(x + w/2, y + w/2, w/2, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+
+            // --- 生成算法 ---
+            async startGeneration() {
+                if (this.isRunning) return;
+                this.setRunning(true);
+                this.resetGrid();
+                
+                const algo = document.getElementById('genAlgorithm').value;
+                
+                if (algo === 'recursive') {
+                    await this.generateDFS();
+                } else if (algo === 'prim') {
+                    await this.generatePrim();
+                }
+
+                this.current = null;
+                this.draw();
+                this.setRunning(false);
+            }
+
+            async generateDFS() {
+                let current = this.grid[0];
+                current.visited = true;
+                this.stack = [current];
+
+                while (this.stack.length > 0) {
+                    current = this.stack.pop();
+                    this.current = current; // 用于可视化高亮
+
+                    const next = current.checkNeighbors(this.grid, this.cols, this.rows);
+                    if (next) {
+                        this.stack.push(current);
+                        this.removeWalls(current, next);
+                        next.visited = true;
+                        this.stack.push(next);
+                        
+                        // 可视化
+                        if(this.delay > 0) {
+                            this.draw();
+                            await this.wait();
+                        }
+                    }
+                }
+            }
+
+            async generatePrim() {
+                // 简单的随机 Prim 算法实现
+                let frontier = [];
+                let start = this.grid[0];
+                start.visited = true;
+                
+                // 添加初始邻居到边界列表
+                let neighbors = start.getAllNeighbors(this.grid, this.cols, this.rows);
+                frontier.push(...neighbors);
+
+                while (frontier.length > 0) {
+                    // 随机选取一个边界单元格
+                    let randIndex = Math.floor(Math.random() * frontier.length);
+                    let current = frontier[randIndex];
+                    frontier.splice(randIndex, 1);
+
+                    if (!current.visited) {
+                        current.visited = true;
+                        this.current = current;
+
+                        // 找到一个已经访问过的邻居，打通墙壁
+                        let visitedNeighbors = current.getAllNeighbors(this.grid, this.cols, this.rows).filter(n => n.visited);
+                        if (visitedNeighbors.length > 0) {
+                            let randNeighbor = visitedNeighbors[Math.floor(Math.random() * visitedNeighbors.length)];
+                            this.removeWalls(current, randNeighbor);
+                        }
+
+                        // 将未访问的邻居加入边界
+                        let unvisitedNeighbors = current.getAllNeighbors(this.grid, this.cols, this.rows).filter(n => !n.visited);
+                        frontier.push(...unvisitedNeighbors);
+                        
+                        if(this.delay > 0) {
+                            this.draw();
+                            await this.wait();
+                        }
+                    }
+                }
+            }
+
+            removeWalls(a, b) {
+                const x = a.c - b.c;
+                if (x === 1) { a.walls[3] = false; b.walls[1] = false; }
+                else if (x === -1) { a.walls[1] = false; b.walls[3] = false; }
+                
+                const y = a.r - b.r;
+                if (y === 1) { a.walls[0] = false; b.walls[2] = false; }
+                else if (y === -1) { a.walls[2] = false; b.walls[0] = false; }
+            }
+
+            // --- 寻路算法 ---
+            async startSolving() {
+                if (this.isRunning) return;
+                this.clearPath();
+                this.setRunning(true);
+
+                const algo = document.getElementById('solveAlgorithm').value;
+                const start = this.grid[0];
+                const end = this.grid[this.grid.length - 1];
+
+                let pathFound = false;
+                if (algo === 'bfs') pathFound = await this.solveBFS(start, end);
+                else if (algo === 'dfs') pathFound = await this.solveDFS(start, end);
+                else if (algo === 'astar') pathFound = await this.solveAStar(start, end);
+
+                if (pathFound) {
+                    this.reconstructPath(end);
+                }
+                
+                this.draw();
+                this.setRunning(false);
+            }
+
+            // 获取没有墙阻隔的邻居
+            getAccessibleNeighbors(cell) {
+                const neighbors = [];
+                const idx = this.getIndex(cell.c, cell.r);
+                
+                // Top
+                if (!cell.walls[0]) neighbors.push(this.grid[this.getIndex(cell.c, cell.r - 1)]);
+                // Right
+                if (!cell.walls[1]) neighbors.push(this.grid[this.getIndex(cell.c + 1, cell.r)]);
+                // Bottom
+                if (!cell.walls[2]) neighbors.push(this.grid[this.getIndex(cell.c, cell.r + 1)]);
+                // Left
+                if (!cell.walls[3]) neighbors.push(this.grid[this.getIndex(cell.c - 1, cell.r)]);
+                
+                return neighbors.filter(n => n !== undefined);
+            }
+
+            async solveBFS(start, end) {
+                let queue = [start];
+                start.isVisitedSearch = true;
+
+                while (queue.length > 0) {
+                    let current = queue.shift();
+                    if (current === end) return true;
+
+                    let neighbors = this.getAccessibleNeighbors(current);
+                    for (let neighbor of neighbors) {
+                        if (!neighbor.isVisitedSearch) {
+                            neighbor.isVisitedSearch = true;
+                            neighbor.parent = current;
+                            queue.push(neighbor);
+                        }
+                    }
+                    
+                    if(this.delay > 0) {
+                        this.draw();
+                        await this.wait();
+                    }
+                }
+                return false;
+            }
+
+            async solveDFS(start, end) {
+                let stack = [start];
+                start.isVisitedSearch = true;
+
+                while(stack.length > 0) {
+                    let current = stack.pop();
+                    if(current === end) return true;
+
+                    let neighbors = this.getAccessibleNeighbors(current);
+                    for(let neighbor of neighbors) {
+                        if(!neighbor.isVisitedSearch) {
+                            neighbor.isVisitedSearch = true;
+                            neighbor.parent = current;
+                            stack.push(neighbor);
+                        }
+                    }
+                    
+                    if(this.delay > 0) {
+                        this.draw();
+                        await this.wait();
+                    }
+                }
+                return false;
+            }
+
+            async solveAStar(start, end) {
+                let openSet = [start];
+                // h, g, f scores added to cell object dynamically
+                for(let c of this.grid) {
+                    c.g = Infinity;
+                    c.f = Infinity;
+                }
+                start.g = 0;
+                start.f = this.heuristic(start, end);
+
+                while(openSet.length > 0) {
+                    // Find lowest f score
+                    let winner = 0;
+                    for(let i=0; i<openSet.length; i++) {
+                        if(openSet[i].f < openSet[winner].f) winner = i;
+                    }
+                    let current = openSet[winner];
+
+                    if(current === end) return true;
+
+                    // Remove current from openSet
+                    openSet.splice(winner, 1);
+                    current.isVisitedSearch = true;
+
+                    let neighbors = this.getAccessibleNeighbors(current);
+                    for(let neighbor of neighbors) {
+                        if(neighbor.isVisitedSearch) continue; // In closed set basically
+
+                        let tempG = current.g + 1;
+                        let newPath = false;
+
+                        if(!openSet.includes(neighbor)) {
+                            openSet.push(neighbor);
+                            newPath = true;
+                        } else if (tempG < neighbor.g) {
+                            newPath = true;
+                        }
+
+                        if(newPath) {
+                            neighbor.g = tempG;
+                            neighbor.h = this.heuristic(neighbor, end);
+                            neighbor.f = neighbor.g + neighbor.h;
+                            neighbor.parent = current;
+                        }
+                    }
+                    
+                    if(this.delay > 0) {
+                        this.draw();
+                        await this.wait();
+                    }
+                }
+                return false;
+            }
+
+            heuristic(a, b) {
+                // Manhattan distance
+                return Math.abs(a.c - b.c) + Math.abs(a.r - b.r);
+            }
+
+            reconstructPath(endNode) {
+                let temp = endNode;
+                while(temp) {
+                    temp.isPath = true;
+                    temp = temp.parent;
+                }
+                this.draw();
+            }
+        }
+
+        /**
+         * 单元格类
+         */
+        class Cell {
+            constructor(c, r, cols) {
+                this.c = c;
+                this.r = r;
+                this.cols = cols;
+                this.walls = [true, true, true, true]; // Top, Right, Bottom, Left
+                this.visited = false;
+                
+                // Pathfinding props
+                this.isVisitedSearch = false;
+                this.isPath = false;
+                this.parent = null;
+                // A* props
+                this.f = 0;
+                this.g = 0; 
+                this.h = 0;
+            }
+
+            checkNeighbors(grid, cols, rows) {
+                let neighbors = [];
+                let top    = grid[this.index(this.c, this.r - 1, cols, rows)];
+                let right  = grid[this.index(this.c + 1, this.r, cols, rows)];
+                let bottom = grid[this.index(this.c, this.r + 1, cols, rows)];
+                let left   = grid[this.index(this.c - 1, this.r, cols, rows)];
+
+                if (top && !top.visited) neighbors.push(top);
+                if (right && !right.visited) neighbors.push(right);
+                if (bottom && !bottom.visited) neighbors.push(bottom);
+                if (left && !left.visited) neighbors.push(left);
+
+                if (neighbors.length > 0) {
+                    let r = Math.floor(Math.random() * neighbors.length);
+                    return neighbors[r];
+                } else {
+                    return undefined;
+                }
+            }
+
+            getAllNeighbors(grid, cols, rows) {
+                let neighbors = [];
+                let top    = grid[this.index(this.c, this.r - 1, cols, rows)];
+                let right  = grid[this.index(this.c + 1, this.r, cols, rows)];
+                let bottom = grid[this.index(this.c, this.r + 1, cols, rows)];
+                let left   = grid[this.index(this.c - 1, this.r, cols, rows)];
+                
+                if(top) neighbors.push(top);
+                if(right) neighbors.push(right);
+                if(bottom) neighbors.push(bottom);
+                if(left) neighbors.push(left);
+                return neighbors;
+            }
+
+            index(c, r, cols, rows) {
+                if (c < 0 || r < 0 || c >= cols || r >= rows) return -1;
+                return c + r * cols;
+            }
+
+            show(ctx, w) {
+                let x = this.c * w;
+                let y = this.r * w;
+
+                // 绘制背景
+                if (this.visited) {
+                    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--maze-path');
+                    ctx.fillRect(x, y, w, w);
+                }
+                
+                if (this.isPath) {
+                    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--maze-solution');
+                    ctx.fillRect(x, y, w, w);
+                } else if (this.isVisitedSearch) {
+                    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--maze-visited');
+                    ctx.fillRect(x, y, w, w);
+                }
+
+                // 绘制墙壁
+                ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--maze-wall');
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                if (this.walls[0]) { ctx.moveTo(x, y); ctx.lineTo(x + w, y); } // Top
+                if (this.walls[1]) { ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + w); } // Right
+                if (this.walls[2]) { ctx.moveTo(x + w, y + w); ctx.lineTo(x, y + w); } // Bottom
+                if (this.walls[3]) { ctx.moveTo(x, y + w); ctx.lineTo(x, y); } // Left
+                ctx.stroke();
+            }
+        }
+
+        // 启动应用
+        document.addEventListener('DOMContentLoaded', () => {
+            new MazeApp();
+        });
+
+    </script>
+</body>
+</html>
