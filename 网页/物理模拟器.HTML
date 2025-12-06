@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>物理引擎模拟器</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/poly-decomp@0.3.0/build/decomp.min.js"></script>
+    <style>
+        :root {
+            /* MD3 Color Tokens */
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            --md-sys-color-secondary: #625B71;
+            --md-sys-color-on-secondary: #FFFFFF;
+            --md-sys-color-secondary-container: #E8DEF8;
+            --md-sys-color-tertiary: #7D5260;
+            --md-sys-color-tertiary-container: #FFD8E4;
+            --md-sys-color-surface: #FEF7FF;
+            --md-sys-color-surface-variant: #E7E0EC;
+            --md-sys-color-on-surface: #1D1B20;
+            --md-sys-color-on-surface-variant: #49454F;
+            --md-sys-color-outline: #79747E;
+            --md-sys-color-outline-variant: #CAC4D0;
+            --md-sys-color-error: #B3261E;
+            --md-sys-color-surface-container: #F3EDF7;
+            --md-sys-color-surface-container-high: #ECE6F0;
+            --md-sys-color-surface-container-highest: #E6E0E9;
+            --md-sys-color-inverse-surface: #322F35;
+            --md-sys-color-inverse-on-surface: #F5EFF7;
+
+            /* Elevation */
+            --md-sys-elevation-1: 0 1px 3px 1px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.3);
+            --md-sys-elevation-2: 0 2px 6px 2px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.3);
+            --md-sys-elevation-3: 0 4px 8px 3px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.3);
+
+            /* Shape */
+            --md-sys-shape-corner-small: 8px;
+            --md-sys-shape-corner-medium: 12px;
+            --md-sys-shape-corner-large: 16px;
+            --md-sys-shape-corner-extra-large: 28px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
+            overflow: hidden;
+            touch-action: none;
+            height: 100vh;
+            height: 100dvh;
+        }
+
+        /* Top App Bar */
+        .top-app-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: var(--md-sys-color-surface);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 16px;
+            z-index: 100;
+            box-shadow: var(--md-sys-elevation-2);
+        }
+
+        .top-app-bar h1 {
+            font-size: 22px;
+            font-weight: 400;
+            flex: 1;
+        }
+
+        /* Canvas Container */
+        #canvas-container {
+            position: fixed;
+            top: 64px;
+            left: 0;
+            right: 0;
+            bottom: 80px;
+            background: linear-gradient(180deg, #E8DEF8 0%, #FEF7FF 100%);
+        }
+
+        #physics-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: var(--md-sys-color-surface-container);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding-bottom: env(safe-area-inset-bottom);
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 12px 16px;
+            border-radius: var(--md-sys-shape-corner-large);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            background: transparent;
+            color: var(--md-sys-color-on-surface-variant);
+            min-width: 64px;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
+        }
+
+        .nav-item .material-icons-round {
+            font-size: 24px;
+        }
+
+        .nav-item span {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* FAB */
+        .fab {
+            position: fixed;
+            bottom: 96px;
+            right: 16px;
+            width: 56px;
+            height: 56px;
+            border-radius: var(--md-sys-shape-corner-large);
+            background: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--md-sys-elevation-3);
+            transition: all 0.2s;
+            z-index: 50;
+        }
+
+        .fab:hover {
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+        }
+
+        .fab:active {
+            transform: scale(0.95);
+        }
+
+        .fab .material-icons-round {
+            font-size: 24px;
+        }
+
+        /* Bottom Sheet */
+        .bottom-sheet-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            z-index: 200;
+        }
+
+        .bottom-sheet-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .bottom-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--md-sys-color-surface-container-low, #F7F2FA);
+            border-radius: var(--md-sys-shape-corner-extra-large) var(--md-sys-shape-corner-extra-large) 0 0;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+            z-index: 201;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .bottom-sheet.active {
+            transform: translateY(0);
+        }
+
+        .sheet-handle {
+            width: 32px;
+            height: 4px;
+            background: var(--md-sys-color-outline-variant);
+            border-radius: 2px;
+            margin: 16px auto;
+        }
+
+        .sheet-content {
+            padding: 0 24px 24px;
+        }
+
+        .sheet-title {
+            font-size: 24px;
+            font-weight: 400;
+            margin-bottom: 24px;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        /* Shape Grid */
+        .shape-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .shape-btn {
+            aspect-ratio: 1;
+            border-radius: var(--md-sys-shape-corner-medium);
+            border: 2px solid var(--md-sys-color-outline-variant);
+            background: var(--md-sys-color-surface);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            transition: all 0.2s;
+            padding: 8px;
+        }
+
+        .shape-btn:hover {
+            border-color: var(--md-sys-color-primary);
+            background: var(--md-sys-color-primary-container);
+        }
+
+        .shape-btn.selected {
+            border-color: var(--md-sys-color-primary);
+            background: var(--md-sys-color-primary-container);
+        }
+
+        .shape-btn svg {
+            width: 32px;
+            height: 32px;
+            fill: var(--md-sys-color-on-surface);
+        }
+
+        .shape-btn span {
+            font-size: 11px;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed var(--md-sys-color-outline);
+            border-radius: var(--md-sys-shape-corner-large);
+            padding: 32px;
+            text-align: center;
+            margin-bottom: 24px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--md-sys-color-surface);
+        }
+
+        .upload-area:hover {
+            border-color: var(--md-sys-color-primary);
+            background: var(--md-sys-color-primary-container);
+        }
+
+        .upload-area .material-icons-round {
+            font-size: 48px;
+            color: var(--md-sys-color-primary);
+            margin-bottom: 8px;
+        }
+
+        .upload-area p {
+            color: var(--md-sys-color-on-surface-variant);
+            font-size: 14px;
+        }
+
+        .upload-area small {
+            color: var(--md-sys-color-outline);
+            font-size: 12px;
+        }
+
+        /* Slider Group */
+        .slider-group {
+            margin-bottom: 20px;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .slider-label span {
+            font-size: 14px;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .slider-label .value {
+            font-size: 12px;
+            color: var(--md-sys-color-on-surface-variant);
+            background: var(--md-sys-color-surface-container-highest);
+            padding: 4px 8px;
+            border-radius: var(--md-sys-shape-corner-small);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--md-sys-color-surface-container-highest);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--md-sys-color-primary);
+            cursor: pointer;
+            box-shadow: var(--md-sys-elevation-1);
+        }
+
+        /* Color Picker */
+        .color-grid {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+
+        .color-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .color-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .color-btn.selected {
+            border-color: var(--md-sys-color-on-surface);
+        }
+
+        /* MD3 Buttons */
+        .md-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 24px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            font-family: inherit;
+        }
+
+        .md-btn-filled {
+            background: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+        }
+
+        .md-btn-filled:hover {
+            box-shadow: var(--md-sys-elevation-1);
+        }
+
+        .md-btn-outlined {
+            background: transparent;
+            border: 1px solid var(--md-sys-color-outline);
+            color: var(--md-sys-color-primary);
+        }
+
+        .md-btn-tonal {
+            background: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
+        }
+
+        .md-btn-text {
+            background: transparent;
+            color: var(--md-sys-color-primary);
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        /* Icon Button */
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--md-sys-color-on-surface);
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: var(--md-sys-color-surface-container-highest);
+        }
+
+        /* Preview Images */
+        .preview-container {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .preview-item {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: var(--md-sys-shape-corner-medium);
+            overflow: hidden;
+            background: repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%) 50% / 16px 16px;
+        }
+
+        .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .preview-item .remove-btn {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--md-sys-color-error);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .preview-item .badge {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: var(--md-sys-color-primary);
+            color: white;
+        }
+
+        /* Snackbar */
+        .snackbar {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--md-sys-color-inverse-surface);
+            color: var(--md-sys-color-inverse-on-surface);
+            padding: 14px 24px;
+            border-radius: var(--md-sys-shape-corner-small);
+            font-size: 14px;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 300;
+            box-shadow: var(--md-sys-elevation-3);
+        }
+
+        .snackbar.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Info Card */
+        .info-card {
+            background: var(--md-sys-color-tertiary-container);
+            color: var(--md-sys-color-on-tertiary-container);
+            padding: 16px;
+            border-radius: var(--md-sys-shape-corner-medium);
+            margin-bottom: 24px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .info-card .material-icons-round {
+            font-size: 20px;
+        }
+
+        .info-card p {
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        /* Switch */
+        .switch-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--md-sys-color-outline-variant);
+        }
+
+        .switch-row:last-child {
+            border-bottom: none;
+        }
+
+        .switch {
+            position: relative;
+            width: 52px;
+            height: 32px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .switch-slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background: var(--md-sys-color-surface-container-highest);
+            border-radius: 16px;
+            border: 2px solid var(--md-sys-color-outline);
+            transition: all 0.2s;
+        }
+
+        .switch-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 6px;
+            bottom: 6px;
+            background: var(--md-sys-color-outline);
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+
+        .switch input:checked + .switch-slider {
+            background: var(--md-sys-color-primary);
+            border-color: var(--md-sys-color-primary);
+        }
+
+        .switch input:checked + .switch-slider:before {
+            transform: translateX(20px);
+            background: var(--md-sys-color-on-primary);
+            width: 24px;
+            height: 24px;
+            bottom: 2px;
+            left: 2px;
+        }
+
+        /* Stats Display */
+        .stats-bar {
+            position: fixed;
+            top: 72px;
+            left: 8px;
+            background: var(--md-sys-color-surface-container);
+            padding: 8px 12px;
+            border-radius: var(--md-sys-shape-corner-medium);
+            font-size: 12px;
+            color: var(--md-sys-color-on-surface-variant);
+            box-shadow: var(--md-sys-elevation-1);
+            z-index: 50;
+        }
+
+        /* Segmented Button */
+        .segmented-btn {
+            display: flex;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 20px;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .segment {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--md-sys-color-on-surface);
+            transition: all 0.2s;
+            border-right: 1px solid var(--md-sys-color-outline);
+        }
+
+        .segment:last-child {
+            border-right: none;
+        }
+
+        .segment.active {
+            background: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
+        }
+
+        /* Responsive */
+        @media (max-width: 400px) {
+            .shape-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .sheet-content {
+                padding: 0 16px 16px;
+            }
+        }
+
+        /* Landscape mode */
+        @media (orientation: landscape) and (max-height: 500px) {
+            .top-app-bar {
+                height: 48px;
+            }
+            
+            #canvas-container {
+                top: 48px;
+            }
+            
+            .bottom-nav {
+                height: 56px;
+            }
+            
+            .fab {
+                bottom: 72px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top App Bar -->
+    <header class="top-app-bar">
+        <button class="icon-btn" id="menuBtn">
+            <span class="material-icons-round">menu</span>
+        </button>
+        <h1>物理引擎模拟器</h1>
+        <button class="icon-btn" id="clearBtn" title="清空画布">
+            <span class="material-icons-round">delete_sweep</span>
+        </button>
+        <button class="icon-btn" id="pauseBtn" title="暂停/继续">
+            <span class="material-icons-round">pause</span>
+        </button>
+    </header>
+
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+        <span id="objectCount">物体: 0</span> | 
+        <span id="fpsCount">FPS: 60</span>
+    </div>
+
+    <!-- Canvas Container -->
+    <div id="canvas-container">
+        <canvas id="physics-canvas"></canvas>
+    </div>
+
+    <!-- FAB -->
+    <button class="fab" id="addFab" title="添加物体">
+        <span class="material-icons-round">add</span>
+    </button>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" data-sheet="shapes">
+            <span class="material-icons-round">category</span>
+            <span>形状</span>
+        </button>
+        <button class="nav-item" data-sheet="images">
+            <span class="material-icons-round">image</span>
+            <span>图片</span>
+        </button>
+        <button class="nav-item" data-sheet="physics">
+            <span class="material-icons-round">tune</span>
+            <span>物理</span>
+        </button>
+        <button class="nav-item" data-sheet="settings">
+            <span class="material-icons-round">settings</span>
+            <span>设置</span>
+        </button>
+    </nav>
+
+    <!-- Bottom Sheet Overlay -->
+    <div class="bottom-sheet-overlay" id="sheetOverlay"></div>
+
+    <!-- Shapes Sheet -->
+    <div class="bottom-sheet" id="shapesSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-content">
+            <h2 class="sheet-title">选择形状</h2>
+            
+            <div class="shape-grid">
+                <button class="shape-btn selected" data-shape="rectangle">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/></svg>
+                    <span>矩形</span>
+                </button>
+                <button class="shape-btn" data-shape="square">
+                    <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+                    <span>正方形</span>
+                </button>
+                <button class="shape-btn" data-shape="circle">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>
+                    <span>圆形</span>
+                </button>
+                <button class="shape-btn" data-shape="triangle">
+                    <svg viewBox="0 0 24 24"><polygon points="12,3 22,21 2,21"/></svg>
+                    <span>三角形</span>
+                </button>
+                <button class="shape-btn" data-shape="pentagon">
+                    <svg viewBox="0 0 24 24"><polygon points="12,2 22,9 19,21 5,21 2,9"/></svg>
+                    <span>五边形</span>
+                </button>
+                <button class="shape-btn" data-shape="hexagon">
+                    <svg viewBox="0 0 24 24"><polygon points="12,2 21,7 21,17 12,22 3,17 3,7"/></svg>
+                    <span>六边形</span>
+                </button>
+                <button class="shape-btn" data-shape="star">
+                    <svg viewBox="0 0 24 24"><polygon points="12,2 15,9 22,9 16,14 18,21 12,17 6,21 8,14 2,9 9,9"/></svg>
+                    <span>星形</span>
+                </button>
+                <button class="shape-btn" data-shape="trapezoid">
+                    <svg viewBox="0 0 24 24"><polygon points="6,6 18,6 22,18 2,18"/></svg>
+                    <span>梯形</span>
+                </button>
+            </div>
+
+            <h3 style="font-size: 16px; margin-bottom: 12px; color: var(--md-sys-color-on-surface);">颜色</h3>
+            <div class="color-grid" id="colorGrid">
+                <button class="color-btn selected" style="background: #6750A4" data-color="#6750A4"></button>
+                <button class="color-btn" style="background: #D0BCFF" data-color="#D0BCFF"></button>
+                <button class="color-btn" style="background: #EF4444" data-color="#EF4444"></button>
+                <button class="color-btn" style="background: #F97316" data-color="#F97316"></button>
+                <button class="color-btn" style="background: #EAB308" data-color="#EAB308"></button>
+                <button class="color-btn" style="background: #22C55E" data-color="#22C55E"></button>
+                <button class="color-btn" style="background: #3B82F6" data-color="#3B82F6"></button>
+                <button class="color-btn" style="background: #8B5CF6" data-color="#8B5CF6"></button>
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>大小</span>
+                    <span class="value" id="sizeValue">50px</span>
+                </div>
+                <input type="range" id="sizeSlider" min="20" max="150" value="50">
+            </div>
+
+            <div class="btn-row">
+                <button class="md-btn md-btn-text" onclick="closeAllSheets()">取消</button>
+                <button class="md-btn md-btn-filled" id="addShapeBtn">添加形状</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Images Sheet -->
+    <div class="bottom-sheet" id="imagesSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-content">
+            <h2 class="sheet-title">上传图片</h2>
+
+            <div class="info-card">
+                <span class="material-icons-round">info</span>
+                <p>上传PNG图片。如果图片有透明区域（已抠图），物理形状会自动适应图片轮廓；否则将作为矩形方块处理。</p>
+            </div>
+
+            <div class="upload-area" id="uploadArea">
+                <span class="material-icons-round">cloud_upload</span>
+                <p>点击或拖放上传图片</p>
+                <small>仅支持 PNG 格式</small>
+            </div>
+            <input type="file" id="fileInput" accept="image/png" style="display: none" multiple>
+
+            <div class="preview-container" id="previewContainer"></div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>图片大小</span>
+                    <span class="value" id="imageSizeValue">80px</span>
+                </div>
+                <input type="range" id="imageSizeSlider" min="30" max="200" value="80">
+            </div>
+
+            <div class="btn-row">
+                <button class="md-btn md-btn-text" onclick="closeAllSheets()">取消</button>
+                <button class="md-btn md-btn-filled" id="addImageBtn">添加图片物体</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Physics Sheet -->
+    <div class="bottom-sheet" id="physicsSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-content">
+            <h2 class="sheet-title">物理参数</h2>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>重力</span>
+                    <span class="value" id="gravityValue">1.0</span>
+                </div>
+                <input type="range" id="gravitySlider" min="0" max="3" step="0.1" value="1">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>弹性 (弹跳)</span>
+                    <span class="value" id="bounceValue">0.5</span>
+                </div>
+                <input type="range" id="bounceSlider" min="0" max="1" step="0.05" value="0.5">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>摩擦力</span>
+                    <span class="value" id="frictionValue">0.1</span>
+                </div>
+                <input type="range" id="frictionSlider" min="0" max="1" step="0.05" value="0.1">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>空气阻力</span>
+                    <span class="value" id="airFrictionValue">0.01</span>
+                </div>
+                <input type="range" id="airFrictionSlider" min="0" max="0.1" step="0.005" value="0.01">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>密度</span>
+                    <span class="value" id="densityValue">0.001</span>
+                </div>
+                <input type="range" id="densitySlider" min="0.0001" max="0.01" step="0.0001" value="0.001">
+            </div>
+
+            <div class="btn-row">
+                <button class="md-btn md-btn-outlined" id="resetPhysicsBtn">重置默认</button>
+                <button class="md-btn md-btn-filled" onclick="closeAllSheets()">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Sheet -->
+    <div class="bottom-sheet" id="settingsSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-content">
+            <h2 class="sheet-title">设置</h2>
+
+            <div class="switch-row">
+                <span>显示边框</span>
+                <label class="switch">
+                    <input type="checkbox" id="showWireframe">
+                    <span class="switch-slider"></span>
+                </label>
+            </div>
+
+            <div class="switch-row">
+                <span>显示碰撞点</span>
+                <label class="switch">
+                    <input type="checkbox" id="showCollisions">
+                    <span class="switch-slider"></span>
+                </label>
+            </div>
+
+            <div class="switch-row">
+                <span>显示速度向量</span>
+                <label class="switch">
+                    <input type="checkbox" id="showVelocity">
+                    <span class="switch-slider"></span>
+                </label>
+            </div>
+
+            <div class="switch-row">
+                <span>允许休眠</span>
+                <label class="switch">
+                    <input type="checkbox" id="enableSleeping" checked>
+                    <span class="switch-slider"></span>
+                </label>
+            </div>
+
+            <div class="slider-group" style="margin-top: 24px;">
+                <div class="slider-label">
+                    <span>时间缩放</span>
+                    <span class="value" id="timeScaleValue">1.0x</span>
+                </div>
+                <input type="range" id="timeScaleSlider" min="0.1" max="2" step="0.1" value="1">
+            </div>
+
+            <div class="btn-row">
+                <button class="md-btn md-btn-tonal" id="exportBtn">
+                    <span class="material-icons-round">download</span>
+                    导出场景
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Snackbar -->
+    <div class="snackbar" id="snackbar"></div>
+
+    <script>
+        // Initialize Matter.js
+        const { Engine, Render, Runner, Bodies, Body, Composite, Mouse, MouseConstraint, Events, Vector, Vertices } = Matter;
+
+        // Global state
+        let engine, render, runner, mouse, mouseConstraint;
+        let selectedShape = 'rectangle';
+        let selectedColor = '#6750A4';
+        let shapeSize = 50;
+        let imageSize = 80;
+        let isPaused = false;
+        let uploadedImages = [];
+        let lastTime = performance.now();
+        let frameCount = 0;
+
+        // Physics parameters
+        let physicsParams = {
+            gravity: 1,
+            restitution: 0.5,
+            friction: 0.1,
+            frictionAir: 0.01,
+            density: 0.001
+        };
+
+        // Initialize physics engine
+        function initPhysics() {
+            const container = document.getElementById('canvas-container');
+            const canvas = document.getElementById('physics-canvas');
+            
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            engine = Engine.create({
+                enableSleeping: true
+            });
+
+            render = Render.create({
+                canvas: canvas,
+                engine: engine,
+                options: {
+                    width: width,
+                    height: height,
+                    wireframes: false,
+                    background: 'transparent',
+                    pixelRatio: window.devicePixelRatio || 1
+                }
+            });
+
+            // Create boundaries
+            createBoundaries(width, height);
+
+            // Mouse control
+            mouse = Mouse.create(canvas);
+            mouseConstraint = MouseConstraint.create(engine, {
+                mouse: mouse,
+                constraint: {
+                    stiffness: 0.2,
+                    render: { visible: false }
+                }
+            });
+
+            // Adjust for pixel ratio
+            mouse.pixelRatio = window.devicePixelRatio || 1;
+
+            Composite.add(engine.world, mouseConstraint);
+            render.mouse = mouse;
+
+            // Handle touch events
+            canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+            canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+            canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+            // Double tap to add object
+            let lastTap = 0;
+            canvas.addEventListener('touchend', (e) => {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTap;
+                if (tapLength < 300 && tapLength > 0) {
+                    const rect = canvas.getBoundingClientRect();
+                    const x = (e.changedTouches[0].clientX - rect.left) * (canvas.width / rect.width);
+                    const y = (e.changedTouches[0].clientY - rect.top) * (canvas.height / rect.height);
+                    addShapeAt(x, y);
+                }
+                lastTap = currentTime;
+            });
+
+            // Click to add (desktop)
+            canvas.addEventListener('dblclick', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+                const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+                addShapeAt(x, y);
+            });
+
+            // Start engine
+            runner = Runner.create();
+            Runner.run(runner, engine);
+            Render.run(render);
+
+            // Update gravity
+            engine.world.gravity.y = physicsParams.gravity;
+
+            // FPS counter
+            Events.on(engine, 'afterUpdate', updateStats);
+
+            // Handle resize
+            window.addEventListener('resize', handleResize);
+        }
+
+        function createBoundaries(width, height) {
+            const thickness = 60;
+            const wallColor = '#CAC4D0';
+
+            const walls = [
+                // Bottom
+                Bodies.rectangle(width / 2, height + thickness / 2, width + thickness * 2, thickness, {
+                    isStatic: true,
+                    render: { fillStyle: wallColor },
+                    friction: 0.8
+                }),
+                // Left
+                Bodies.rectangle(-thickness / 2, height / 2, thickness, height + thickness * 2, {
+                    isStatic: true,
+                    render: { fillStyle: wallColor }
+                }),
+                // Right
+                Bodies.rectangle(width + thickness / 2, height / 2, thickness, height + thickness * 2, {
+                    isStatic: true,
+                    render: { fillStyle: wallColor }
+                }),
+                // Top (optional, comment out for open top)
+                // Bodies.rectangle(width / 2, -thickness / 2, width + thickness * 2, thickness, {
+                //     isStatic: true,
+                //     render: { fillStyle: wallColor }
+                // })
+            ];
+
+            walls.forEach(wall => wall.label = 'wall');
+            Composite.add(engine.world, walls);
+        }
+
+        function handleResize() {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            render.canvas.width = width * (window.devicePixelRatio || 1);
+            render.canvas.height = height * (window.devicePixelRatio || 1);
+            render.options.width = width;
+            render.options.height = height;
+
+            // Remove old walls
+            const walls = Composite.allBodies(engine.world).filter(b => b.label === 'wall');
+            Composite.remove(engine.world, walls);
+
+            // Create new walls
+            createBoundaries(width, height);
+        }
+
+        // Touch handlers
+        function handleTouchStart(e) {
+            e.preventDefault();
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+        }
+
+        // Create shapes
+        function createShape(shape, x, y, size, color, options = {}) {
+            const baseOptions = {
+                restitution: physicsParams.restitution,
+                friction: physicsParams.friction,
+                frictionAir: physicsParams.frictionAir,
+                density: physicsParams.density,
+                render: {
+                    fillStyle: color,
+                    strokeStyle: darkenColor(color, 20),
+                    lineWidth: 2
+                },
+                ...options
+            };
+
+            let body;
+
+            switch (shape) {
+                case 'rectangle':
+                    body = Bodies.rectangle(x, y, size * 1.5, size, baseOptions);
+                    break;
+                case 'square':
+                    body = Bodies.rectangle(x, y, size, size, baseOptions);
+                    break;
+                case 'circle':
+                    body = Bodies.circle(x, y, size / 2, baseOptions);
+                    break;
+                case 'triangle':
+                    body = Bodies.polygon(x, y, 3, size / 2, baseOptions);
+                    break;
+                case 'pentagon':
+                    body = Bodies.polygon(x, y, 5, size / 2, baseOptions);
+                    break;
+                case 'hexagon':
+                    body = Bodies.polygon(x, y, 6, size / 2, baseOptions);
+                    break;
+                case 'star':
+                    body = createStar(x, y, size, baseOptions);
+                    break;
+                case 'trapezoid':
+                    body = Bodies.trapezoid(x, y, size, size * 0.7, 0.3, baseOptions);
+                    break;
+                default:
+                    body = Bodies.rectangle(x, y, size, size, baseOptions);
+            }
+
+            return body;
+        }
+
+        function createStar(x, y, size, options) {
+            const outerRadius = size / 2;
+            const innerRadius = size / 4;
+            const points = 5;
+            const vertices = [];
+
+            for (let i = 0; i < points * 2; i++) {
+                const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                const angle = (i * Math.PI) / points - Math.PI / 2;
+                vertices.push({
+                    x: Math.cos(angle) * radius,
+                    y: Math.sin(angle) * radius
+                });
+            }
+
+            return Bodies.fromVertices(x, y, [vertices], options);
+        }
+
+        function addShapeAt(x, y) {
+            const body = createShape(selectedShape, x, y, shapeSize, selectedColor);
+            Composite.add(engine.world, body);
+            updateObjectCount();
+            showSnackbar('已添加 ' + getShapeName(selectedShape));
+        }
+
+        function getShapeName(shape) {
+            const names = {
+                rectangle: '矩形',
+                square: '正方形',
+                circle: '圆形',
+                triangle: '三角形',
+                pentagon: '五边形',
+                hexagon: '六边形',
+                star: '星形',
+                trapezoid: '梯形'
+            };
+            return names[shape] || shape;
+        }
+
+        // Image processing
+        function processImage(file) {
+            return new Promise((resolve, reject) => {
+                if (file.type !== 'image/png') {
+                    reject(new Error('仅支持 PNG 格式'));
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        // Check for transparency
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const hasTransparency = checkTransparency(imageData);
+                        
+                        let vertices = null;
+                        if (hasTransparency) {
+                            vertices = extractContour(imageData, canvas.width, canvas.height);
+                        }
+
+                        resolve({
+                            src: e.target.result,
+                            width: img.width,
+                            height: img.height,
+                            hasTransparency,
+                            vertices,
+                            name: file.name
+                        });
+                    };
+                    img.onerror = () => reject(new Error('图片加载失败'));
+                    img.src = e.target.result;
+                };
+                reader.onerror = () => reject(new Error('文件读取失败'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function checkTransparency(imageData) {
+            const data = imageData.data;
+            let transparentPixels = 0;
+            const totalPixels = data.length / 4;
+            
+            for (let i = 3; i < data.length; i += 4) {
+                if (data[i] < 250) {
+                    transparentPixels++;
+                }
+            }
+            
+            // Consider it has transparency if more than 5% of pixels are not fully opaque
+            return transparentPixels / totalPixels > 0.05;
+        }
+
+        function extractContour(imageData, width, height) {
+            const data = imageData.data;
+            const threshold = 128;
+            
+            // Create binary mask
+            const mask = [];
+            for (let y = 0; y < height; y++) {
+                mask[y] = [];
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    mask[y][x] = data[idx + 3] > threshold ? 1 : 0;
+                }
+            }
+            
+            // Find contour using marching squares (simplified)
+            const contour = [];
+            const step = Math.max(1, Math.floor(Math.min(width, height) / 50));
+            
+            // Find edge points
+            for (let y = 0; y < height; y += step) {
+                for (let x = 0; x < width; x += step) {
+                    if (isEdgePixel(mask, x, y, width, height)) {
+                        contour.push({ x: x - width / 2, y: y - height / 2 });
+                    }
+                }
+            }
+            
+            if (contour.length < 8) {
+                return null; // Not enough points, use rectangle
+            }
+            
+            // Sort points by angle from center
+            contour.sort((a, b) => {
+                const angleA = Math.atan2(a.y, a.x);
+                const angleB = Math.atan2(b.y, b.x);
+                return angleA - angleB;
+            });
+            
+            // Simplify contour
+            const simplified = simplifyContour(contour, Math.max(width, height) / 30);
+            
+            return simplified.length >= 3 ? simplified : null;
+        }
+
+        function isEdgePixel(mask, x, y, width, height) {
+            if (x <= 0 || x >= width - 1 || y <= 0 || y >= height - 1) {
+                return mask[y] && mask[y][x] === 1;
+            }
+            
+            if (!mask[y] || mask[y][x] !== 1) return false;
+            
+            // Check if any neighbor is empty
+            const neighbors = [
+                mask[y - 1] && mask[y - 1][x],
+                mask[y + 1] && mask[y + 1][x],
+                mask[y][x - 1],
+                mask[y][x + 1]
+            ];
+            
+            return neighbors.some(n => n !== 1);
+        }
+
+        function simplifyContour(points, tolerance) {
+            if (points.length <= 3) return points;
+            
+            // Douglas-Peucker simplification
+            let maxDist = 0;
+            let maxIdx = 0;
+            
+            const first = points[0];
+            const last = points[points.length - 1];
+            
+            for (let i = 1; i < points.length - 1; i++) {
+                const dist = perpendicularDistance(points[i], first, last);
+                if (dist > maxDist) {
+                    maxDist = dist;
+                    maxIdx = i;
+                }
+            }
+            
+            if (maxDist > tolerance) {
+                const left = simplifyContour(points.slice(0, maxIdx + 1), tolerance);
+                const right = simplifyContour(points.slice(maxIdx), tolerance);
+                return left.slice(0, -1).concat(right);
+            }
+            
+            return [first, last];
+        }
+
+        function perpendicularDistance(point, lineStart, lineEnd) {
+            const dx = lineEnd.x - lineStart.x;
+            const dy = lineEnd.y - lineStart.y;
+            
+            if (dx === 0 && dy === 0) {
+                return Math.sqrt(Math.pow(point.x - lineStart.x, 2) + Math.pow(point.y - lineStart.y, 2));
+            }
+            
+            const t = ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / (dx * dx + dy * dy);
+            const nearestX = lineStart.x + t * dx;
+            const nearestY = lineStart.y + t * dy;
+            
+            return Math.sqrt(Math.pow(point.x - nearestX, 2) + Math.pow(point.y - nearestY, 2));
+        }
+
+        function createImageBody(imageData, x, y, size) {
+            const scale = size / Math.max(imageData.width, imageData.height);
+            
+            let body;
+            
+            if (imageData.hasTransparency && imageData.vertices && imageData.vertices.length >= 3) {
+                // Scale vertices
+                const scaledVertices = imageData.vertices.map(v => ({
+                    x: v.x * scale,
+                    y: v.y * scale
+                }));
+                
+                try {
+                    body = Bodies.fromVertices(x, y, [scaledVertices], {
+                        restitution: physicsParams.restitution,
+                        friction: physicsParams.friction,
+                        frictionAir: physicsParams.frictionAir,
+                        density: physicsParams.density,
+                        render: {
+                            sprite: {
+                                texture: imageData.src,
+                                xScale: scale,
+                                yScale: scale
+                            }
+                        }
+                    });
+                } catch (e) {
+                    // Fall back to rectangle if vertices fail
+                    body = createRectangleImageBody(imageData, x, y, scale);
+                }
+            } else {
+                body = createRectangleImageBody(imageData, x, y, scale);
+            }
+            
+            if (body) {
+                body.imageData = imageData;
+            }
+            
+            return body;
+        }
+
+        function createRectangleImageBody(imageData, x, y, scale) {
+            return Bodies.rectangle(x, y, imageData.width * scale, imageData.height * scale, {
+                restitution: physicsParams.restitution,
+                friction: physicsParams.friction,
+                frictionAir: physicsParams.frictionAir,
+                density: physicsParams.density,
+                render: {
+                    sprite: {
+                        texture: imageData.src,
+                        xScale: scale,
+                        yScale: scale
+                    }
+                }
+            });
+        }
+
+        // UI Functions
+        function showSnackbar(message) {
+            const snackbar = document.getElementById('snackbar');
+            snackbar.textContent = message;
+            snackbar.classList.add('show');
+            setTimeout(() => snackbar.classList.remove('show'), 2500);
+        }
+
+        function openSheet(sheetId) {
+            closeAllSheets();
+            setTimeout(() => {
+                document.getElementById('sheetOverlay').classList.add('active');
+                document.getElementById(sheetId).classList.add('active');
+            }, 10);
+        }
+
+        function closeAllSheets() {
+            document.getElementById('sheetOverlay').classList.remove('active');
+            document.querySelectorAll('.bottom-sheet').forEach(sheet => {
+                sheet.classList.remove('active');
+            });
+        }
+
+        function darkenColor(color, percent) {
+            const num = parseInt(color.replace('#', ''), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = Math.max((num >> 16) - amt, 0);
+            const G = Math.max((num >> 8 & 0x00FF) - amt, 0);
+            const B = Math.max((num & 0x0000FF) - amt, 0);
+            return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+        }
+
+        function updateObjectCount() {
+            const bodies = Composite.allBodies(engine.world).filter(b => !b.isStatic);
+            document.getElementById('objectCount').textContent = '物体: ' + bodies.length;
+        }
+
+        function updateStats() {
+            frameCount++;
+            const currentTime = performance.now();
+            if (currentTime - lastTime >= 1000) {
+                document.getElementById('fpsCount').textContent = 'FPS: ' + frameCount;
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+            updateObjectCount();
+        }
+
+        function updatePreviewContainer() {
+            const container = document.getElementById('previewContainer');
+            container.innerHTML = '';
+            
+            uploadedImages.forEach((img, index) => {
+                const item = document.createElement('div');
+                item.className = 'preview-item';
+                item.innerHTML = `
+                    <img src="${img.src}" alt="${img.name}">
+                    <button class="remove-btn" onclick="removeImage(${index})">×</button>
+                    <span class="badge">${img.hasTransparency ? '抠图' : '方块'}</span>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function removeImage(index) {
+            uploadedImages.splice(index, 1);
+            updatePreviewContainer();
+        }
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            initPhysics();
+
+            // Navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                    openSheet(item.dataset.sheet + 'Sheet');
+                });
+            });
+
+            // Sheet overlay
+            document.getElementById('sheetOverlay').addEventListener('click', closeAllSheets);
+
+            // FAB
+            document.getElementById('addFab').addEventListener('click', () => {
+                const container = document.getElementById('canvas-container');
+                const x = container.clientWidth / 2 + (Math.random() - 0.5) * 100;
+                const y = 50 + Math.random() * 50;
+                addShapeAt(x, y);
+            });
+
+            // Shape buttons
+            document.querySelectorAll('.shape-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    selectedShape = btn.dataset.shape;
+                });
+            });
+
+            // Color buttons
+            document.querySelectorAll('.color-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    selectedColor = btn.dataset.color;
+                });
+            });
+
+            // Size slider
+            document.getElementById('sizeSlider').addEventListener('input', (e) => {
+                shapeSize = parseInt(e.target.value);
+                document.getElementById('sizeValue').textContent = shapeSize + 'px';
+            });
+
+            // Add shape button
+            document.getElementById('addShapeBtn').addEventListener('click', () => {
+                const container = document.getElementById('canvas-container');
+                const x = container.clientWidth / 2 + (Math.random() - 0.5) * 100;
+                const y = 50 + Math.random() * 50;
+                addShapeAt(x, y);
+                closeAllSheets();
+            });
+
+            // Image upload
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+
+            uploadArea.addEventListener('click', () => fileInput.click());
+            
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.style.borderColor = 'var(--md-sys-color-primary)';
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.style.borderColor = 'var(--md-sys-color-outline)';
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.style.borderColor = 'var(--md-sys-color-outline)';
+                handleFiles(e.dataTransfer.files);
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                handleFiles(e.target.files);
+            });
+
+            async function handleFiles(files) {
+                for (const file of files) {
+                    try {
+                        const imageData = await processImage(file);
+                        uploadedImages.push(imageData);
+                        updatePreviewContainer();
+                        showSnackbar(imageData.hasTransparency ? '检测到透明图片' : '作为方块处理');
+                    } catch (err) {
+                        showSnackbar(err.message);
+                    }
+                }
+            }
+
+            // Image size slider
+            document.getElementById('imageSizeSlider').addEventListener('input', (e) => {
+                imageSize = parseInt(e.target.value);
+                document.getElementById('imageSizeValue').textContent = imageSize + 'px';
+            });
+
+            // Add image button
+            document.getElementById('addImageBtn').addEventListener('click', () => {
+                if (uploadedImages.length === 0) {
+                    showSnackbar('请先上传图片');
+                    return;
+                }
+
+                const container = document.getElementById('canvas-container');
+                uploadedImages.forEach((img, i) => {
+                    const x = container.clientWidth / 2 + (Math.random() - 0.5) * 200;
+                    const y = 50 + Math.random() * 50 + i * 30;
+                    const body = createImageBody(img, x, y, imageSize);
+                    if (body) {
+                        Composite.add(engine.world, body);
+                    }
+                });
+                
+                showSnackbar('已添加 ' + uploadedImages.length + ' 个图片物体');
+                uploadedImages = [];
+                updatePreviewContainer();
+                closeAllSheets();
+            });
+
+            // Physics sliders
+            const physicsSliders = {
+                gravity: { element: 'gravitySlider', value: 'gravityValue', param: 'gravity', suffix: '' },
+                bounce: { element: 'bounceSlider', value: 'bounceValue', param: 'restitution', suffix: '' },
+                friction: { element: 'frictionSlider', value: 'frictionValue', param: 'friction', suffix: '' },
+                airFriction: { element: 'airFrictionSlider', value: 'airFrictionValue', param: 'frictionAir', suffix: '' },
+                density: { element: 'densitySlider', value: 'densityValue', param: 'density', suffix: '' }
+            };
+
+            Object.entries(physicsSliders).forEach(([key, config]) => {
+                document.getElementById(config.element).addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    physicsParams[config.param] = val;
+                    document.getElementById(config.value).textContent = val.toFixed(key === 'density' ? 4 : (key === 'airFriction' ? 3 : 1));
+                    
+                    if (key === 'gravity') {
+                        engine.world.gravity.y = val;
+                    }
+                });
+            });
+
+            // Reset physics
+            document.getElementById('resetPhysicsBtn').addEventListener('click', () => {
+                physicsParams = {
+                    gravity: 1,
+                    restitution: 0.5,
+                    friction: 0.1,
+                    frictionAir: 0.01,
+                    density: 0.001
+                };
+
+                document.getElementById('gravitySlider').value = 1;
+                document.getElementById('gravityValue').textContent = '1.0';
+                document.getElementById('bounceSlider').value = 0.5;
+                document.getElementById('bounceValue').textContent = '0.5';
+                document.getElementById('frictionSlider').value = 0.1;
+                document.getElementById('frictionValue').textContent = '0.1';
+                document.getElementById('airFrictionSlider').value = 0.01;
+                document.getElementById('airFrictionValue').textContent = '0.01';
+                document.getElementById('densitySlider').value = 0.001;
+                document.getElementById('densityValue').textContent = '0.001';
+
+                engine.world.gravity.y = 1;
+                showSnackbar('已重置物理参数');
+            });
+
+            // Settings switches
+            document.getElementById('showWireframe').addEventListener('change', (e) => {
+                render.options.wireframes = e.target.checked;
+            });
+
+            document.getElementById('showCollisions').addEventListener('change', (e) => {
+                render.options.showCollisions = e.target.checked;
+            });
+
+            document.getElementById('showVelocity').addEventListener('change', (e) => {
+                render.options.showVelocity = e.target.checked;
+            });
+
+            document.getElementById('enableSleeping').addEventListener('change', (e) => {
+                engine.enableSleeping = e.target.checked;
+            });
+
+            document.getElementById('timeScaleSlider').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                engine.timing.timeScale = val;
+                document.getElementById('timeScaleValue').textContent = val.toFixed(1) + 'x';
+            });
+
+            // Clear button
+            document.getElementById('clearBtn').addEventListener('click', () => {
+                const bodies = Composite.allBodies(engine.world).filter(b => !b.isStatic);
+                Composite.remove(engine.world, bodies);
+                showSnackbar('已清空画布');
+            });
+
+            // Pause button
+            document.getElementById('pauseBtn').addEventListener('click', () => {
+                isPaused = !isPaused;
+                const btn = document.getElementById('pauseBtn');
+                
+                if (isPaused) {
+                    Runner.stop(runner);
+                    btn.querySelector('.material-icons-round').textContent = 'play_arrow';
+                    showSnackbar('已暂停');
+                } else {
+                    Runner.run(runner, engine);
+                    btn.querySelector('.material-icons-round').textContent = 'pause';
+                    showSnackbar('已继续');
+                }
+            });
+
+            // Export button
+            document.getElementById('exportBtn').addEventListener('click', () => {
+                const bodies = Composite.allBodies(engine.world).filter(b => !b.isStatic);
+                const data = bodies.map(b => ({
+                    position: b.position,
+                    angle: b.angle,
+                    velocity: b.velocity,
+                    vertices: b.vertices.map(v => ({ x: v.x, y: v.y }))
+                }));
+                
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'physics-scene.json';
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                showSnackbar('场景已导出');
+            });
+
+            // Menu button (placeholder)
+            document.getElementById('menuBtn').addEventListener('click', () => {
+                showSnackbar('物理引擎模拟器 v1.0');
+            });
+        });
+
+        // Make functions global for inline handlers
+        window.closeAllSheets = closeAllSheets;
+        window.removeImage = removeImage;
+    </script>
+</body>
+</html>
