@@ -3,732 +3,768 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Termux安卓开发环境完全指南</title>
+    <title>Termux 全能开发环境配置指南 - MD3版</title>
+    <!-- 引入 Google Fonts Roboto -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Google Material Symbols -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+
     <style>
+        /* --- Material Design 3 Token Variables (Dark Theme) --- */
+        :root {
+            --md-sys-color-background: #141218;
+            --md-sys-color-on-background: #e6e1e5;
+            --md-sys-color-surface: #141218;
+            --md-sys-color-surface-container: #211f26;
+            --md-sys-color-surface-container-high: #2b2930;
+            --md-sys-color-primary: #d0bcff;
+            --md-sys-color-on-primary: #381e72;
+            --md-sys-color-primary-container: #4f378b;
+            --md-sys-color-on-primary-container: #eaddff;
+            --md-sys-color-secondary: #ccc2dc;
+            --md-sys-color-secondary-container: #4a4458;
+            --md-sys-color-tertiary: #efb8c8;
+            --md-sys-color-error: #f2b8b5;
+            --md-sys-color-outline: #938f99;
+            --md-elevation-level1: 0px 1px 2px rgba(0, 0, 0, 0.3);
+            --md-elevation-level2: 0px 4px 8px 3px rgba(0, 0, 0, 0.15);
+            
+            --border-radius-L: 24px;
+            --border-radius-M: 16px;
+            --border-radius-S: 8px;
+        }
+
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
-        
-        :root {
-            --primary: #00adb5;
-            --secondary: #393e46;
-            --light: #eeeeee;
-            --dark: #222831;
-            --success: #00b894;
-            --warning: #fdcb6e;
-            --danger: #d63031;
-        }
-        
+
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-background);
+            font-family: 'Roboto', sans-serif;
             line-height: 1.6;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        header {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        }
-        
-        h1 {
-            color: var(--dark);
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        .subtitle {
-            color: var(--secondary);
-            font-size: 1.2em;
-            margin-bottom: 20px;
-        }
-        
-        .meta {
             display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-            color: #666;
-            font-size: 0.9em;
+            flex-direction: column;
+            min-height: 100vh;
         }
+
+        /* --- Layout --- */
+        .app-layout {
+            display: flex;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* Sidebar (PC) / Hidden (Mobile) */
+        .sidebar {
+            width: 280px;
+            padding: 24px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            display: none; /* Mobile default */
+            border-right: 1px solid #36343b;
+        }
+
+        /* Content Area */
+        .main-content {
+            flex: 1;
+            padding: 16px;
+            width: 100%;
+        }
+
+        /* --- Components --- */
         
-        .meta-item {
+        /* Header / Top App Bar */
+        .top-app-bar {
+            background-color: var(--md-sys-color-surface);
+            padding: 16px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
             display: flex;
             align-items: center;
-            gap: 5px;
+            justify-content: space-between;
+            border-bottom: 1px solid #36343b;
+        }
+
+        .headline-large {
+            font-size: 28px;
+            font-weight: 400;
+            color: var(--md-sys-color-primary);
+        }
+
+        /* Cards */
+        .card {
+            background-color: var(--md-sys-color-surface-container);
+            border-radius: var(--border-radius-L);
+            padding: 24px;
+            margin-bottom: 24px;
+            transition: transform 0.2s, background-color 0.2s;
+            border: 1px solid transparent;
         }
         
-        .content {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 30px;
+        .card:hover {
+            background-color: var(--md-sys-color-surface-container-high);
         }
-        
-        @media (min-width: 768px) {
-            .content {
-                grid-template-columns: 250px 1fr;
-            }
+
+        .card-title {
+            font-size: 22px;
+            margin-bottom: 12px;
+            color: var(--md-sys-color-primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
-        
-        .sidebar {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 20px;
-            height: fit-content;
-            position: sticky;
-            top: 20px;
+
+        .card-text {
+            font-size: 16px;
+            color: var(--md-sys-color-on-background);
+            margin-bottom: 16px;
+            opacity: 0.9;
         }
-        
-        .nav-list {
-            list-style: none;
+
+        /* Badges/Chips */
+        .chip {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-right: 8px;
+            background-color: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-secondary);
         }
-        
-        .nav-item {
-            margin: 10px 0;
+        .chip.warn {
+            background-color: #601410;
+            color: #f2b8b5;
         }
-        
-        .nav-link {
+        .chip.rec {
+            background-color: #1e4e30;
+            color: #8cd6a7;
+        }
+
+        /* Code Blocks */
+        .code-container {
+            background-color: #000;
+            border-radius: var(--border-radius-M);
+            padding: 16px;
+            position: relative;
+            margin: 16px 0;
+            border: 1px solid #444;
+            overflow-x: auto;
+        }
+
+        .code-header {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: #333;
+            color: #fff;
+            font-size: 10px;
+            padding: 4px 8px;
+            border-bottom-left-radius: 8px;
+        }
+
+        code {
+            font-family: 'Consolas', 'Monaco', monospace;
+            color: #a5d6ff;
             display: block;
-            padding: 12px 15px;
-            color: var(--dark);
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-size: 14px;
+        }
+        
+        .comment { color: #8b949e; }
+        .command { color: #d2a8ff; }
+        .flag { color: #79c0ff; }
+
+        /* Buttons */
+        .btn {
+            background-color: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+            border: none;
+            padding: 10px 24px;
+            border-radius: 100px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
             text-decoration: none;
-            border-radius: 10px;
-            transition: all 0.3s ease;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-copy {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(255,255,255,0.1);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+        
+        .btn-copy:hover {
+            background-color: rgba(255,255,255,0.2);
+        }
+
+        /* Navigation Rail (Desktop) */
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            color: var(--md-sys-color-on-background);
+            text-decoration: none;
+            border-radius: 100px;
+            margin-bottom: 8px;
+            transition: background 0.2s;
         }
         
         .nav-link:hover {
-            background: var(--light);
-            transform: translateX(5px);
+            background-color: rgba(208, 188, 255, 0.08);
         }
         
         .nav-link.active {
-            background: var(--primary);
-            color: white;
+            background-color: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-primary-container);
+            font-weight: 600;
         }
         
-        .main-content {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        .nav-icon {
+            margin-right: 12px;
+            font-size: 20px;
         }
-        
-        section {
-            margin-bottom: 50px;
-            scroll-margin-top: 20px;
-        }
-        
-        h2 {
-            color: var(--dark);
-            font-size: 1.8em;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 3px solid var(--primary);
-        }
-        
-        h3 {
-            color: var(--secondary);
-            font-size: 1.4em;
-            margin: 25px 0 15px;
-        }
-        
-        .card {
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            margin: 20px 0;
-            border-left: 5px solid var(--primary);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-        }
-        
-        .card.warning {
-            border-left-color: var(--warning);
-            background: #fff9e6;
-        }
-        
-        .card.success {
-            border-left-color: var(--success);
-            background: #e8f7f4;
-        }
-        
-        .card.danger {
-            border-left-color: var(--danger);
-            background: #ffeaea;
-        }
-        
-        code {
-            background: #f5f5f5;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: 'Monaco', 'Courier New', monospace;
-            font-size: 0.9em;
-        }
-        
-        pre {
-            background: #282c34;
-            color: #abb2bf;
-            padding: 20px;
-            border-radius: 10px;
-            overflow-x: auto;
-            margin: 20px 0;
-            font-family: 'Monaco', 'Courier New', monospace;
-            font-size: 0.95em;
-            line-height: 1.5;
-        }
-        
-        pre code {
-            background: none;
-            padding: 0;
-            color: inherit;
-        }
-        
-        .copy-btn {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            float: right;
-            margin-top: -10px;
-            transition: background 0.3s;
-        }
-        
-        .copy-btn:hover {
-            background: #009199;
-        }
-        
-        .btn {
-            display: inline-block;
-            background: var(--primary);
-            color: white;
-            padding: 12px 25px;
-            border-radius: 8px;
-            text-decoration: none;
-            margin: 10px 5px;
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-        
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 173, 181, 0.3);
-        }
-        
-        .btn-secondary {
-            background: var(--secondary);
-        }
-        
-        .language-badges {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin: 20px 0;
-        }
-        
-        .badge {
-            background: #e9ecef;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.9em;
-        }
-        
-        .badge.go { background: #00ADD8; color: white; }
-        .badge.py { background: #3776AB; color: white; }
-        .badge.js { background: #F7DF1E; color: black; }
-        .badge.java { background: #007396; color: white; }
-        .badge.rust { background: #000000; color: white; }
-        .badge.cpp { background: #00599C; color: white; }
-        
-        footer {
+
+        /* Toast Notification */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: var(--md-sys-color-on-background);
+            color: var(--md-sys-color-background);
             text-align: center;
-            padding: 30px;
-            color: white;
-            margin-top: 50px;
+            border-radius: 50px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1000;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            box-shadow: var(--md-elevation-level2);
+            opacity: 0;
+            transition: opacity 0.3s;
         }
-        
-        .qrcode-section {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 30px;
-            align-items: center;
-            justify-content: center;
-            margin: 30px 0;
+
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
         }
-        
-        .qrcode {
-            text-align: center;
+
+        /* Section Dividers */
+        .divider {
+            height: 1px;
+            background-color: #36343b;
+            margin: 32px 0;
         }
-        
-        .qrcode img {
-            max-width: 200px;
-            border-radius: 10px;
-        }
-        
-        /* 手机适配 */
-        @media (max-width: 767px) {
-            .container {
-                padding: 10px;
+
+        /* --- Responsive Media Queries --- */
+        @media (min-width: 900px) {
+            .sidebar {
+                display: block;
             }
-            
-            header, .main-content {
+            .main-content {
+                padding: 40px;
+            }
+            .headline-large {
+                font-size: 36px;
+            }
+        }
+
+        @media (max-width: 899px) {
+            .top-app-bar {
+                justify-content: center;
+            }
+            .card {
                 padding: 20px;
-            }
-            
-            h1 {
-                font-size: 1.8em;
-            }
-            
-            pre {
-                font-size: 0.85em;
-                padding: 15px;
             }
         }
     </style>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1><i class="fas fa-mobile-alt"></i> Termux安卓开发环境完全指南</h1>
-            <p class="subtitle">在手机上搭建完整的编程环境 | 移动开发工作室 | 随时随地写代码</p>
-            <div class="meta">
-                <div class="meta-item"><i class="fas fa-calendar"></i> 更新日期：2024年12月</div>
-                <div class="meta-item"><i class="fas fa-sync-alt"></i> 最后测试：Termux 0.118+</div>
-                <div class="meta-item"><i class="fas fa-phone"></i> 支持：Android 7.0+</div>
-                <div class="meta-item"><i class="fas fa-download"></i> 所需空间：约2GB</div>
-            </div>
-        </header>
+
+    <!-- Toast Notification -->
+    <div id="toast">指令已复制到剪贴板</div>
+
+    <div class="app-layout">
         
-        <div class="content">
-            <nav class="sidebar">
-                <ul class="nav-list">
-                    <li class="nav-item"><a href="#intro" class="nav-link active"><i class="fas fa-info-circle"></i> 介绍</a></li>
-                    <li class="nav-item"><a href="#install" class="nav-link"><i class="fas fa-download"></i> 安装Termux</a></li>
-                    <li class="nav-item"><a href="#setup" class="nav-link"><i class="fas fa-cog"></i> 环境配置</a></li>
-                    <li class="nav-item"><a href="#languages" class="nav-link"><i class="fas fa-code"></i> 安装编程语言</a></li>
-                    <li class="nav-item"><a href="#vpn" class="nav-link"><i class="fas fa-shield-alt"></i> VPN推荐</a></li>
-                    <li class="nav-item"><a href="#projects" class="nav-link"><i class="fas fa-folder-open"></i> 项目实战</a></li>
-                    <li class="nav-item"><a href="#tips" class="nav-link"><i class="fas fa-lightbulb"></i> 使用技巧</a></li>
-                    <li class="nav-item"><a href="#faq" class="nav-link"><i class="fas fa-question-circle"></i> 常见问题</a></li>
-                    <li class="nav-item"><a href="#resources" class="nav-link"><i class="fas fa-book"></i> 学习资源</a></li>
-                </ul>
-                
-                <div class="card" style="margin-top: 30px;">
-                    <h3 style="font-size: 1.2em; margin-top: 0;">快速开始</h3>
-                    <p>复制粘贴命令即可安装全部环境：</p>
-                    <pre><code>pkg update && pkg upgrade</code></pre>
-                    <p>建议WiFi环境下进行</p>
-                </div>
-            </nav>
+        <!-- PC Sidebar Navigation -->
+        <nav class="sidebar">
+            <div style="margin-bottom: 32px; padding-left: 16px;">
+                <span class="material-symbols-rounded" style="font-size: 40px; color: var(--md-sys-color-primary);">terminal</span>
+                <h2 style="margin-top: 10px;">Termux 指南</h2>
+            </div>
+            <a href="#section-prep" class="nav-link active">
+                <span class="material-symbols-rounded nav-icon">build</span> 准备工作
+            </a>
+            <a href="#section-vpn" class="nav-link">
+                <span class="material-symbols-rounded nav-icon">vpn_lock</span> 网络加速
+            </a>
+            <a href="#section-python" class="nav-link">
+                <span class="material-symbols-rounded nav-icon">code</span> Python 环境
+            </a>
+            <a href="#section-nodejs" class="nav-link">
+                <span class="material-symbols-rounded nav-icon">javascript</span> Node.js
+            </a>
+            <a href="#section-java" class="nav-link">
+                <span class="material-symbols-rounded nav-icon">coffee</span> Java/JDK
+            </a>
+            <a href="#section-cpp" class="nav-link">
+                <span class="material-symbols-rounded nav-icon">memory</span> C/C++
+            </a>
+            <a href="#section-go" class="nav-link">
+                <span class="material-symbols-rounded nav-icon">go_to_line</span> Go 语言
+            </a>
+            <a href="#section-rust" class="nav-link">
+                <span class="material-symbols-rounded nav-icon">settings_suggest</span> Rust
+            </a>
+            <a href="#section-tools" class="nav-link">
+                <span class="material-symbols-rounded nav-icon">handyman</span> 必备工具
+            </a>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
             
-            <main class="main-content">
-                <!-- 介绍部分 -->
-                <section id="intro">
-                    <h2><i class="fas fa-info-circle"></i> 什么是Termux？</h2>
-                    <div class="card">
-                        <p><strong>Termux</strong> 是一个Android终端模拟器和Linux环境应用程序，无需root权限即可运行。</p>
-                        <p>它提供了一个完整的Linux环境，你可以在手机上安装各种编程语言和工具，实现真正的移动开发。</p>
-                    </div>
-                    
-                    <h3>为什么选择Termux？</h3>
-                    <div class="card success">
-                        <ul>
-                            <li><strong>完全免费</strong> - 开源项目，无任何费用</li>
-                            <li><strong>无需root</strong> - 普通Android手机即可使用</li>
-                            <li><strong>完整Linux环境</strong> - 支持apt包管理</li>
-                            <li><strong>多语言支持</strong> - 可安装10+种编程语言</li>
-                            <li><strong>便携性</strong> - 随时随地进行开发</li>
-                        </ul>
-                    </div>
-                </section>
+            <!-- Header -->
+            <header class="top-app-bar">
+                <h1 class="headline-large">Termux 终极配置教程</h1>
+            </header>
+
+            <div style="margin-top: 24px;">
+                <p class="card-text">
+                    欢迎来到最详细的 Termux 手机编程环境配置指南。本教程采用 Material Design 3 风格设计，专为小白打造，手把手教你将手机变成强大的移动开发终端。
+                </p>
+            </div>
+
+            <!-- Section: Preparation -->
+            <section id="section-prep">
+                <div class="divider"></div>
+                <h2 style="color: var(--md-sys-color-tertiary); margin-bottom: 16px;">第一步：下载与初始化</h2>
                 
-                <!-- 安装Termux -->
-                <section id="install">
-                    <h2><i class="fas fa-download"></i> 安装Termux</h2>
+                <div class="card">
+                    <div class="card-title">
+                        <span class="material-symbols-rounded">download_for_offline</span>
+                        1. 正确下载 Termux
+                    </div>
+                    <p class="card-text">
+                        <span class="chip warn">警告</span> 不要使用 Google Play 版本的 Termux，那个版本已经停止更新很久了，会有各种报错。
+                    </p>
+                    <p class="card-text">
+                        <span class="chip rec">推荐</span> 请下载 <strong>F-Droid</strong> 版本的 Termux。这是官方维护的最新版本。
+                    </p>
+                    <a href="https://f-droid.org/packages/com.termux/" target="_blank" class="btn">
+                        <span class="material-symbols-rounded">open_in_new</span>
+                        前往 F-Droid 下载页面
+                    </a>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="material-symbols-rounded">update</span>
+                        2. 第一次进入的仪式
+                    </div>
+                    <p class="card-text">
+                        安装好后打开 App，你需要做两件事：更新软件源和获取存储权限。请依次执行以下命令（点击复制）：
+                    </p>
                     
-                    <h3>方法一：Google Play商店（推荐）</h3>
-                    <div class="card">
-                        <ol>
-                            <li>打开Google Play商店</li>
-                            <li>搜索"Termux"</li>
-                            <li>选择由<strong>Fredrik Fornwall</strong>开发的官方版本</li>
-                            <li>点击安装</li>
-                        </ol>
-                        <div class="qrcode-section">
-                            <div class="qrcode">
-                                <p>Google Play</p>
-                                <div style="background: #fff; padding: 15px; border-radius: 10px; display: inline-block;">
-                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://play.google.com/store/apps/details?id=com.termux" alt="Google Play QR Code">
-                                </div>
-                            </div>
+                    <div class="code-container">
+                        <div class="code-header">BASH</div>
+                        <button class="btn btn-copy" onclick="copyCode('cmd-update')">复制</button>
+                        <code id="cmd-update"><span class="comment"># 1. 更新所有软件包 (遇到问号一直按回车即可)</span>
+<span class="command">pkg</span> <span class="flag">update</span> && <span class="command">pkg</span> <span class="flag">upgrade</span> -y
+
+<span class="comment"># 2. 获取手机存储访问权限 (会弹出弹窗，点允许)</span>
+<span class="command">termux-setup-storage</span></code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: VPN & Network -->
+            <section id="section-vpn">
+                <div class="divider"></div>
+                <h2 style="color: var(--md-sys-color-tertiary); margin-bottom: 16px;">第二步：网络加速 (免费VPN)</h2>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="material-symbols-rounded">rocket_launch</span>
+                        为什么需要加速？
+                    </div>
+                    <p class="card-text">
+                        Termux 安装软件是从国外的服务器下载的，如果没有加速器，速度可能会只有 5kb/s，甚至安装失败。
+                    </p>
+                    <p class="card-text">
+                        这里推荐两款在 <strong>Google Play</strong> 上免费、良心、且对新手友好的 VPN/加速工具。安装后开启，再回到 Termux 输入命令，速度会飞起。
+                    </p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-top: 20px;">
+                        <!-- VPN 1 -->
+                        <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 16px;">
+                            <h3 style="color: #fff; margin-bottom: 8px;">1. Cloudflare WARP (1.1.1.1)</h3>
+                            <p style="font-size: 14px; color: #ccc; margin-bottom: 12px;">
+                                全球最良心的免费 DNS 加速器，不限流量，一键开启。它不是传统梯子，但能极大加速 GitHub 和 Termux 源的连接。
+                            </p>
+                            <span class="chip">Google Play 搜索 "1.1.1.1"</span>
+                        </div>
+
+                        <!-- VPN 2 -->
+                        <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 16px;">
+                            <h3 style="color: #fff; margin-bottom: 8px;">2. Proton VPN</h3>
+                            <p style="font-size: 14px; color: #ccc; margin-bottom: 12px;">
+                                瑞士大厂，提供免费且无广告的无限流量节点（通常是荷兰、美国、日本）。速度很快，适合下载大文件。
+                            </p>
+                            <span class="chip">Google Play 搜索 "Proton VPN"</span>
                         </div>
                     </div>
-                    
-                    <h3>方法二：F-Droid（备选）</h3>
-                    <div class="card">
-                        <p>如果无法访问Google Play，可以使用F-Droid：</p>
-                        <pre><code># F-Droid官网
-https://f-droid.org/packages/com.termux/</code></pre>
-                    </div>
-                </section>
-                
-                <!-- 环境配置 -->
-                <section id="setup">
-                    <h2><i class="fas fa-cog"></i> 初始配置</h2>
-                    
-                    <h3>1. 基础更新</h3>
-                    <div class="card">
-                        <p>打开Termux，执行以下命令：</p>
-                        <pre><code id="code1">pkg update -y && pkg upgrade -y</code></pre>
-                        <button class="copy-btn" onclick="copyCode('code1')">复制</button>
-                        <p><i class="fas fa-info-circle"></i> 这个命令会更新包列表和升级已安装的包</p>
-                    </div>
-                    
-                    <h3>2. 设置存储权限</h3>
-                    <div class="card">
-                        <pre><code id="code2">termux-setup-storage</code></pre>
-                        <button class="copy-btn" onclick="copyCode('code2')">复制</button>
-                        <p>授予文件访问权限，这样Termux可以访问手机存储</p>
-                    </div>
-                    
-                    <h3>3. 更换国内镜像源（加速）</h3>
-                    <div class="card warning">
-                        <p>国内用户强烈建议更换镜像源以加速下载：</p>
-                        <pre><code id="code3">termux-change-repo</code></pre>
-                        <button class="copy-btn" onclick="copyCode('code3')">复制</button>
-                        <p>按照提示选择：
-                        <br>1. 选择 <strong>Mirrors by 清华大学</strong>
-                        <br>2. 按回车确认</p>
-                    </div>
-                </section>
-                
-                <!-- 安装编程语言 -->
-                <section id="languages">
-                    <h2><i class="fas fa-code"></i> 安装编程语言</h2>
-                    <p>以下命令可以一次性安装所有语言，也可以单独安装。</p>
-                    
-                    <div class="language-badges">
-                        <span class="badge go">Go</span>
-                        <span class="badge py">Python</span>
-                        <span class="badge js">Node.js</span>
-                        <span class="badge java">Java</span>
-                        <span class="badge rust">Rust</span>
-                        <span class="badge cpp">C++</span>
-                        <span class="badge">PHP</span>
-                        <span class="badge">Ruby</span>
-                        <span class="badge">Perl</span>
-                        <span class="badge">Lua</span>
-                    </div>
-                    
-                    <h3>一键安装所有语言</h3>
-                    <div class="card success">
-                        <pre><code id="code4"># 一次性安装所有编程语言（约1.5GB）
-pkg install golang python nodejs openjdk-17 \
-            rust clang php ruby perl lua53 \
-            make cmake git vim -y</code></pre>
-                        <button class="copy-btn" onclick="copyCode('code4')">复制</button>
-                        <p><i class="fas fa-clock"></i> 预计时间：10-30分钟（取决于网速）</p>
-                        <p><i class="fas fa-hdd"></i> 所需空间：约1.5GB</p>
-                    </div>
-                    
-                    <h3>单独安装（按需选择）</h3>
-                    <div class="card">
-                        <pre><code id="code5"># Python（最通用）
-pkg install python -y
-
-# Node.js（JavaScript）
-pkg install nodejs -y
-
-# Go（高性能后端）
-pkg install golang -y
-go env -w GOPROXY=https://goproxy.cn,direct
-
-# C/C++（系统编程）
-pkg install clang make -y
-
-# Java（Android开发基础）
-pkg install openjdk-17 -y</code></pre>
-                        <button class="copy-btn" onclick="copyCode('code5')">复制</button>
-                    </div>
-                    
-                    <h3>验证安装</h3>
-                    <div class="card">
-                        <pre><code id="code6"># 检查所有语言版本
-echo "=== 语言版本检查 ==="
-go version && echo "---"
-python --version && echo "---"
-node --version && echo "---"
-java --version 2>&1 | head -1 && echo "---"
-rustc --version 2>/dev/null && echo "---" || true
-clang --version | head -1 && echo "---"
-php --version | head -1</code></pre>
-                        <button class="copy-btn" onclick="copyCode('code6')">复制</button>
-                    </div>
-                </section>
-                
-                <!-- VPN推荐 -->
-                <section id="vpn">
-                    <h2><i class="fas fa-shield-alt"></i> VPN推荐</h2>
-                    <div class="card warning">
-                        <p><i class="fas fa-exclamation-triangle"></i> 注意：VPN用于加速国外资源访问，请合法使用</p>
-                    </div>
-                    
-                    <h3>Google Play免费VPN</h3>
-                    <div class="card">
-                        <table style="width:100%; border-collapse: collapse;">
-                            <tr style="background:#f5f5f5;">
-                                <th style="padding:10px; text-align:left;">名称</th>
-                                <th style="padding:10px; text-align:left;">免费流量</th>
-                                <th style="padding:10px; text-align:left;">特点</th>
-                            </tr>
-                            <tr>
-                                <td style="padding:10px; border-bottom:1px solid #eee;"><strong>Proton VPN</strong></td>
-                                <td style="padding:10px; border-bottom:1px solid #eee;">10GB/月</td>
-                                <td style="padding:10px; border-bottom:1px solid #eee;">瑞士品牌，速度稳定</td>
-                            </tr>
-                            <tr>
-                                <td style="padding:10px; border-bottom:1px solid #eee;"><strong>Windscribe</strong></td>
-                                <td style="padding:10px; border-bottom:1px solid #eee;">10GB/月</td>
-                                <td style="padding:10px; border-bottom:1px solid #eee;">支持自定义配置</td>
-                            </tr>
-                            <tr>
-                                <td style="padding:10px; border-bottom:1px solid #eee;"><strong>TunnelBear</strong></td>
-                                <td style="padding:10px; border-bottom:1px solid #eee;">500MB/月</td>
-                                <td style="padding:10px; border-bottom:1px solid #eee;">界面友好，适合新手</td>
-                            </tr>
-                            <tr>
-                                <td style="padding:10px;"><strong>Hide.me</strong></td>
-                                <td style="padding:10px;">10GB/月</td>
-                                <td style="padding:10px;">无日志政策，速度不错</td>
-                            </tr>
-                        </table>
-                    </div>
-                    
-                    <h3>VPN使用技巧</h3>
-                    <div class="card">
-                        <ul>
-                            <li><strong>下载时开启</strong>：安装软件包时开VPN，速度更快</li>
-                            <li><strong>编程时关闭</strong>：日常写代码可关VPN省电</li>
-                            <li><strong>多节点测试</strong>：不同节点速度差异大，多试试</li>
-                            <li><strong>注意电量</strong>：VPN会增加耗电，注意手机电量</li>
-                        </ul>
-                    </div>
-                </section>
-                
-                <!-- 项目实战 -->
-                <section id="projects">
-                    <h2><i class="fas fa-folder-open"></i> 项目实战</h2>
-                    
-                    <h3>1. 创建第一个Python项目</h3>
-                    <div class="card">
-                        <pre><code id="code7"># 创建项目目录
-mkdir -p ~/projects/myapp && cd ~/projects/myapp
-
-# 创建Python文件
-cat > app.py << 'EOF'
-#!/usr/bin/env python3
-import os
-import time
-
-print("我的第一个Termux应用！")
-print(f"当前目录: {os.getcwd()}")
-print(f"当前时间: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-
-# 简单计算
-numbers = [1, 2, 3, 4, 5]
-total = sum(numbers)
-print(f"列表{numbers}的和是: {total}")
-EOF
-
-# 运行程序
-python app.py</code></pre>
-                        <button class="copy-btn" onclick="copyCode('code7')">复制</button>
-                    </div>
-                    
-                    <h3>2. 创建简单的HTTP服务器</h3>
-                    <div class="card">
-                        <pre><code id="code8"># Python简单HTTP服务器
-cd ~/storage/shared  # 进入手机共享目录
-python -m http.server 8080
-
-# 访问：用浏览器打开
-# 手机：http://localhost:8080
-# 电脑：http://手机IP:8080</code></pre>
-                        <button class="copy-btn" onclick="copyCode('code8')">复制</button>
-                    </div>
-                </section>
-                
-                <!-- 使用技巧 -->
-                <section id="tips">
-                    <h2><i class="fas fa-lightbulb"></i> 使用技巧</h2>
-                    
-                    <div class="card">
-                        <h3>提高效率的技巧</h3>
-                        <ul>
-                            <li><strong>命令历史</strong>：按音量上+键盘上箭头，查看历史命令</li>
-                            <li><strong>Tab补全</strong>：输入命令时按Tab键自动补全</li>
-                            <li><strong>长按复制</strong>：在Termux中长按可以复制文本</li>
-                            <li><strong>分屏操作</strong>：长按Termux图标，选择"浮动窗口"</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="card success">
-                        <h3>省电技巧</h3>
-                        <ul>
-                            <li>关闭不必要的后台进程</li>
-                            <li>使用深色主题（OLED屏幕省电）</li>
-                            <li>不需要时关闭VPN</li>
-                            <li>适当降低屏幕亮度</li>
-                        </ul>
-                    </div>
-                </section>
-                
-                <!-- 常见问题 -->
-                <section id="faq">
-                    <h2><i class="fas fa-question-circle"></i> 常见问题</h2>
-                    
-                    <div class="card">
-                        <h3>Q1: 安装时提示"空间不足"怎么办？</h3>
-                        <p><strong>A:</strong> 清理手机存储空间，或运行：</p>
-                        <pre><code>pkg clean  # 清理包缓存</code></pre>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>Q2: 网络慢，下载失败怎么办？</h3>
-                        <p><strong>A:</strong> 
-                        <br>1. 换到WiFi环境下操作
-                        <br>2. 使用VPN加速
-                        <br>3. 更换国内镜像源
-                        <br>4. 分多次安装，不要一次性装太多</p>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>Q3: 如何备份Termux环境？</h3>
-                        <pre><code># 备份到手机存储
-cd ~
-tar -zcvf /sdcard/termux-backup.tar.gz .</code></pre>
-                    </div>
-                </section>
-                
-                <!-- 学习资源 -->
-                <section id="resources">
-                    <h2><i class="fas fa-book"></i> 学习资源</h2>
-                    
-                    <div class="card">
-                        <h3>官方文档</h3>
-                        <ul>
-                            <li><a href="https://wiki.termux.com" target="_blank">Termux Wiki</a> - 官方维基</li>
-                            <li><a href="https://github.com/termux/termux-packages" target="_blank">GitHub仓库</a> - 源码和包管理</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>学习平台</h3>
-                        <ul>
-                            <li><a href="https://www.runoob.com" target="_blank">菜鸟教程</a> - 中文编程教程</li>
-                            <li><a href="https://www.w3schools.com" target="_blank">W3Schools</a> - 英文编程教程</li>
-                            <li><a href="https://stackoverflow.com" target="_blank">Stack Overflow</a> - 编程问答</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>GitHub项目</h3>
-                        <p>搜索这些关键词：</p>
-                        <pre><code>termux setup
-termux configuration
-termux development
-android programming terminal</code></pre>
-                    </div>
-                </section>
-                
-                <div style="text-align: center; margin: 50px 0;">
-                    <a href="#intro" class="btn"><i class="fas fa-arrow-up"></i> 回到顶部</a>
-                    <a href="https://github.com/termux/termux-app" target="_blank" class="btn btn-secondary"><i class="fab fa-github"></i> GitHub项目</a>
                 </div>
-            </main>
-        </div>
+                
+                <div class="card">
+                    <div class="card-title">
+                        <span class="material-symbols-rounded">sync_alt</span>
+                        进阶：更换清华源 (无需VPN)
+                    </div>
+                    <p class="card-text">
+                        如果你不想安装 VPN，可以通过命令将下载源切换到国内的清华大学镜像源。
+                    </p>
+                    <div class="code-container">
+                        <div class="code-header">BASH</div>
+                        <button class="btn btn-copy" onclick="copyCode('cmd-repo')">复制</button>
+                        <code id="cmd-repo"><span class="command">termux-change-repo</span>
+<span class="comment"># 执行后会出现图形界面：
+# 1. 使用方向键选择所有方块 (按空格选中) -> 回车
+# 2. 选择 Mirrors by Tsinghua -> 回车</span></code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: Python -->
+            <section id="section-python">
+                <div class="divider"></div>
+                <h2 style="color: var(--md-sys-color-tertiary); margin-bottom: 16px;">第三步：安装编程语言</h2>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="material-symbols-rounded">code</span>
+                        Python (爬虫、脚本之王)
+                    </div>
+                    <p class="card-text">
+                        Python 是 Termux 上最热门的语言，可以用来跑脚本、爬虫、甚至搭建简单的 Web 服务器。
+                    </p>
+                    
+                    <div class="code-container">
+                        <div class="code-header">安装指令</div>
+                        <button class="btn btn-copy" onclick="copyCode('cmd-python')">复制</button>
+                        <code id="cmd-python"><span class="comment"># 安装 Python</span>
+<span class="command">pkg</span> <span class="flag">install</span> python -y
+
+<span class="comment"># 验证安装 (查看版本)</span>
+<span class="command">python</span> --version
+
+<span class="comment"># 升级 pip (包管理器)</span>
+<span class="command">pip</span> install --upgrade pip</code>
+                    </div>
+                    
+                    <div class="code-container">
+                        <div class="code-header">Hello World 测试</div>
+                        <button class="btn btn-copy" onclick="copyCode('test-python')">复制</button>
+                        <code id="test-python"><span class="comment"># 直接在命令行输入 python 进入交互模式，然后输入：</span>
+print("Hello Termux MD3!")
+<span class="comment"># 按 Ctrl+D 退出</span></code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: Node.js -->
+            <section id="section-nodejs">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="material-symbols-rounded">javascript</span>
+                        Node.js (前端、服务端)
+                    </div>
+                    <p class="card-text">
+                        如果你想在手机上运行 Hexo 博客、Vue 项目或者各种 JS 脚本，Node.js 是必须的。这里安装的是 LTS (长期支持) 版本。
+                    </p>
+                    
+                    <div class="code-container">
+                        <div class="code-header">安装指令</div>
+                        <button class="btn btn-copy" onclick="copyCode('cmd-node')">复制</button>
+                        <code id="cmd-node"><span class="comment"># 安装 Node.js LTS 版本</span>
+<span class="command">pkg</span> <span class="flag">install</span> nodejs-lts -y
+
+<span class="comment"># 或者安装最新版: pkg install nodejs -y</span>
+
+<span class="comment"># 验证安装</span>
+<span class="command">node</span> -v
+<span class="command">npm</span> -v</code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: Java -->
+            <section id="section-java">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="material-symbols-rounded">coffee</span>
+                        Java (JDK 17)
+                    </div>
+                    <p class="card-text">
+                        Java 是安卓开发的基石。Termux 提供了 OpenJDK 17，非常适合学习 Java 基础或运行 `.jar` 工具。
+                    </p>
+                    
+                    <div class="code-container">
+                        <div class="code-header">安装指令</div>
+                        <button class="btn btn-copy" onclick="copyCode('cmd-java')">复制</button>
+                        <code id="cmd-java"><span class="comment"># 安装 OpenJDK 17</span>
+<span class="command">pkg</span> <span class="flag">install</span> openjdk-17 -y
+
+<span class="comment"># 验证安装</span>
+<span class="command">java</span> --version
+
+<span class="comment"># 编译 Java 文件命令: javac Hello.java</span>
+<span class="comment"># 运行 Java 文件命令: java Hello</span></code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: C/C++ -->
+            <section id="section-cpp">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="material-symbols-rounded">memory</span>
+                        C / C++ (Clang 编译器)
+                    </div>
+                    <p class="card-text">
+                        底层开发必备。在 Termux 中，我们使用 `clang` 来编译 C/C++ 代码，它比 GCC 更轻量且报错信息更友好。
+                    </p>
+                    
+                    <div class="code-container">
+                        <div class="code-header">安装指令</div>
+                        <button class="btn btn-copy" onclick="copyCode('cmd-cpp')">复制</button>
+                        <code id="cmd-cpp"><span class="comment"># 安装 Clang 和 Make 工具</span>
+<span class="command">pkg</span> <span class="flag">install</span> clang make -y
+
+<span class="comment"># 验证安装</span>
+<span class="command">clang</span> --version
+<span class="command">clang++</span> --version
+
+<span class="comment"># 编译 C++ 示例: clang++ main.cpp -o main</span>
+<span class="comment"># 运行: ./main</span></code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: Go -->
+            <section id="section-go">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="material-symbols-rounded">go_to_line</span>
+                        Go Lang (高并发)
+                    </div>
+                    <p class="card-text">
+                        Google 开发的语言，非常适合编写网络服务。Termux 对 Go 的支持非常完美。
+                    </p>
+                    
+                    <div class="code-container">
+                        <div class="code-header">安装指令</div>
+                        <button class="btn btn-copy" onclick="copyCode('cmd-go')">复制</button>
+                        <code id="cmd-go"><span class="comment"># 安装 Go</span>
+<span class="command">pkg</span> <span class="flag">install</span> golang -y
+
+<span class="comment"># 验证安装</span>
+<span class="command">go</span> version
+
+<span class="comment"># 建议配置 GOPROXY 加速包下载</span>
+<span class="command">go</span> env -w GOPROXY=https://goproxy.cn,direct</code>
+                    </div>
+                </div>
+            </section>
+
+             <!-- Section: Rust -->
+             <section id="section-rust">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="material-symbols-rounded">settings_suggest</span>
+                        Rust (现代、安全)
+                    </div>
+                    <p class="card-text">
+                        近年来最火的系统级语言，虽然安装包较大，但 Termux 依然能够运行。安装过程可能会比较慢，请保持 VPN 开启。
+                    </p>
+                    
+                    <div class="code-container">
+                        <div class="code-header">安装指令</div>
+                        <button class="btn btn-copy" onclick="copyCode('cmd-rust')">复制</button>
+                        <code id="cmd-rust"><span class="comment"># 安装 Rust 编译器</span>
+<span class="command">pkg</span> <span class="flag">install</span> rust -y
+
+<span class="comment"># 验证安装</span>
+<span class="command">rustc</span> --version
+<span class="command">cargo</span> --version</code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: PHP & Web -->
+            <section id="section-php">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="material-symbols-rounded">html</span>
+                        PHP & Web Server
+                    </div>
+                    <p class="card-text">
+                        如果你想运行简单的网站或者学习 PHP 后端。同时推荐安装 nginx 作为服务器。
+                    </p>
+                    
+                    <div class="code-container">
+                        <div class="code-header">安装指令</div>
+                        <button class="btn btn-copy" onclick="copyCode('cmd-php')">复制</button>
+                        <code id="cmd-php"><span class="comment"># 安装 PHP</span>
+<span class="command">pkg</span> <span class="flag">install</span> php -y
+
+<span class="comment"># 安装 Nginx (可选)</span>
+<span class="command">pkg</span> <span class="flag">install</span> nginx -y
+
+<span class="comment"># 启动 PHP 内置服务器 (在当前目录)</span>
+<span class="command">php</span> -S 0.0.0.0:8080</code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: Essential Tools -->
+            <section id="section-tools">
+                <div class="divider"></div>
+                <h2 style="color: var(--md-sys-color-tertiary); margin-bottom: 16px;">第四步：神器级工具</h2>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="material-symbols-rounded">handyman</span>
+                        Git, Vim & Zsh
+                    </div>
+                    <p class="card-text">
+                        只有语言还不够，你需要代码管理工具 (Git)、编辑器 (Vim/Nano) 和更漂亮的终端 (Zsh)。
+                    </p>
+                    
+                    <div class="code-container">
+                        <div class="code-header">一键安装全家桶</div>
+                        <button class="btn btn-copy" onclick="copyCode('cmd-tools')">复制</button>
+                        <code id="cmd-tools"><span class="comment"># 安装 Git (版本控制)</span>
+<span class="command">pkg</span> <span class="flag">install</span> git -y
+
+<span class="comment"># 安装 Vim (编辑器之神) 和 Nano (新手友好)</span>
+<span class="command">pkg</span> <span class="flag">install</span> vim nano -y
+
+<span class="comment"># 安装 wget 和 curl (下载工具)</span>
+<span class="command">pkg</span> <span class="flag">install</span> wget curl -y
+
+<span class="comment"># 安装 Tree (查看目录结构)</span>
+<span class="command">pkg</span> <span class="flag">install</span> tree -y</code>
+                    </div>
+                </div>
+
+                <div class="card" style="border: 1px solid var(--md-sys-color-primary);">
+                    <div class="card-title">
+                        <span class="material-symbols-rounded">auto_fix_high</span>
+                        终极美化：Oh My Zsh
+                    </div>
+                    <p class="card-text">
+                        让你的 Termux 界面变得像黑客电影一样酷炫，带有自动补全和主题功能。
+                    </p>
+                    <div class="code-container">
+                        <div class="code-header">BASH (需要开启VPN)</div>
+                        <button class="btn btn-copy" onclick="copyCode('cmd-zsh')">复制</button>
+                        <code id="cmd-zsh"><span class="comment"># 这是一个一键安装脚本 (来自 tmoe)</span>
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"</code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Footer -->
+            <footer style="margin-top: 48px; text-align: center; opacity: 0.6; padding-bottom: 40px;">
+                <p>© 2023 Termux MD3 Tutorial | Designed for Mobile & PC</p>
+                <p style="font-size: 12px; margin-top: 8px;">Remember: With great power comes great responsibility.</p>
+            </footer>
+
+        </main>
     </div>
-    
-    <footer>
-        <p>© 2024 Termux完全指南 | 设计用于GitHub Pages部署</p>
-        <p>本页面完全响应式，适配手机和电脑</p>
-        <p style="margin-top: 20px; font-size: 0.9em;">
-            <i class="fas fa-code"></i> 由AI生成，定期更新 | 
-            <i class="fas fa-mobile-alt"></i> 最佳手机编程体验
-        </p>
-    </footer>
-    
+
+    <!-- JavaScript Logic -->
     <script>
-        // 导航高亮
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.addEventListener('click', function(e) {
-                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-                this.classList.add('active');
-            });
-        });
-        
-        // 复制代码功能
-        function copyCode(id) {
-            const code = document.getElementById(id);
-            const textArea = document.createElement('textarea');
-            textArea.value = code.textContent;
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
+        // 复制功能逻辑
+        function copyCode(elementId) {
+            const codeElement = document.getElementById(elementId);
+            let textToCopy = codeElement.innerText;
+
+            // 创建临时文本域用于复制
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            document.body.appendChild(textarea);
+            textarea.select();
             
-            // 显示复制成功提示
-            const btn = event.target;
-            const original = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-check"></i> 已复制';
-            btn.style.background = '#00b894';
+            try {
+                document.execCommand('copy');
+                showToast();
+            } catch (err) {
+                console.error('复制失败', err);
+                alert("复制失败，请手动长按复制");
+            }
             
-            setTimeout(() => {
-                btn.innerHTML = original;
-                btn.style.background = '';
-            }, 2000);
+            document.body.removeChild(textarea);
         }
-        
-        // 自动滚动高亮
-        window.addEventListener('scroll', function() {
+
+        // Toast 提示逻辑
+        function showToast() {
+            const toast = document.getElementById("toast");
+            toast.className = "show";
+            setTimeout(function(){ 
+                toast.className = toast.className.replace("show", ""); 
+            }, 3000);
+        }
+
+        // 简单的滚动监听，用于高亮侧边栏 (仅PC)
+        window.addEventListener('scroll', () => {
+            if (window.innerWidth < 900) return; // 手机端不执行
+
             const sections = document.querySelectorAll('section');
             const navLinks = document.querySelectorAll('.nav-link');
-            
+
             let current = '';
             sections.forEach(section => {
                 const sectionTop = section.offsetTop;
-                const sectionHeight = section.clientHeight;
-                if (pageYOffset >= sectionTop - 100) {
+                if (pageYOffset >= sectionTop - 150) {
                     current = section.getAttribute('id');
                 }
             });
-            
+
             navLinks.forEach(link => {
                 link.classList.remove('active');
-                if (link.getAttribute('href') === '#' + current) {
+                if (link.getAttribute('href').includes(current)) {
                     link.classList.add('active');
                 }
             });
         });
-        
-        // 移动设备优化
-        if (/Mobi|Android/i.test(navigator.userAgent)) {
-            // 手机设备特殊处理
-            document.querySelector('pre').style.fontSize = '0.8em';
-        }
     </script>
 </body>
 </html>
