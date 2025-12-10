@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MD3 细胞模拟器</title>
+    <style>
+        :root {
+            /* MD3 风格配色 (基于蓝色/中性色) */
+            --md-sys-color-background: #F2F4F8; /* 浅灰色背景 */
+            --md-sys-color-surface: #FFFFFF;
+            --md-sys-color-surface-container: #ECEEF4;
+            --md-sys-color-primary: #00639B;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-secondary-container: #CDE5FF;
+            --md-sys-color-on-secondary-container: #001D32;
+            --md-sys-color-outline: #74777F;
+            
+            /* 细胞颜色定义 */
+            --cell-red: #BA1A1A;
+            --cell-green: #146C2E;
+            --cell-blue: #00639B;
+            --food-color: #FFC107; /* 琥珀色 */
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--md-sys-color-background);
+            font-family: 'Roboto', 'Segoe UI', sans-serif;
+            color: #1a1c1e;
+            height: 100vh;
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
+        }
+
+        /* 画布区域 */
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        canvas {
+            display: block;
+            background-color: #ffffff;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+        }
+
+        /* 控制面板 (侧边栏/底部栏) */
+        #control-panel {
+            width: 320px;
+            background-color: var(--md-sys-color-surface);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: -2px 0 8px rgba(0,0,0,0.05);
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+
+        h2 {
+            margin: 0 0 8px 0;
+            font-size: 1.5rem;
+            color: var(--md-sys-color-primary);
+        }
+
+        p.desc {
+            font-size: 0.9rem;
+            color: var(--md-sys-color-outline);
+            margin-bottom: 16px;
+        }
+
+        /* 统计表格 */
+        #stats-card {
+            background-color: var(--md-sys-color-surface-container);
+            border-radius: 16px;
+            padding: 16px;
+            overflow: hidden;
+            transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+            max-height: 300px; /* 展开状态 */
+            opacity: 1;
+        }
+
+        #stats-card.hidden {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            opacity: 0;
+            margin: 0;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .stat-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        /* 按钮样式 */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn-label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--md-sys-color-outline);
+            margin-bottom: 4px;
+        }
+
+        .type-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            border: none;
+            padding: 12px 20px;
+            border-radius: 20px; /* Pill shape */
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        /* 类型选择按钮 */
+        .type-btn {
+            background-color: var(--md-sys-color-surface-container);
+            color: #444;
+            flex: 1;
+        }
+
+        .type-btn.active {
+            border: 2px solid; 
+            background-color: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
+        }
+
+        /* 功能按钮 */
+        .action-btn {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            width: 100%;
+        }
+
+        /* 手机适配 (小于 768px) */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            #control-panel {
+                width: 100%;
+                height: auto;
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                padding: 16px;
+                box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+                order: 2; /* 放在底部 */
+                flex-wrap: wrap;
+            }
+
+            /* 移动端统计面板改为悬浮 */
+            #stats-card {
+                position: absolute;
+                top: 16px;
+                left: 16px;
+                z-index: 20;
+                width: 180px;
+                background-color: rgba(255, 255, 255, 0.9);
+                backdrop-filter: blur(5px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            }
+
+            h2, p.desc {
+                display: none; /* 移动端隐藏标题节省空间 */
+            }
+
+            .btn-group {
+                flex-direction: row;
+                width: 100%;
+                justify-content: space-between;
+                align-items: center;
+            }
+            
+            .type-selector {
+                flex: 1;
+                margin-right: 10px;
+            }
+
+            .action-btn {
+                width: auto;
+                padding: 10px 16px;
+                white-space: nowrap;
+            }
+            
+            .btn-label {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 模拟区域 -->
+    <div id="canvas-container">
+        <canvas id="simCanvas"></canvas>
+        
+        <!-- 统计面板 (移动端悬浮/桌面端嵌入) -->
+        <div id="stats-card">
+            <div style="font-weight: bold; margin-bottom: 12px;">实时统计</div>
+            <div class="stat-row">
+                <span><span class="dot" style="background: var(--cell-red)"></span>红细胞</span>
+                <span id="count-red">0</span>
+            </div>
+            <div class="stat-row">
+                <span><span class="dot" style="background: var(--cell-green)"></span>绿细胞</span>
+                <span id="count-green">0</span>
+            </div>
+            <div class="stat-row">
+                <span><span class="dot" style="background: var(--cell-blue)"></span>蓝细胞</span>
+                <span id="count-blue">0</span>
+            </div>
+            <div class="stat-row" style="margin-top: 8px; border-top: 1px solid #ddd; padding-top: 8px;">
+                <span><span class="dot" style="background: var(--food-color)"></span>食物</span>
+                <span id="count-food">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 控制面板 -->
+    <div id="control-panel">
+        <div>
+            <h2>细胞实验室</h2>
+            <p class="desc">选择类型并在空白处点击放置。</p>
+            
+            <div class="btn-group">
+                <div class="btn-label">选择细胞类型</div>
+                <div class="type-selector">
+                    <button class="type-btn active" onclick="selectType('red')" style="border-color: var(--cell-red)">
+                        <span class="dot" style="background: var(--cell-red)"></span> 红色
+                    </button>
+                    <button class="type-btn" onclick="selectType('green')" style="border-color: var(--cell-green)">
+                        <span class="dot" style="background: var(--cell-green)"></span> 绿色
+                    </button>
+                    <button class="type-btn" onclick="selectType('blue')" style="border-color: var(--cell-blue)">
+                        <span class="dot" style="background: var(--cell-blue)"></span> 蓝色
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="action-btn" onclick="toggleStats()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 20V10M18 20V4M6 20v-4"/>
+                </svg>
+                显示/隐藏 统计
+            </button>
+            <button class="action-btn" style="background-color: var(--md-sys-color-outline);" onclick="resetSim()">
+                重置模拟
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 配置
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+        
+        let cells = [];
+        let foods = [];
+        let animationId;
+        
+        // 状态
+        let currentType = 'red';
+        const colors = {
+            red: getComputedStyle(document.documentElement).getPropertyValue('--cell-red').trim(),
+            green: getComputedStyle(document.documentElement).getPropertyValue('--cell-green').trim(),
+            blue: getComputedStyle(document.documentElement).getPropertyValue('--cell-blue').trim(),
+            food: getComputedStyle(document.documentElement).getPropertyValue('--food-color').trim()
+        };
+
+        // 初始化尺寸
+        function resize() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 类定义
+        class Cell {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.radius = 0; // 初始半径，会有生长动画
+                this.targetRadius = 8 + Math.random() * 4;
+                this.color = colors[type];
+                
+                // 随机速度向量
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 0.5 + Math.random();
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+            }
+
+            update() {
+                // 生长效果
+                if (this.radius < this.targetRadius) {
+                    this.radius += 0.5;
+                }
+
+                // 移动
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // 边界反弹
+                if (this.x - this.radius < 0 || this.x + this.radius > canvas.width) this.vx *= -1;
+                if (this.y - this.radius < 0 || this.y + this.radius > canvas.height) this.vy *= -1;
+
+                // 简单的"呼吸"效果
+                this.visualRadius = this.radius + Math.sin(Date.now() / 200) * 0.5;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.visualRadius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                
+                // 内部高光，增加立体感
+                ctx.beginPath();
+                ctx.arc(this.x - this.radius*0.3, this.y - this.radius*0.3, this.radius/3, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(255,255,255,0.3)";
+                ctx.fill();
+            }
+        }
+
+        class Food {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.radius = 3;
+                this.color = colors.food;
+            }
+            
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+        }
+
+        // 交互逻辑
+        function selectType(type) {
+            currentType = type;
+            // 更新按钮 UI
+            document.querySelectorAll('.type-btn').forEach(btn => btn.classList.remove('active'));
+            // 简单的逻辑找到对应按钮，实际项目中建议用 ID
+            const buttons = document.querySelectorAll('.type-btn');
+            if(type === 'red') buttons[0].classList.add('active');
+            if(type === 'green') buttons[1].classList.add('active');
+            if(type === 'blue') buttons[2].classList.add('active');
+        }
+
+        function toggleStats() {
+            const stats = document.getElementById('stats-card');
+            stats.classList.toggle('hidden');
+        }
+
+        function resetSim() {
+            cells = [];
+            foods = [];
+            // 初始化一些食物
+            for(let i=0; i<20; i++) foods.push(new Food());
+        }
+
+        // 点击放置细胞
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            cells.push(new Cell(x, y, currentType));
+        });
+        
+        // 触摸支持
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // 防止滚动
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            cells.push(new Cell(x, y, currentType));
+        }, {passive: false});
+
+        // 核心循环
+        function loop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制网格背景 (可选，增加科技感)
+            /*
+            ctx.strokeStyle = "rgba(0,0,0,0.03)";
+            ctx.beginPath();
+            for(let x=0; x<canvas.width; x+=40) { ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); }
+            for(let y=0; y<canvas.height; y+=40) { ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); }
+            ctx.stroke();
+            */
+
+            // 处理食物
+            if (foods.length < 20 && Math.random() < 0.05) {
+                foods.push(new Food());
+            }
+
+            foods.forEach(food => food.draw());
+
+            // 处理细胞
+            cells.forEach((cell, index) => {
+                cell.update();
+                cell.draw();
+
+                // 吃食物逻辑
+                for (let i = foods.length - 1; i >= 0; i--) {
+                    const food = foods[i];
+                    const dx = cell.x - food.x;
+                    const dy = cell.y - food.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (dist < cell.radius + food.radius) {
+                        foods.splice(i, 1);
+                        // 吃到食物变大一点点
+                        if(cell.targetRadius < 20) cell.targetRadius += 0.5;
+                    }
+                }
+            });
+
+            updateStats();
+            requestAnimationFrame(loop);
+        }
+
+        // 更新统计表格
+        function updateStats() {
+            const counts = { red: 0, green: 0, blue: 0 };
+            cells.forEach(cell => {
+                if(counts[cell.type] !== undefined) counts[cell.type]++;
+            });
+
+            document.getElementById('count-red').textContent = counts.red;
+            document.getElementById('count-green').textContent = counts.green;
+            document.getElementById('count-blue').textContent = counts.blue;
+            document.getElementById('count-food').textContent = foods.length;
+        }
+
+        // 启动
+        resetSim();
+        loop();
+
+    </script>
+</body>
+</html>
