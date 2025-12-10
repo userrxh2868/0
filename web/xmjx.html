@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>虾米影视解析器</title>
+    <!-- 引入 Google Fonts 和图标 -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* MD3 Color Scheme (Light/Violet) */
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            --md-sys-color-background: #FFFBFE;
+            --md-sys-color-surface: #FFFBFE;
+            --md-sys-color-surface-variant: #E7E0EC;
+            --md-sys-color-on-surface: #1C1B1F;
+            --md-sys-color-on-surface-variant: #49454F;
+            --md-sys-color-outline: #79747E;
+            --md-sys-color-scrim: #000000;
+            
+            /* Shapes & Spacing */
+            --border-radius-lg: 24px;
+            --border-radius-md: 12px;
+            --border-radius-sm: 8px;
+            --border-radius-full: 999px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Roboto', system-ui, -apple-system, sans-serif;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-surface);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top App Bar */
+        header {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between; /* 两端对齐 */
+            background-color: var(--md-sys-color-surface);
+            padding: 0 var(--spacing-md);
+            z-index: 10;
+        }
+
+        /* Header Buttons */
+        .icon-btn {
+            background: none;
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--md-sys-color-on-surface);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .icon-btn:active {
+            background-color: var(--md-sys-color-surface-variant);
+        }
+
+        header h1 {
+            font-size: 20px;
+            font-weight: 500;
+            color: var(--md-sys-color-on-surface);
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        /* Main Content Area */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: var(--spacing-md);
+            gap: var(--spacing-lg);
+            overflow-y: auto;
+        }
+
+        /* Player Container */
+        .player-wrapper {
+            width: 100%;
+            background-color: black;
+            border-radius: var(--border-radius-md);
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 4px 8px 3px rgba(0,0,0,0.15);
+            aspect-ratio: 16 / 9;
+        }
+
+        .player-wrapper iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.7);
+            z-index: 1;
+        }
+
+        .placeholder span {
+            font-size: 48px;
+            margin-bottom: 8px;
+        }
+
+        /* Controls Section */
+        .controls-card {
+            background-color: #F3EDF7; /* Surface Container Low */
+            border-radius: var(--border-radius-lg);
+            padding: var(--spacing-lg);
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        .input-group {
+            position: relative;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 16px;
+            padding-right: 48px;
+            font-size: 16px;
+            color: var(--md-sys-color-on-surface);
+            background-color: var(--md-sys-color-surface);
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-field:focus {
+            border-color: var(--md-sys-color-primary);
+            border-width: 2px;
+            padding: 15px;
+            padding-right: 47px;
+        }
+
+        .clear-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--md-sys-color-on-surface-variant);
+            cursor: pointer;
+            display: none;
+        }
+
+        .play-btn {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border: none;
+            height: 56px;
+            border-radius: var(--border-radius-full);
+            font-size: 16px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            box-shadow: 0 1px 3px 1px rgba(0,0,0,0.15);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .play-btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 1px 2px 0 rgba(0,0,0,0.15);
+        }
+
+        .tips {
+            font-size: 12px;
+            color: var(--md-sys-color-on-surface-variant);
+            text-align: center;
+            margin-top: auto;
+            opacity: 0.7;
+            padding-bottom: 20px;
+        }
+
+        /* ================= MODAL STYLES ================= */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5); /* Scrim */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            backdrop-filter: blur(2px);
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-card {
+            background-color: var(--md-sys-color-surface);
+            width: 85%;
+            max-width: 320px;
+            border-radius: 28px;
+            padding: 24px;
+            transform: scale(0.9);
+            transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .modal-overlay.active .modal-card {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            font-weight: 500;
+        }
+
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+
+        .app-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .app-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.1s;
+        }
+        
+        .app-item:active .app-icon {
+            transform: scale(0.95);
+        }
+
+        .app-name {
+            font-size: 12px;
+        }
+
+        /* Platform Colors */
+        .bg-tencent { background: linear-gradient(135deg, #0052D4, #4364F7); }
+        .bg-iqiyi { background: linear-gradient(135deg, #00C853, #69F0AE); }
+        .bg-youku { background: linear-gradient(135deg, #0d8aee, #00b4ff); }
+        .bg-bilibili { background: linear-gradient(135deg, #FB7299, #FFA7C4); }
+        .bg-mgtv { background: linear-gradient(135deg, #FF9800, #FFC107); }
+        .bg-other { background: linear-gradient(135deg, #607D8B, #90A4AE); }
+
+        .close-modal-btn {
+            width: 100%;
+            margin-top: 16px;
+            padding: 10px;
+            background: none;
+            border: none;
+            color: var(--md-sys-color-primary);
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: var(--border-radius-full);
+        }
+        .close-modal-btn:active {
+            background-color: var(--md-sys-color-surface-variant);
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <!-- 左侧菜单按钮 -->
+        <button class="icon-btn" id="open-menu-btn">
+            <span class="material-icons-round">apps</span>
+        </button>
+        
+        <h1>虾米解析</h1>
+        
+        <!-- 右侧占位，保持标题居中 -->
+        <div style="width: 48px;"></div>
+    </header>
+
+    <main>
+        <!-- 视频播放区域 -->
+        <div class="player-wrapper">
+            <div class="placeholder" id="placeholder">
+                <span class="material-icons-round">smart_display</span>
+                <p>请粘贴链接播放</p>
+            </div>
+            <iframe id="video-iframe" src="" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+        </div>
+
+        <!-- 控制区域 -->
+        <div class="controls-card">
+            <div class="input-group">
+                <input type="text" id="video-url" class="input-field" placeholder="粘贴视频地址 (爱优腾/B站)...">
+                <button class="clear-btn" id="clear-btn">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+
+            <button class="play-btn" id="play-btn">
+                <span class="material-icons-round">play_arrow</span>
+                立即解析播放
+            </button>
+            
+            <p class="tips">支持腾讯视频、爱奇艺、优酷、芒果、B站等</p>
+        </div>
+    </main>
+
+    <!-- 弹窗 (Modal) -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>前往视频平台</h2>
+            </div>
+            
+            <div class="app-grid">
+                <!-- 腾讯视频 -->
+                <a href="https://m.v.qq.com" target="_blank" class="app-item">
+                    <div class="app-icon bg-tencent">腾讯</div>
+                    <span class="app-name">腾讯视频</span>
+                </a>
+                
+                <!-- 爱奇艺 -->
+                <a href="https://m.iqiyi.com" target="_blank" class="app-item">
+                    <div class="app-icon bg-iqiyi">爱奇艺</div>
+                    <span class="app-name">爱奇艺</span>
+                </a>
+
+                <!-- 优酷 -->
+                <a href="https://www.youku.com" target="_blank" class="app-item">
+                    <div class="app-icon bg-youku">优酷</div>
+                    <span class="app-name">优酷</span>
+                </a>
+
+                <!-- 哔哩哔哩 -->
+                <a href="https://m.bilibili.com" target="_blank" class="app-item">
+                    <div class="app-icon bg-bilibili">B站</div>
+                    <span class="app-name">哔哩哔哩</span>
+                </a>
+
+                 <!-- 芒果TV -->
+                 <a href="https://m.mgtv.com" target="_blank" class="app-item">
+                    <div class="app-icon bg-mgtv">芒果</div>
+                    <span class="app-name">芒果TV</span>
+                </a>
+
+                 <!-- 更多 -->
+                 <a href="https://www.baidu.com" target="_blank" class="app-item">
+                    <div class="app-icon bg-other">搜</div>
+                    <span class="app-name">搜索</span>
+                </a>
+            </div>
+
+            <button class="close-modal-btn" id="close-modal-btn">取消</button>
+        </div>
+    </div>
+
+    <script>
+        // === 播放器逻辑 ===
+        const playBtn = document.getElementById('play-btn');
+        const urlInput = document.getElementById('video-url');
+        const iframe = document.getElementById('video-iframe');
+        const placeholder = document.getElementById('placeholder');
+        const clearBtn = document.getElementById('clear-btn');
+        const API_BASE = "https://jx.xmflv.cc/?url=";
+
+        function playVideo() {
+            const userUrl = urlInput.value.trim();
+            if (!userUrl) {
+                if(navigator.vibrate) navigator.vibrate(50);
+                urlInput.style.borderColor = "#B3261E";
+                setTimeout(() => { urlInput.style.borderColor = ""; }, 1000);
+                return;
+            }
+            placeholder.style.display = 'none';
+            iframe.src = API_BASE + userUrl;
+        }
+
+        playBtn.addEventListener('click', playVideo);
+        urlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') { playVideo(); urlInput.blur(); }
+        });
+        urlInput.addEventListener('input', function() {
+            clearBtn.style.display = this.value.length > 0 ? 'block' : 'none';
+        });
+        clearBtn.addEventListener('click', function() {
+            urlInput.value = '';
+            this.style.display = 'none';
+            urlInput.focus();
+        });
+
+        // === 弹窗逻辑 ===
+        const openMenuBtn = document.getElementById('open-menu-btn');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+
+        // 打开弹窗
+        openMenuBtn.addEventListener('click', () => {
+            modalOverlay.classList.add('active');
+        });
+
+        // 关闭弹窗函数
+        function closeModal() {
+            modalOverlay.classList.remove('active');
+        }
+
+        // 绑定关闭事件
+        closeModalBtn.addEventListener('click', closeModal);
+        
+        // 点击遮罩层也可以关闭
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) {
+                closeModal();
+            }
+        });
+
+    </script>
+</body>
+</html>
