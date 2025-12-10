@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>万宁五子棋 - 网页版</title>
+    <style>
+        :root {
+            --bg-color: #f0e6d2;
+            --board-color: #eeb557;
+            --primary-btn: #4CAF50;
+            --cheat-btn: #ff4757;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none; /* 禁止默认触摸行为 */
+        }
+
+        header {
+            padding: 15px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        #game-container {
+            position: relative;
+            margin: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            border-radius: 4px;
+            background-color: var(--board-color);
+        }
+
+        canvas {
+            display: block;
+            cursor: pointer;
+        }
+
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            active: transform: scale(0.95);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .btn-restart { background-color: var(--primary-btn); }
+        .btn-cheat { background-color: var(--cheat-btn); }
+
+        /* 作弊菜单弹窗 */
+        #cheat-menu {
+            position: fixed;
+            bottom: -100%;
+            left: 0;
+            width: 100%;
+            background: white;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            padding: 20px;
+            box-sizing: border-box;
+            transition: bottom 0.3s ease-in-out;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.2);
+            z-index: 100;
+        }
+
+        #cheat-menu.active {
+            bottom: 0;
+        }
+
+        .cheat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .cheat-item {
+            background-color: #f1f2f6;
+            color: #333;
+            padding: 15px;
+            text-align: center;
+            border-radius: 10px;
+            font-size: 14px;
+            border: 2px solid transparent;
+        }
+        
+        .cheat-item.active {
+            border-color: var(--cheat-btn);
+            background-color: #ffe0e3;
+            color: var(--cheat-btn);
+        }
+
+        .cheat-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+            text-align: center;
+            color: var(--cheat-btn);
+            font-weight: bold;
+        }
+
+        .close-cheat {
+            width: 100%;
+            padding: 12px;
+            background-color: #333;
+            color: white;
+            border-radius: 10px;
+        }
+
+        #status {
+            margin-top: 10px;
+            color: #555;
+            font-size: 16px;
+        }
+
+    </style>
+</head>
+<body>
+
+<header>万宁五子棋</header>
+
+<div id="status">玩家执黑先行</div>
+
+<div id="game-container">
+    <canvas id="board"></canvas>
+</div>
+
+<div class="controls">
+    <button class="btn-restart" onclick="initGame()">重新开始</button>
+    <button class="btn-cheat" onclick="toggleCheatMenu()">作弊菜单</button>
+</div>
+
+<!-- 作弊菜单 -->
+<div id="cheat-menu">
+    <div class="cheat-title">⚡ 开启万宁大招 ⚡</div>
+    <div class="cheat-grid">
+        <button class="cheat-item" id="skill-cross" onclick="activateSkill('cross')">
+            十字阵法<br><small>(落子变5子)</small>
+        </button>
+        <button class="cheat-item" id="skill-square" onclick="activateSkill('square')">
+            方块阵法<br><small>(落子变9子)</small>
+        </button>
+        <button class="cheat-item" onclick="activateSkill('convert')">
+            偷天换日<br><small>(转化敌方棋子)</small>
+        </button>
+        <button class="cheat-item" onclick="activateSkill('destroy')">
+            陨石天降<br><small>(摧毁敌方棋子)</small>
+        </button>
+        <button class="cheat-item" style="grid-column: span 2; background: #ff4757; color: white;" onclick="activateSkill('win')">
+            直接胜利
+        </button>
+    </div>
+    <button class="close-cheat" onclick="toggleCheatMenu()">关闭菜单</button>
+</div>
+
+<script>
+    const canvas = document.getElementById('board');
+    const ctx = canvas.getContext('2d');
+    const statusDiv = document.getElementById('status');
+    
+    // 游戏配置
+    const GRID_SIZE = 15;
+    let CELL_SIZE;
+    let board = []; // 0: 空, 1: 黑(玩家), 2: 白(电脑)
+    let isGameOver = false;
+    let isPlayerTurn = true;
+    
+    // 技能状态
+    let activeSkill = null; // 'cross', 'square'
+
+    // 初始化
+    function resizeCanvas() {
+        const maxSize = Math.min(window.innerWidth - 20, 600);
+        canvas.width = maxSize;
+        canvas.height = maxSize;
+        CELL_SIZE = maxSize / GRID_SIZE;
+        drawBoard();
+    }
+
+    window.addEventListener('resize', () => {
+        resizeCanvas();
+        drawBoard(); // 重绘现有的棋局
+    });
+
+    function initGame() {
+        board = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
+        isGameOver = false;
+        isPlayerTurn = true;
+        activeSkill = null;
+        updateStatus("玩家执黑先行");
+        clearSkillHighlight();
+        resizeCanvas();
+    }
+
+    // 绘制棋盘
+    function drawBoard() {
+        // 清空背景
+        ctx.fillStyle = '#eeb557';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 画线
+        ctx.beginPath();
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 1;
+
+        for (let i = 0; i < GRID_SIZE; i++) {
+            // 横线
+            ctx.moveTo(CELL_SIZE / 2, CELL_SIZE / 2 + i * CELL_SIZE);
+            ctx.lineTo(canvas.width - CELL_SIZE / 2, CELL_SIZE / 2 + i * CELL_SIZE);
+            // 竖线
+            ctx.moveTo(CELL_SIZE / 2 + i * CELL_SIZE, CELL_SIZE / 2);
+            ctx.lineTo(CELL_SIZE / 2 + i * CELL_SIZE, canvas.height - CELL_SIZE / 2);
+        }
+        ctx.stroke();
+
+        // 绘制棋子
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                if (board[y][x] !== 0) {
+                    drawPiece(x, y, board[y][x]);
+                }
+            }
+        }
+
+        // 绘制天元点（中间点）
+        const center = Math.floor(GRID_SIZE / 2);
+        ctx.beginPath();
+        ctx.arc(CELL_SIZE/2 + center*CELL_SIZE, CELL_SIZE/2 + center*CELL_SIZE, 3, 0, Math.PI * 2);
+        ctx.fillStyle = "#333";
+        ctx.fill();
+    }
+
+    function drawPiece(x, y, type) {
+        ctx.beginPath();
+        const cx = CELL_SIZE / 2 + x * CELL_SIZE;
+        const cy = CELL_SIZE / 2 + y * CELL_SIZE;
+        const radius = CELL_SIZE * 0.4;
+        
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        
+        // 渐变效果
+        const gradient = ctx.createRadialGradient(cx - radius/3, cy - radius/3, radius/10, cx, cy, radius);
+        if (type === 1) { // 黑棋
+            gradient.addColorStop(0, '#666');
+            gradient.addColorStop(1, '#000');
+        } else { // 白棋
+            gradient.addColorStop(0, '#fff');
+            gradient.addColorStop(1, '#ddd');
+        }
+        
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        
+        // 阴影
+        ctx.shadowColor = "rgba(0,0,0,0.5)";
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+        ctx.shadowColor = "transparent"; // 重置
+    }
+
+    // 点击事件处理
+    function handleInput(e) {
+        if (isGameOver || !isPlayerTurn) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const touchX = (e.clientX || e.touches[0].clientX) - rect.left;
+        const touchY = (e.clientY || e.touches[0].clientY) - rect.top;
+
+        const x = Math.floor(touchX / CELL_SIZE);
+        const y = Math.floor(touchY / CELL_SIZE);
+
+        if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+            if (board[y][x] === 0) {
+                
+                // 处理万宁技能
+                if (activeSkill === 'cross') {
+                    applyCrossArray(x, y);
+                    activeSkill = null;
+                    clearSkillHighlight();
+                } else if (activeSkill === 'square') {
+                    applySquareArray(x, y);
+                    activeSkill = null;
+                    clearSkillHighlight();
+                } else {
+                    // 普通落子
+                    board[y][x] = 1;
+                    drawPiece(x, y, 1);
+                    if (checkWin(x, y, 1)) {
+                        endGame("你赢了！");
+                        return;
+                    }
+                }
+
+                // 技能释放后，可能已经赢了
+                if (isGameOver) return;
+
+                isPlayerTurn = false;
+                updateStatus("电脑思考中...");
+                
+                setTimeout(computerMove, 500);
+            }
+        }
+    }
+
+    // 绑定事件（兼容鼠标和触摸）
+    canvas.addEventListener('mousedown', handleInput);
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // 防止滚动
+        handleInput(e);
+    }, {passive: false});
+
+    // 电脑AI (基于权重的简单贪心算法)
+    function computerMove() {
+        if (isGameOver) return;
+
+        let bestScore = -Infinity;
+        let bestMoves = [];
+
+        // 评估函数
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                if (board[y][x] === 0) {
+                    // 简单的攻防评分
+                    const score = evaluatePoint(x, y, 2) + evaluatePoint(x, y, 1) * 0.8; // 偏向进攻
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMoves = [{x, y}];
+                    } else if (score === bestScore) {
+                        bestMoves.push({x, y});
+                    }
+                }
+            }
+        }
+
+        if (bestMoves.length > 0) {
+            const move = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+            board[move.y][move.x] = 2;
+            drawPiece(move.x, move.y, 2);
+            if (checkWin(move.x, move.y, 2)) {
+                endGame("电脑赢了！");
+            } else {
+                isPlayerTurn = true;
+                updateStatus("轮到你了");
+            }
+        } else {
+            endGame("平局！");
+        }
+    }
+
+    // 简单的点位评估
+    function evaluatePoint(x, y, player) {
+        let score = 0;
+        const directions = [[1, 0], [0, 1], [1, 1], [1, -1]];
+        
+        for (let d of directions) {
+            let count = 1; // 包含当前空位
+            let blocked = 0;
+            
+            // 正向
+            for (let i = 1; i < 5; i++) {
+                const nx = x + d[0] * i;
+                const ny = y + d[1] * i;
+                if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) {
+                    blocked++;
+                    break;
+                }
+                if (board[ny][nx] === player) count++;
+                else if (board[ny][nx] !== 0) {
+                    blocked++;
+                    break;
+                } else break; 
+            }
+            
+            // 反向
+            for (let i = 1; i < 5; i++) {
+                const nx = x - d[0] * i;
+                const ny = y - d[1] * i;
+                if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) {
+                    blocked++;
+                    break;
+                }
+                if (board[ny][nx] === player) count++;
+                else if (board[ny][nx] !== 0) {
+                    blocked++;
+                    break;
+                } else break;
+            }
+            
+            // 评分规则
+            if (count >= 5) score += 100000;
+            else if (count === 4 && blocked === 0) score += 10000;
+            else if (count === 4 && blocked === 1) score += 1000;
+            else if (count === 3 && blocked === 0) score += 1000;
+            else if (count === 3 && blocked === 1) score += 100;
+            else if (count === 2 && blocked === 0) score += 100;
+            else if (count === 2 && blocked === 1) score += 10;
+        }
+        return score;
+    }
+
+    // 胜利检测
+    function checkWin(x, y, player) {
+        const directions = [[1, 0], [0, 1], [1, 1], [1, -1]];
+        for (let d of directions) {
+            let count = 1;
+            // 正向
+            for (let i = 1; i < 5; i++) {
+                const nx = x + d[0] * i;
+                const ny = y + d[1] * i;
+                if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && board[ny][nx] === player) count++;
+                else break;
+            }
+            // 反向
+            for (let i = 1; i < 5; i++) {
+                const nx = x - d[0] * i;
+                const ny = y - d[1] * i;
+                if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && board[ny][nx] === player) count++;
+                else break;
+            }
+            if (count >= 5) return true;
+        }
+        return false;
+    }
+
+    function endGame(msg) {
+        isGameOver = true;
+        updateStatus(msg);
+        setTimeout(() => alert(msg), 100);
+    }
+
+    function updateStatus(msg) {
+        statusDiv.innerText = msg;
+    }
+
+    // --- 作弊菜单逻辑 ---
+
+    function toggleCheatMenu() {
+        document.getElementById('cheat-menu').classList.toggle('active');
+    }
+
+    function clearSkillHighlight() {
+        document.querySelectorAll('.cheat-item').forEach(el => el.classList.remove('active'));
+    }
+
+    function activateSkill(skillName) {
+        if (isGameOver) return;
+        
+        clearSkillHighlight();
+
+        if (skillName === 'win') {
+            endGame("外挂生效：你直接胜利！");
+            toggleCheatMenu();
+            return;
+        }
+        
+        if (skillName === 'convert') {
+            // 偷天换日：随机把3-5个白子变黑子
+            let count = 0;
+            for(let y=0; y<GRID_SIZE; y++) {
+                for(let x=0; x<GRID_SIZE; x++) {
+                    if (board[y][x] === 2 && Math.random() > 0.7) {
+                        board[y][x] = 1;
+                        count++;
+                    }
+                }
+            }
+            drawBoard();
+            updateStatus(`技能生效：转化了 ${count} 颗棋子！`);
+            checkGlobalWin(); // 检查是否因转化而获胜
+            toggleCheatMenu();
+            return;
+        }
+
+        if (skillName === 'destroy') {
+            // 陨石天降：随机清空白子
+            let count = 0;
+            for(let y=0; y<GRID_SIZE; y++) {
+                for(let x=0; x<GRID_SIZE; x++) {
+                    if (board[y][x] === 2 && Math.random() > 0.5) {
+                        board[y][x] = 0;
+                        count++;
+                    }
+                }
+            }
+            drawBoard();
+            updateStatus(`技能生效：摧毁了 ${count} 颗敌方棋子！`);
+            toggleCheatMenu();
+            return;
+        }
+
+        // 需要下子触发的技能
+        if (skillName === 'cross' || skillName === 'square') {
+            activeSkill = skillName;
+            document.getElementById(`skill-${skillName}`).classList.add('active');
+            updateStatus("已激活阵法，请点击棋盘落子！");
+            toggleCheatMenu();
+        }
+    }
+
+    // 全局扫描是否有人获胜（用于转化棋子后）
+    function checkGlobalWin() {
+        // 简单暴力全盘扫描
+        for(let y=0; y<GRID_SIZE; y++) {
+            for(let x=0; x<GRID_SIZE; x++) {
+                if (board[y][x] === 1) {
+                    if (checkWin(x, y, 1)) { endGame("通过外挂获胜！"); return; }
+                }
+            }
+        }
+    }
+
+    // 技能：十字阵法
+    function applyCrossArray(cx, cy) {
+        const coords = [[0,0], [1,0], [-1,0], [0,1], [0,-1]];
+        let placed = false;
+        coords.forEach(offset => {
+            const nx = cx + offset[0];
+            const ny = cy + offset[1];
+            if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                // 强制覆盖或者仅空地？万宁版通常强制覆盖或者仅空地。这里设定为占领空地和敌方
+                board[ny][nx] = 1;
+                placed = true;
+            }
+        });
+        drawBoard();
+        checkGlobalWin();
+    }
+
+    // 技能：方块阵法 (3x3)
+    function applySquareArray(cx, cy) {
+        for(let dy=-1; dy<=1; dy++) {
+            for(let dx=-1; dx<=1; dx++) {
+                const nx = cx + dx;
+                const ny = cy + dy;
+                if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                    board[ny][nx] = 1;
+                }
+            }
+        }
+        drawBoard();
+        checkGlobalWin();
+    }
+
+    // 启动游戏
+    initGame();
+
+</script>
+</body>
+</html>
