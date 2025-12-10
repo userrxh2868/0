@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6500万年前：小行星撞击模拟</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+            color: white;
+            user-select: none;
+        }
+
+        #loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            z-index: 999;
+            transition: opacity 1s ease;
+        }
+
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #444;
+            padding: 15px;
+            border-radius: 5px;
+            pointer-events: none; /* 让鼠标穿透面板控制3D场景 */
+        }
+
+        h1 {
+            font-size: 18px;
+            margin: 0 0 10px 0;
+            color: #ff5555;
+            text-transform: uppercase;
+        }
+
+        p {
+            font-size: 14px;
+            margin: 5px 0;
+            color: #ccc;
+        }
+
+        #timer-container {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: 1px solid #fff;
+        }
+
+        .controls-hint {
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
+            border-top: 1px solid #444;
+            padding-top: 5px;
+        }
+    </style>
+    <!-- 引入 Three.js 和 OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+    <!-- 加载界面 -->
+    <div id="loading">加载中...</div>
+
+    <!-- 信息面板 -->
+    <div id="info-panel">
+        <h1>6500万年前的小行星撞击</h1>
+        <p>模拟白垩纪-古近纪灭绝事件</p>
+        <p>状态: <span id="status-text">正常</span></p>
+        <div class="controls-hint">
+            • 使用鼠标拖动旋转视角<br>
+            • 滚轮缩放
+        </div>
+    </div>
+
+    <!-- 计时器 -->
+    <div id="timer-container">
+        T: <span id="timer">0.00</span>s
+    </div>
+
+    <script>
+        // --- 场景初始化 ---
+        const scene = new THREE.Scene();
+        // 添加雾效以增加深度
+        scene.fog = new THREE.FogExp2(0x000000, 0.002);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(20, 10, 30);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // 控制器
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 15;
+        controls.maxDistance = 100;
+
+        // --- 辅助函数：生成纹理 ---
+        // 动态生成地球纹理，避免加载外部图片跨域问题
+        function createEarthTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // 背景：海洋蓝
+            ctx.fillStyle = '#001e36';
+            ctx.fillRect(0, 0, 1024, 512);
+            
+            // 简单的噪点模拟大陆
+            for(let i=0; i<600; i++) {
+                const x = Math.random() * 1024;
+                const y = Math.random() * 512;
+                const size = Math.random() * 60 + 20;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(34, 139, 34, ${Math.random() * 0.8})`; // 森林绿
+                ctx.fill();
+            }
+            
+            // 云层
+            for(let i=0; i<1000; i++) {
+                const x = Math.random() * 1024;
+                const y = Math.random() * 512;
+                const size = Math.random() * 20 + 5;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.3})`;
+                ctx.fill();
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            return texture;
+        }
+
+        // --- 对象创建 ---
+
+        // 1. 地球
+        const earthGeometry = new THREE.SphereGeometry(5, 64, 64);
+        // 保存原始顶点位置用于变形恢复
+        const originalPositions = earthGeometry.attributes.position.array.slice(); 
+        
+        const earthMaterial = new THREE.MeshPhongMaterial({
+            map: createEarthTexture(),
+            specular: 0x333333,
+            shininess: 5,
+            bumpScale: 0.2
+        });
+        const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+        scene.add(earth);
+
+        // 大气层光晕
+        const atmosphereGeo = new THREE.SphereGeometry(5.2, 32, 32);
+        const atmosphereMat = new THREE.MeshBasicMaterial({
+            color: 0x4488ff,
+            transparent: true,
+            opacity: 0.1,
+            side: THREE.BackSide,
+            blending: THREE.AdditiveBlending
+        });
+        const atmosphere = new THREE.Mesh(atmosphereGeo, atmosphereMat);
+        scene.add(atmosphere);
+
+        // 2. 小行星
+        const asteroidGeo = new THREE.SphereGeometry(0.4, 16, 16);
+        const asteroidMat = new THREE.MeshStandardMaterial({
+            color: 0x554433,
+            roughness: 0.9,
+            emissive: 0xaa2200, // 燃烧效果
+            emissiveIntensity: 0
+        });
+        const asteroid = new THREE.Mesh(asteroidGeo, asteroidMat);
+        scene.add(asteroid);
+        
+        // 小行星拖尾（简单的粒子系统）
+        const trailGeo = new THREE.BufferGeometry();
+        const trailCount = 50;
+        const trailPositions = new Float32Array(trailCount * 3);
+        trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+        const trailMat = new THREE.PointsMaterial({
+            color: 0xffaa00,
+            size: 0.5,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending
+        });
+        const trail = new THREE.Points(trailGeo, trailMat);
+        scene.add(trail);
+
+        // 3. 爆炸碎片 (Debris)
+        const particleCount = 1500;
+        const particlesGeo = new THREE.BufferGeometry();
+        const pPos = new Float32Array(particleCount * 3);
+        const pVel = []; // 存储速度向量
+        
+        for(let i=0; i<particleCount; i++) {
+            pPos[i*3] = 0; pPos[i*3+1] = 0; pPos[i*3+2] = 0;
+            // 随机爆炸速度
+            pVel.push({
+                x: (Math.random() - 0.5) * 1.5,
+                y: (Math.random() - 0.5) * 1.5,
+                z: (Math.random() - 0.5) * 1.5
+            });
+        }
+        particlesGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        
+        const particleMat = new THREE.PointsMaterial({
+            color: 0xff5500,
+            size: 0.2,
+            transparent: true,
+            opacity: 0
+        });
+        const debrisSystem = new THREE.Points(particlesGeo, particleMat);
+        scene.add(debrisSystem);
+
+        // 4. 冲击波 (Shockwave)
+        const shockwaveGeo = new THREE.RingGeometry(0.1, 0.5, 32);
+        const shockwaveMat = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending
+        });
+        const shockwave = new THREE.Mesh(shockwaveGeo, shockwaveMat);
+        shockwave.rotation.x = Math.PI / 2; // 调整方向
+        scene.add(shockwave);
+
+        // 5. 星空背景
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 2000;
+        const starPos = new Float32Array(starCount * 3);
+        for(let i=0; i<starCount * 3; i++) {
+            starPos[i] = (Math.random() - 0.5) * 600;
+        }
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({color: 0xffffff, size: 0.7, transparent:true, opacity:0.8});
+        const stars = new THREE.Points(starGeo, starMat);
+        scene.add(stars);
+
+
+        // --- 灯光 ---
+        const ambientLight = new THREE.AmbientLight(0x333333);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xffffff, 1);
+        sunLight.position.set(50, 20, 30);
+        scene.add(sunLight);
+
+        // 撞击时的闪光
+        const impactLight = new THREE.PointLight(0xffaa00, 0, 100);
+        scene.add(impactLight);
+
+        // --- 动画逻辑变量 ---
+        const loopDuration = 35; // 总时长 35秒
+        const impactTime = 5.0; // 第5秒撞击
+        let startTime = Date.now();
+        let isExploded = false;
+        
+        // 撞击点坐标 (设定在侧面，便于观察)
+        const impactPoint = new THREE.Vector3(3, 2, 3).normalize().multiplyScalar(5); 
+
+        // UI 元素
+        const timerEl = document.getElementById('timer');
+        const statusEl = document.getElementById('status-text');
+        const loadingEl = document.getElementById('loading');
+
+        // 移除加载遮罩
+        window.onload = () => {
+            setTimeout(() => {
+                loadingEl.style.opacity = 0;
+                setTimeout(() => loadingEl.remove(), 1000);
+                startTime = Date.now(); // 重置时间以确保同步
+                animate();
+            }, 500);
+        };
+
+        // --- 核心动画循环 ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const now = Date.now();
+            let elapsedTime = (now - startTime) / 1000;
+            
+            // 循环逻辑
+            if (elapsedTime > loopDuration) {
+                startTime = now;
+                elapsedTime = 0;
+                resetSimulation();
+            }
+
+            timerEl.textContent = elapsedTime.toFixed(2);
+            controls.update();
+
+            // 地球自转
+            earth.rotation.y += 0.001;
+            atmosphere.rotation.y += 0.001;
+
+            // --- 阶段 1: 逼近 (0 - 5s) ---
+            if (elapsedTime < impactTime) {
+                statusEl.textContent = "警告：小行星逼近";
+                statusEl.style.color = "#ff5555";
+                
+                // 计算小行星位置：从远处飞向 impactPoint
+                const progress = elapsedTime / impactTime; // 0 到 1
+                const startPos = impactPoint.clone().multiplyScalar(8); // 8倍距离处开始
+                
+                // 线性插值位置
+                asteroid.position.lerpVectors(startPos, impactPoint, progress);
+                
+                // 随着进入大气层，小行星发光增强
+                if(progress > 0.8) {
+                    asteroid.material.emissiveIntensity = (progress - 0.8) * 10;
+                }
+
+                // 旋转小行星
+                asteroid.rotation.x += 0.1;
+                asteroid.rotation.y += 0.1;
+
+                // 更新拖尾
+                updateTrail(asteroid.position);
+
+                // 确保爆炸相关物体隐藏
+                debrisSystem.material.opacity = 0;
+                shockwave.material.opacity = 0;
+            } 
+            
+            // --- 阶段 2: 撞击和余波 (5s - 35s) ---
+            else {
+                // 撞击瞬间逻辑
+                if (!isExploded) {
+                    isExploded = true;
+                    // 设置爆炸起点
+                    debrisSystem.geometry.attributes.position.array.fill(0); // 重置需要在循环中做，这里只需标记
+                    // 初始化碎片位置为撞击点
+                    const positions = debrisSystem.geometry.attributes.position.array;
+                    for(let i=0; i<particleCount; i++) {
+                        positions[i*3] = impactPoint.x;
+                        positions[i*3+1] = impactPoint.y;
+                        positions[i*3+2] = impactPoint.z;
+                    }
+                    debrisSystem.geometry.attributes.position.needsUpdate = true;
+                    
+                    // 设置冲击波位置和朝向
+                    shockwave.position.copy(impactPoint);
+                    shockwave.lookAt(new THREE.Vector3(0,0,0)); // 面向地心
+                }
+
+                statusEl.textContent = "撞击发生！！";
+                
+                const timeSinceImpact = elapsedTime - impactTime;
+
+                // 1. 隐藏小行星本体
+                asteroid.position.set(0, -1000, 0); // 移走
+
+                // 2. 闪光效果 (快速衰减)
+                const flashIntensity = Math.max(0, 10 - timeSinceImpact * 5);
+                impactLight.intensity = flashIntensity;
+                impactLight.position.copy(impactPoint);
+
+                // 3. 冲击波扩散
+                if (timeSinceImpact < 10) {
+                    const waveScale = 1 + timeSinceImpact * 3;
+                    shockwave.scale.set(waveScale, waveScale, 1);
+                    shockwave.material.opacity = Math.max(0, 1 - timeSinceImpact * 0.2);
+                } else {
+                    shockwave.material.opacity = 0;
+                }
+
+                // 4. 碎片飞散
+                if (timeSinceImpact < 20) {
+                    debrisSystem.material.opacity = Math.max(0, 1 - timeSinceImpact * 0.1);
+                    const positions = debrisSystem.geometry.attributes.position.array;
+                    for(let i=0; i<particleCount; i++) {
+                        // 物理运动：位置 += 速度
+                        // 稍微加点重力模拟 (指向地心)
+                        const px = positions[i*3];
+                        const py = positions[i*3+1];
+                        const pz = positions[i*3+2];
+                        
+                        // 简单向外扩散
+                        positions[i*3]   += pVel[i].x * 0.5;
+                        positions[i*3+1] += pVel[i].y * 0.5;
+                        positions[i*3+2] += pVel[i].z * 0.5;
+                    }
+                    debrisSystem.geometry.attributes.position.needsUpdate = true;
+                }
+
+                // 5. 地球震动 (Camera Shake)
+                if (timeSinceImpact < 8) {
+                    const shakeIntensity = (8 - timeSinceImpact) * 0.05;
+                    camera.position.x += (Math.random() - 0.5) * shakeIntensity;
+                    camera.position.y += (Math.random() - 0.5) * shakeIntensity;
+                    camera.position.z += (Math.random() - 0.5) * shakeIntensity;
+                }
+
+                // 6. 地球变形 (Vertex Displacement)
+                // 模拟撞击点附近的涟漪
+                if (timeSinceImpact < 15) {
+                    const positions = earth.geometry.attributes.position.array;
+                    
+                    for (let i = 0; i < positions.length; i += 3) {
+                        const vx = originalPositions[i];
+                        const vy = originalPositions[i+1];
+                        const vz = originalPositions[i+2];
+
+                        // 计算当前顶点到撞击点的距离
+                        const dist = Math.sqrt(
+                            (vx - impactPoint.x)**2 + 
+                            (vy - impactPoint.y)**2 + 
+                            (vz - impactPoint.z)**2
+                        );
+
+                        // 只有靠近撞击点的区域变形
+                        if (dist < 6) {
+                            // 正弦波涟漪
+                            const wave = Math.sin(dist * 2 - timeSinceImpact * 10) * Math.max(0, (1 - timeSinceImpact/10));
+                            const distortion = 1 + wave * 0.05 * Math.max(0, (1 - dist/6)); // 衰减
+                            
+                            positions[i] = vx * distortion;
+                            positions[i+1] = vy * distortion;
+                            positions[i+2] = vz * distortion;
+                        } else {
+                            // 恢复原状
+                            positions[i] = vx;
+                            positions[i+1] = vy;
+                            positions[i+2] = vz;
+                        }
+                    }
+                    earth.geometry.attributes.position.needsUpdate = true;
+                    
+                    // 撞击变红
+                    const redFactor = Math.max(0, 1 - timeSinceImpact * 0.1);
+                    earth.material.emissive = new THREE.Color(redFactor * 0.5, 0, 0);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // --- 辅助逻辑 ---
+        
+        function updateTrail(pos) {
+            // 更新拖尾粒子位置，像贪吃蛇一样移动数组
+            const positions = trail.geometry.attributes.position.array;
+            // 整体后移
+            for(let i = (trailCount-1)*3; i >= 3; i--) {
+                positions[i] = positions[i-3];
+            }
+            // 头部设为当前位置
+            positions[0] = pos.x;
+            positions[1] = pos.y;
+            positions[2] = pos.z;
+            trail.geometry.attributes.position.needsUpdate = true;
+        }
+
+        function resetSimulation() {
+            isExploded = false;
+            earth.material.emissive = new THREE.Color(0,0,0);
+            
+            // 恢复地球顶点
+            const positions = earth.geometry.attributes.position.array;
+            for (let i = 0; i < positions.length; i++) {
+                positions[i] = originalPositions[i];
+            }
+            earth.geometry.attributes.position.needsUpdate = true;
+            
+            // 重置小行星光照
+            asteroid.material.emissiveIntensity = 0;
+            
+            // 重置灯光
+            impactLight.intensity = 0;
+
+            statusEl.textContent = "重置模拟...";
+        }
+
+        // 窗口大小调整适配
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+</html>
