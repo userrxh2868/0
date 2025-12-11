@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MD3 测谎仪</title>
+    <!-- 引入 Google Fonts 和 Material Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+    <style>
+        /* --- MD3 基础变量与样式 --- */
+        :root {
+            --md-sys-color-primary: #6750a4;
+            --md-sys-color-on-primary: #ffffff;
+            --md-sys-color-primary-container: #eaddff;
+            --md-sys-color-on-primary-container: #21005d;
+            --md-sys-color-surface: #fdfcff;
+            --md-sys-color-on-surface: #1c1b1f;
+            --md-sys-color-surface-variant: #e7e0ec;
+            --md-sys-color-outline: #79747e;
+            --md-sys-color-error: #ba1a1a;
+            --md-sys-color-success: #1aa260; /* 自定义绿色 */
+            
+            --md-sys-elevation-1: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
+            --md-sys-elevation-3: 0px 4px 8px 3px rgba(0, 0, 0, 0.15);
+            
+            --border-radius-lg: 16px;
+            --border-radius-xl: 28px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* --- 顶部导航栏 --- */
+        .top-app-bar {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            color: var(--md-sys-color-on-surface);
+            transition: background-color 0.2s;
+        }
+
+        .icon-btn:active {
+            background-color: var(--md-sys-color-surface-variant);
+        }
+
+        .material-symbols-outlined {
+            font-size: 24px;
+        }
+
+        .app-title {
+            font-size: 22px;
+            margin-left: 16px;
+            font-weight: 400;
+        }
+
+        /* --- 主界面 --- */
+        #main-view {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s;
+        }
+
+        /* 扫描区域 */
+        .scanner-container {
+            position: relative;
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            background-color: var(--md-sys-color-primary-container);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 40px;
+            transition: transform 0.1s, box-shadow 0.3s;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .scanner-container:active {
+            transform: scale(0.95);
+        }
+
+        .scanner-container.scanning {
+            box-shadow: 0 0 0 8px rgba(103, 80, 164, 0.2);
+            animation: pulse 1s infinite;
+        }
+
+        .fingerprint-icon {
+            font-size: 80px;
+            color: var(--md-sys-color-on-primary-container);
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0px rgba(103, 80, 164, 0.4); }
+            100% { box-shadow: 0 0 0 20px rgba(103, 80, 164, 0); }
+        }
+
+        /* 结果显示 */
+        .result-display {
+            font-size: 32px;
+            font-weight: 700;
+            height: 60px;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            transform: translateY(20px);
+        }
+
+        .result-display.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .result-true { color: var(--md-sys-color-success); }
+        .result-lie { color: var(--md-sys-color-error); }
+
+        .status-text {
+            margin-top: 16px;
+            color: var(--md-sys-color-outline);
+        }
+
+        /* --- 设置页面 / 规则页面 (Overlay) --- */
+        .page-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--md-sys-color-surface);
+            z-index: 100;
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .page-overlay.open {
+            transform: translateX(0);
+        }
+
+        .page-content {
+            padding: 16px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        /* 模式切换卡片 */
+        .mode-card {
+            background-color: var(--md-sys-color-surface-variant);
+            border-radius: var(--border-radius-lg);
+            padding: 16px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .mode-info h3 {
+            margin: 0 0 4px 0;
+            font-size: 16px;
+        }
+        .mode-info p {
+            margin: 0;
+            font-size: 14px;
+            color: var(--md-sys-color-on-surface);
+            opacity: 0.7;
+        }
+
+        /* Switch 开关样式 */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 52px;
+            height: 32px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--md-sys-color-outline);
+            transition: .4s;
+            border-radius: 32px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 24px;
+            width: 24px;
+            left: 4px;
+            bottom: 4px;
+            background-color: #fff;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--md-sys-color-primary); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* 规则输入框 */
+        .rule-input-area {
+            width: 100%;
+            height: 300px;
+            background-color: var(--md-sys-color-surface-variant);
+            border: 1px solid transparent;
+            border-radius: 8px;
+            padding: 16px;
+            box-sizing: border-box;
+            font-family: monospace;
+            font-size: 16px;
+            resize: none;
+            outline: none;
+            color: var(--md-sys-color-on-surface);
+        }
+        .rule-input-area:focus {
+            border-color: var(--md-sys-color-primary);
+        }
+
+        /* 按钮 */
+        .btn-primary {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border: none;
+            padding: 10px 24px;
+            border-radius: 20px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 16px;
+            box-shadow: var(--md-sys-elevation-1);
+        }
+
+        /* 文档弹窗 */
+        .dialog-backdrop {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .dialog-backdrop.show {
+            opacity: 1;
+        }
+        .dialog {
+            background: var(--md-sys-color-surface);
+            width: 80%;
+            max-width: 400px;
+            padding: 24px;
+            border-radius: 28px;
+            box-shadow: var(--md-sys-elevation-3);
+        }
+        .dialog h2 { margin-top: 0; font-size: 24px; }
+        .dialog-content { font-size: 16px; line-height: 1.5; color: var(--md-sys-color-on-surface); }
+        .dialog-actions { display: flex; justify-content: flex-end; margin-top: 24px; }
+        .btn-text {
+            background: none; border: none;
+            color: var(--md-sys-color-primary);
+            font-weight: 500; font-size: 16px;
+            cursor: pointer; padding: 8px 16px;
+        }
+
+        /* 当前模式指示器 */
+        .current-mode-badge {
+            position: absolute;
+            bottom: 20px;
+            font-size: 12px;
+            background: var(--md-sys-color-surface-variant);
+            padding: 4px 12px;
+            border-radius: 12px;
+            color: var(--md-sys-color-on-surface);
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 主界面 -->
+    <div class="top-app-bar">
+        <button class="icon-btn" id="btn-settings" aria-label="设置">
+            <span class="material-symbols-outlined">settings</span>
+        </button>
+        <div class="app-title">测谎仪</div>
+    </div>
+
+    <div id="main-view">
+        <div class="scanner-container" id="scanner">
+            <span class="material-symbols-outlined fingerprint-icon">fingerprint</span>
+        </div>
+        
+        <div class="result-display" id="result-text">真话</div>
+        <div class="status-text" id="status-text">长按指纹开始扫描</div>
+        <div class="current-mode-badge" id="badge-mode">当前: 随机模式</div>
+    </div>
+
+    <!-- 设置页面 -->
+    <div class="page-overlay" id="settings-page">
+        <div class="top-app-bar">
+            <button class="icon-btn" id="btn-close-settings">
+                <span class="material-symbols-outlined">arrow_back</span>
+            </button>
+            <div class="app-title">设置</div>
+        </div>
+        <div class="page-content">
+            <div class="mode-card">
+                <div class="mode-info">
+                    <h3>启用规则模式</h3>
+                    <p>开启后将按设定顺序输出结果</p>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="mode-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div id="rule-config-area" style="display: none; opacity: 0; transition: opacity 0.3s;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label style="font-weight: 500;">规则配置</label>
+                    <button class="icon-btn" id="btn-open-docs" title="规则文档">
+                        <span class="material-symbols-outlined" style="color: var(--md-sys-color-primary);">description</span>
+                    </button>
+                </div>
+                <textarea id="rule-input" class="rule-input-area" placeholder="在此输入规则..."></textarea>
+                <button class="btn-primary" id="btn-save-rules">保存规则</button>
+                <p style="font-size: 12px; color: gray; margin-top: 8px;">点击右上角文档图标查看写法。</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 规则文档弹窗 -->
+    <div class="dialog-backdrop" id="docs-dialog">
+        <div class="dialog">
+            <h2>规则规范</h2>
+            <div class="dialog-content">
+                <p>在规则模式下，测谎仪将按照你输入的顺序依次输出结果。当列表用尽后，将从头开始循环。</p>
+                <p><strong>语法：</strong></p>
+                <ul>
+                    <li>每一行代表一次测试结果。</li>
+                    <li>输入 <strong>T</strong> 或 <strong>1</strong> 代表 <span style="color:var(--md-sys-color-success)">真话</span>。</li>
+                    <li>输入 <strong>F</strong> 或 <strong>0</strong> 代表 <span style="color:var(--md-sys-color-error)">谎言</span>。</li>
+                    <li>其他字符将被视为随机结果。</li>
+                </ul>
+                <p><strong>示例：</strong><br>
+                T<br>
+                F<br>
+                T<br>
+                (第一次真，第二次假，第三次真...)</p>
+            </div>
+            <div class="dialog-actions">
+                <button class="btn-text" id="btn-close-docs">明白了</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 状态管理 ---
+        const state = {
+            isRuleMode: false,
+            rules: [], // 存储解析后的规则数组 [true, false, true...]
+            ruleIndex: 0, // 当前执行到第几条规则
+            scanning: false,
+            timer: null
+        };
+
+        // --- DOM 元素 ---
+        const els = {
+            scanner: document.getElementById('scanner'),
+            resultText: document.getElementById('result-text'),
+            statusText: document.getElementById('status-text'),
+            badgeMode: document.getElementById('badge-mode'),
+            
+            // 页面
+            settingsPage: document.getElementById('settings-page'),
+            docsDialog: document.getElementById('docs-dialog'),
+            ruleConfigArea: document.getElementById('rule-config-area'),
+            
+            // 按钮与输入
+            btnSettings: document.getElementById('btn-settings'),
+            btnCloseSettings: document.getElementById('btn-close-settings'),
+            btnOpenDocs: document.getElementById('btn-open-docs'),
+            btnCloseDocs: document.getElementById('btn-close-docs'),
+            modeSwitch: document.getElementById('mode-switch'),
+            ruleInput: document.getElementById('rule-input'),
+            btnSaveRules: document.getElementById('btn-save-rules')
+        };
+
+        // --- 初始化 ---
+        function init() {
+            // 加载保存的数据
+            const savedMode = localStorage.getItem('lie_detector_mode');
+            const savedRules = localStorage.getItem('lie_detector_rules');
+            
+            if (savedMode === 'rule') {
+                state.isRuleMode = true;
+                els.modeSwitch.checked = true;
+                els.ruleConfigArea.style.display = 'block';
+                setTimeout(() => els.ruleConfigArea.style.opacity = 1, 10);
+            }
+            
+            if (savedRules) {
+                els.ruleInput.value = savedRules;
+                parseRules(savedRules);
+            } else {
+                // 默认示例
+                els.ruleInput.value = "T\nF\nT";
+                parseRules("T\nF\nT");
+            }
+
+            updateUI();
+        }
+
+        // --- 核心逻辑 ---
+
+        // 解析规则文本
+        function parseRules(text) {
+            const lines = text.split('\n');
+            state.rules = lines.map(line => {
+                const l = line.trim().toUpperCase();
+                if (l === 'T' || l === '1' || l === 'TRUE' || l === '真') return true;
+                if (l === 'F' || l === '0' || l === 'FALSE' || l === '假') return false;
+                return 'random'; // 未识别则随机
+            }).filter(item => item !== ''); // 过滤空行
+            state.ruleIndex = 0; // 重置索引
+        }
+
+        // 获取结果
+        function getResult() {
+            let resultIsTruth = false;
+
+            if (!state.isRuleMode) {
+                // 随机模式
+                resultIsTruth = Math.random() > 0.5;
+            } else {
+                // 规则模式
+                if (state.rules.length === 0) {
+                    resultIsTruth = Math.random() > 0.5; // 无规则时随机
+                } else {
+                    const rule = state.rules[state.ruleIndex];
+                    if (rule === 'random') {
+                        resultIsTruth = Math.random() > 0.5;
+                    } else {
+                        resultIsTruth = rule;
+                    }
+                    
+                    // 移动索引，循环
+                    state.ruleIndex = (state.ruleIndex + 1) % state.rules.length;
+                }
+            }
+            return resultIsTruth;
+        }
+
+        // 显示结果动画
+        function showResult(isTruth) {
+            els.resultText.innerText = isTruth ? "真话" : "谎言";
+            els.resultText.className = "result-display show " + (isTruth ? "result-true" : "result-lie");
+            els.statusText.innerText = "扫描完成";
+            
+            // 震动反馈 (如果设备支持)
+            if (navigator.vibrate) {
+                if (isTruth) navigator.vibrate(100);
+                else navigator.vibrate([100, 50, 100, 50, 400]);
+            }
+        }
+
+        function updateUI() {
+            els.badgeMode.innerText = state.isRuleMode ? "当前: 规则模式" : "当前: 随机模式";
+        }
+
+        // --- 事件监听 ---
+
+        // 1. 扫描交互 (支持触摸和鼠标)
+        const startScan = (e) => {
+            e.preventDefault();
+            if (state.scanning) return;
+            
+            state.scanning = true;
+            els.scanner.classList.add('scanning');
+            els.resultText.classList.remove('show');
+            els.statusText.innerText = "正在分析...";
+
+            // 模拟扫描 2秒
+            state.timer = setTimeout(() => {
+                state.scanning = false;
+                els.scanner.classList.remove('scanning');
+                showResult(getResult());
+            }, 2000);
+        };
+
+        const endScan = (e) => {
+            if (!state.scanning) return;
+            // 如果还没扫描完就松手了
+            clearTimeout(state.timer);
+            state.scanning = false;
+            els.scanner.classList.remove('scanning');
+            els.statusText.innerText = "扫描中断，请保持长按";
+        };
+
+        els.scanner.addEventListener('mousedown', startScan);
+        els.scanner.addEventListener('touchstart', startScan);
+        
+        window.addEventListener('mouseup', endScan);
+        window.addEventListener('touchend', endScan);
+
+        // 2. 设置页面切换
+        els.btnSettings.addEventListener('click', () => {
+            els.settingsPage.classList.add('open');
+        });
+        els.btnCloseSettings.addEventListener('click', () => {
+            els.settingsPage.classList.remove('open');
+        });
+
+        // 3. 模式切换
+        els.modeSwitch.addEventListener('change', (e) => {
+            state.isRuleMode = e.target.checked;
+            localStorage.setItem('lie_detector_mode', state.isRuleMode ? 'rule' : 'random');
+            
+            if (state.isRuleMode) {
+                els.ruleConfigArea.style.display = 'block';
+                // 简单的淡入
+                setTimeout(() => els.ruleConfigArea.style.opacity = 1, 10);
+            } else {
+                els.ruleConfigArea.style.opacity = 0;
+                setTimeout(() => els.ruleConfigArea.style.display = 'none', 300);
+            }
+            updateUI();
+        });
+
+        // 4. 保存规则
+        els.btnSaveRules.addEventListener('click', () => {
+            const text = els.ruleInput.value;
+            localStorage.setItem('lie_detector_rules', text);
+            parseRules(text);
+            
+            // 简单的反馈
+            const originalText = els.btnSaveRules.innerText;
+            els.btnSaveRules.innerText = "已保存";
+            els.btnSaveRules.style.backgroundColor = "var(--md-sys-color-success)";
+            setTimeout(() => {
+                els.btnSaveRules.innerText = originalText;
+                els.btnSaveRules.style.backgroundColor = "";
+            }, 1000);
+        });
+
+        // 5. 文档弹窗
+        els.btnOpenDocs.addEventListener('click', () => {
+            els.docsDialog.style.display = 'flex';
+            setTimeout(() => els.docsDialog.classList.add('show'), 10);
+        });
+        
+        const closeDocs = () => {
+            els.docsDialog.classList.remove('show');
+            setTimeout(() => els.docsDialog.style.display = 'none', 200);
+        }
+        els.btnCloseDocs.addEventListener('click', closeDocs);
+        els.docsDialog.addEventListener('click', (e) => {
+            if (e.target === els.docsDialog) closeDocs();
+        });
+
+        // 运行初始化
+        init();
+
+    </script>
+</body>
+</html>
