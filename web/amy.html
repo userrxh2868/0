@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MD3 震动按摩仪</title>
+    <!-- 引入 Material Symbols 图标库 -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" />
+    <!-- 引入 Roboto 字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* MD3 风格配色 (紫罗兰色系) */
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            --md-sys-color-secondary: #625B71;
+            --md-sys-color-surface: #FEF7FF;
+            --md-sys-color-surface-variant: #E7E0EC;
+            --md-sys-color-on-surface: #1D1B20;
+            --md-sys-color-on-surface-variant: #49454F;
+            --md-sys-color-outline: #79747E;
+            --md-sys-color-error: #B3261E;
+            --md-sys-color-on-error: #FFFFFF;
+            --md-sys-color-background: #FEF7FF;
+
+            /* 阴影 */
+            --md-sys-elevation-1: 0px 1px 2px rgba(0,0,0,0.3), 0px 1px 3px 1px rgba(0,0,0,0.15);
+            --md-sys-elevation-3: 0px 4px 8px 3px rgba(0,0,0,0.15), 0px 1px 3px rgba(0,0,0,0.3);
+            
+            --border-radius-lg: 16px;
+            --border-radius-xl: 28px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-surface);
+            font-family: 'Roboto', sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* 顶部栏 */
+        header {
+            padding: 24px 16px 16px;
+            display: flex;
+            align-items: center;
+            background-color: var(--md-sys-color-surface);
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 400;
+            margin-left: 12px;
+        }
+
+        /* 主内容区 */
+        main {
+            flex: 1;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        /* 状态指示器圆环 */
+        .status-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .status-circle {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            background-color: var(--md-sys-color-surface-variant);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .status-circle.active {
+            background-color: var(--md-sys-color-primary-container);
+            box-shadow: 0 0 30px var(--md-sys-color-primary-container);
+            animation: pulse-animation 1s infinite;
+        }
+
+        .status-icon {
+            font-size: 64px;
+            color: var(--md-sys-color-on-surface-variant);
+            transition: color 0.3s;
+        }
+
+        .status-circle.active .status-icon {
+            color: var(--md-sys-color-on-primary-container);
+        }
+
+        @keyframes pulse-animation {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* 卡片样式 */
+        .card {
+            background-color: var(--md-sys-color-surface);
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: var(--border-radius-lg);
+            padding: 16px;
+            /* 去掉边框，使用更柔和的背景色区分 */
+            border: none;
+            background-color: #F3EDF7; 
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--md-sys-color-on-surface-variant);
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        /* 滑块控件 */
+        .slider-group {
+            margin-bottom: 16px;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        input[type=range] {
+            width: 100%;
+            height: 4px;
+            background: var(--md-sys-color-outline);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--md-sys-color-primary);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: var(--md-sys-elevation-1);
+        }
+
+        /* 预设按钮 Chips */
+        .chip-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .chip {
+            border: 1px solid var(--md-sys-color-outline);
+            background: transparent;
+            color: var(--md-sys-color-on-surface-variant);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .chip.selected {
+            background-color: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+            border-color: transparent;
+        }
+
+        /* 底部 FAB */
+        .fab-container {
+            position: fixed;
+            bottom: 32px;
+            right: 24px;
+            z-index: 10;
+        }
+
+        .fab {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border: none;
+            box-shadow: var(--md-sys-elevation-3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .fab:active {
+            transform: scale(0.95);
+        }
+
+        .fab span {
+            font-size: 24px;
+        }
+
+        /* 警告横幅 */
+        .banner {
+            background-color: var(--md-sys-color-error);
+            color: var(--md-sys-color-on-error);
+            padding: 12px 16px;
+            font-size: 14px;
+            border-radius: 12px;
+            display: none; /* 默认隐藏 */
+            margin-bottom: 16px;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: var(--md-sys-color-on-surface-variant);
+            text-align: center;
+            margin-top: 10px;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <span class="material-symbols-rounded" style="color: var(--md-sys-color-primary);">vibration</span>
+        <h1>MD3 按摩仪</h1>
+    </header>
+
+    <main>
+        <!-- 错误提示 Banner -->
+        <div id="errorBanner" class="banner">
+            <span class="material-symbols-rounded">warning</span>
+            <span id="errorText">您的浏览器不支持震动功能。</span>
+        </div>
+
+        <!-- 状态圆环 -->
+        <div class="status-container">
+            <div class="status-circle" id="statusCircle">
+                <span class="material-symbols-rounded status-icon" id="statusIcon">power_settings_new</span>
+            </div>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="card">
+            <span class="card-title">手动调节</span>
+            
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>震动强度 (时长)</span>
+                    <span id="valDuration">50 ms</span>
+                </div>
+                <input type="range" id="rangeDuration" min="10" max="500" value="50" step="10">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>间隔 (频率)</span>
+                    <span id="valInterval">30 ms</span>
+                </div>
+                <input type="range" id="rangeInterval" min="0" max="500" value="30" step="10">
+            </div>
+        </div>
+
+        <!-- 预设模式 -->
+        <div class="card">
+            <span class="card-title">快速预设</span>
+            <div class="chip-container">
+                <button class="chip" onclick="applyPreset('soft')">☁️ 轻柔模式</button>
+                <button class="chip" onclick="applyPreset('medium')">🌊 舒适模式</button>
+                <button class="chip" onclick="applyPreset('strong')">⚡ 强力模式</button>
+                <button class="chip" onclick="applyPreset('ultra')">🚀 超强持续</button>
+            </div>
+        </div>
+
+        <p class="hint">提示：请关闭静音模式，并确保手机支持震动马达。<br>iOS 设备由于系统限制暂不支持网页震动。</p>
+    </main>
+
+    <!-- 悬浮开关按钮 -->
+    <div class="fab-container">
+        <button class="fab" id="toggleBtn" onclick="toggleVibration()">
+            <span class="material-symbols-rounded" id="fabIcon">play_arrow</span>
+        </button>
+    </div>
+
+    <script>
+        // 状态变量
+        let isVibrating = false;
+        let wakeLock = null;
+        let loopTimeout = null;
+
+        // 默认参数 (毫秒)
+        let vibrateDuration = 50; // 震动时长 (On)
+        let vibrateInterval = 30; // 间隔时长 (Off)
+
+        // DOM 元素
+        const statusCircle = document.getElementById('statusCircle');
+        const fabIcon = document.getElementById('fabIcon');
+        const statusIcon = document.getElementById('statusIcon');
+        const rangeDuration = document.getElementById('rangeDuration');
+        const rangeInterval = document.getElementById('rangeInterval');
+        const valDuration = document.getElementById('valDuration');
+        const valInterval = document.getElementById('valInterval');
+        const errorBanner = document.getElementById('errorBanner');
+        const errorText = document.getElementById('errorText');
+
+        // 初始化检查
+        window.addEventListener('load', () => {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            
+            if (isIOS) {
+                errorBanner.style.display = 'flex';
+                errorText.innerText = "Apple iOS 系统屏蔽了网页震动权限，无法使用。";
+                disableControls();
+            } else if (!("vibrate" in navigator)) {
+                errorBanner.style.display = 'flex';
+                errorText.innerText = "您的设备或浏览器不支持震动 API。";
+                disableControls();
+            }
+        });
+
+        function disableControls() {
+            document.getElementById('toggleBtn').disabled = true;
+            document.querySelector('main').style.opacity = '0.5';
+            document.querySelector('main').style.pointerEvents = 'none';
+        }
+
+        // 滑块事件监听
+        rangeDuration.addEventListener('input', (e) => {
+            vibrateDuration = parseInt(e.target.value);
+            valDuration.innerText = vibrateDuration + " ms";
+            clearPresetSelection();
+        });
+
+        rangeInterval.addEventListener('input', (e) => {
+            vibrateInterval = parseInt(e.target.value);
+            valInterval.innerText = vibrateInterval + " ms";
+            clearPresetSelection();
+        });
+
+        // 预设逻辑
+        function applyPreset(type) {
+            // 先清除高亮
+            clearPresetSelection();
+            
+            // 找到对应的按钮并高亮 (通过遍历简易实现)
+            const chips = document.querySelectorAll('.chip');
+            let index = 0;
+            
+            switch(type) {
+                case 'soft':
+                    vibrateDuration = 30;
+                    vibrateInterval = 80;
+                    index = 0;
+                    break;
+                case 'medium':
+                    vibrateDuration = 80;
+                    vibrateInterval = 40;
+                    index = 1;
+                    break;
+                case 'strong':
+                    vibrateDuration = 200;
+                    vibrateInterval = 30;
+                    index = 2;
+                    break;
+                case 'ultra':
+                    vibrateDuration = 1000;
+                    vibrateInterval = 0; // 尽可能连续
+                    index = 3;
+                    break;
+            }
+
+            chips[index].classList.add('selected');
+            
+            // 同步滑块UI
+            rangeDuration.value = vibrateDuration;
+            rangeInterval.value = vibrateInterval;
+            valDuration.innerText = vibrateDuration + " ms";
+            valInterval.innerText = vibrateInterval + " ms";
+
+            // 如果正在震动，重启以应用新参数
+            if (isVibrating) {
+                stopLoop();
+                startLoop();
+            }
+        }
+
+        function clearPresetSelection() {
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+        }
+
+        // 核心震动开关
+        function toggleVibration() {
+            if (isVibrating) {
+                stopVibration();
+            } else {
+                startVibration();
+            }
+        }
+
+        async function startVibration() {
+            // 尝试请求 WakeLock 防止锁屏
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {
+                console.log('WakeLock error:', err);
+            }
+
+            isVibrating = true;
+            updateUI(true);
+            startLoop();
+        }
+
+        function stopVibration() {
+            isVibrating = false;
+            
+            // 释放 WakeLock
+            if (wakeLock) {
+                wakeLock.release().then(() => wakeLock = null);
+            }
+
+            updateUI(false);
+            stopLoop();
+            navigator.vibrate(0); // 立即停止硬件震动
+        }
+
+        // 震动循环逻辑
+        // 使用 setTimeout 递归模拟 PWM (脉冲宽度调制)
+        function startLoop() {
+            const run = () => {
+                if (!isVibrating) return;
+
+                // 核心 API 调用
+                // 参数1: 震动时长
+                if (vibrateDuration > 0) {
+                    navigator.vibrate(vibrateDuration);
+                }
+
+                // 计算下一次循环的时间：震动时长 + 间隔时长
+                // 为了保证连续性，如果间隔为0，我们仍需极小的延迟防止主线程卡死，
+                // 但大多数浏览器对vibrate连续调用有保护，这里使用简单的逻辑
+                let nextDelay = vibrateDuration + vibrateInterval;
+                if (nextDelay < 10) nextDelay = 10; // 最小安全阈值
+
+                loopTimeout = setTimeout(run, nextDelay);
+            };
+            run();
+        }
+
+        function stopLoop() {
+            if (loopTimeout) {
+                clearTimeout(loopTimeout);
+                loopTimeout = null;
+            }
+        }
+
+        // UI 更新辅助函数
+        function updateUI(active) {
+            if (active) {
+                statusCircle.classList.add('active');
+                fabIcon.innerText = 'stop'; // 变为停止图标
+                document.querySelector('.fab').style.backgroundColor = 'var(--md-sys-color-error)';
+            } else {
+                statusCircle.classList.remove('active');
+                fabIcon.innerText = 'play_arrow'; // 变为开始图标
+                document.querySelector('.fab').style.backgroundColor = 'var(--md-sys-color-primary)';
+            }
+        }
+
+        // 页面可见性改变时停止 (省电 & 避免后台Bug)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && isVibrating) {
+                stopVibration();
+            }
+        });
+    </script>
+</body>
+</html>
