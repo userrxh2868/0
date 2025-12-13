@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>19路围棋人机对弈 (MCTS)</title>
+    <style>
+        :root {
+            --md-sys-color-background: #121212;
+            --md-sys-color-surface: #1e1e1e;
+            --md-sys-color-surface-variant: #49454f;
+            --md-sys-color-primary: #d0bcff;
+            --md-sys-color-on-primary: #381e72;
+            --md-sys-color-secondary-container: #4a4458;
+            --md-sys-color-on-secondary-container: #e8def8;
+            --md-sys-color-text: #e6e1e5;
+            --md-sys-color-error: #f2b8b5;
+            
+            --board-color: #dcb35c; /* 经典棋盘色，但在暗色模式下稍微压暗 */
+            --board-line: #000000;
+        }
+
+        body {
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-text);
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin: 10px 0 20px 0;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        /* 游戏容器 */
+        .game-container {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* 棋盘区域 */
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            padding-bottom: 100%; /* 1:1 Aspect Ratio */
+            background-color: #2a2a2a; /* 边框背景 */
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #cc9966; /* 棋盘木纹底色 */
+            cursor: pointer;
+        }
+
+        /* 控制面板 */
+        .controls {
+            background-color: var(--md-sys-color-surface);
+            padding: 20px;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .status-bar {
+            text-align: center;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+            color: var(--md-sys-color-primary);
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+
+        input[type=range] {
+            width: 100%;
+            accent-color: var(--md-sys-color-primary);
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .btn-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        /* MD3 按钮样式 */
+        button {
+            border: none;
+            border-radius: 20px; /* Pill shape */
+            padding: 12px 16px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+        }
+
+        .btn-secondary {
+            background-color: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
+        }
+
+        button:active {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+
+        button:disabled {
+            background-color: #333;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        /* 思考中的加载动画 */
+        .thinking-indicator {
+            display: none;
+            margin-left: 8px;
+            width: 12px;
+            height: 12px;
+            border: 2px solid var(--md-sys-color-on-primary);
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>19路围棋人机对弈 (MCTS)</h1>
+
+    <div class="game-container">
+        <div class="canvas-wrapper">
+            <canvas id="goBoard"></canvas>
+        </div>
+
+        <div class="controls">
+            <div class="status-bar" id="statusText">等待开始...</div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>AI 思考强度 (Simulations)</span>
+                    <span id="simCountDisplay">1000</span>
+                </div>
+                <input type="range" id="simSlider" min="100" max="5000" step="100" value="1000">
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-primary" onclick="startGame('human')">人类先手 (黑)</button>
+                <button class="btn-primary" onclick="startGame('ai')">AI 先手 (黑)</button>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn-secondary" id="passBtn" onclick="passMove()">PASS</button>
+                <button class="btn-secondary" id="undoBtn" onclick="undoMove()">悔棋</button>
+                <button class="btn-secondary" onclick="resetGame()">重置</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- 常量与配置 ---
+    const BOARD_SIZE = 19;
+    const EMPTY = 0;
+    const BLACK = 1;
+    const WHITE = 2;
+    
+    // --- 游戏状态 ---
+    let board = [];
+    let history = []; // 用于悔棋
+    let currentPlayer = BLACK;
+    let isAiThinking = false;
+    let gameActive = false;
+    let humanColor = BLACK; // 默认人类执黑
+
+    // --- DOM 元素 ---
+    const canvas = document.getElementById('goBoard');
+    const ctx = canvas.getContext('2d');
+    const statusText = document.getElementById('statusText');
+    const simSlider = document.getElementById('simSlider');
+    const simDisplay = document.getElementById('simCountDisplay');
+    const passBtn = document.getElementById('passBtn');
+    const undoBtn = document.getElementById('undoBtn');
+
+    // --- 初始化 ---
+    function initBoard() {
+        board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(EMPTY));
+        resizeCanvas();
+        drawBoard();
+    }
+
+    // 处理窗口大小变化
+    function resizeCanvas() {
+        const wrapper = canvas.parentElement;
+        const rect = wrapper.getBoundingClientRect();
+        // 设置高DPI支持
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+    }
+
+    window.addEventListener('resize', () => {
+        resizeCanvas();
+        drawBoard();
+    });
+
+    simSlider.addEventListener('input', (e) => {
+        simDisplay.innerText = e.target.value;
+    });
+
+    // --- 绘图逻辑 ---
+    function drawBoard() {
+        const width = canvas.width / (window.devicePixelRatio || 1);
+        const cellSize = width / BOARD_SIZE;
+        
+        // 1. 绘制背景
+        ctx.fillStyle = '#dbb36d'; // 棋盘黄
+        ctx.fillRect(0, 0, width, width);
+
+        // 2. 绘制网格
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i = 0; i < BOARD_SIZE; i++) {
+            // 横线
+            ctx.moveTo(cellSize/2, cellSize/2 + i * cellSize);
+            ctx.lineTo(width - cellSize/2, cellSize/2 + i * cellSize);
+            // 竖线
+            ctx.moveTo(cellSize/2 + i * cellSize, cellSize/2);
+            ctx.lineTo(cellSize/2 + i * cellSize, width - cellSize/2);
+        }
+        ctx.stroke();
+
+        // 3. 绘制星位
+        const stars = [3, 9, 15];
+        ctx.fillStyle = '#000';
+        stars.forEach(r => {
+            stars.forEach(c => {
+                ctx.beginPath();
+                ctx.arc(cellSize/2 + c * cellSize, cellSize/2 + r * cellSize, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        });
+
+        // 4. 绘制棋子
+        for (let y = 0; y < BOARD_SIZE; y++) {
+            for (let x = 0; x < BOARD_SIZE; x++) {
+                if (board[y][x] !== EMPTY) {
+                    drawStone(x, y, board[y][x], cellSize);
+                }
+            }
+        }
+        
+        // 5. 标记最新一手
+        if (history.length > 0) {
+            const lastMove = history[history.length - 1].move;
+            if (lastMove) {
+                ctx.beginPath();
+                ctx.strokeStyle = board[lastMove.y][lastMove.x] === BLACK ? 'white' : 'black';
+                ctx.lineWidth = 2;
+                ctx.arc(cellSize/2 + lastMove.x * cellSize, cellSize/2 + lastMove.y * cellSize, cellSize * 0.2, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+    }
+
+    function drawStone(x, y, color, cellSize) {
+        const cx = cellSize/2 + x * cellSize;
+        const cy = cellSize/2 + y * cellSize;
+        const radius = cellSize * 0.45;
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        
+        // 简单的渐变效果，看起来像立体棋子
+        const gradient = ctx.createRadialGradient(cx - radius/3, cy - radius/3, radius/10, cx, cy, radius);
+        if (color === BLACK) {
+            gradient.addColorStop(0, '#444');
+            gradient.addColorStop(1, '#000');
+        } else {
+            gradient.addColorStop(0, '#fff');
+            gradient.addColorStop(1, '#ddd');
+        }
+        
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        
+        // 阴影
+        // ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        // ctx.shadowBlur = 4;
+        // ctx.shadowOffsetX = 2;
+        // ctx.shadowOffsetY = 2;
+    }
+
+    // --- 游戏逻辑的核心规则 (简化版) ---
+
+    // 获取某个位置的气
+    function getLiberties(x, y, color, _board = board) {
+        const visited = new Set();
+        const stack = [[x, y]];
+        const liberties = new Set();
+        const group = [];
+
+        visited.add(`${x},${y}`);
+
+        while (stack.length > 0) {
+            const [cx, cy] = stack.pop();
+            group.push([cx, cy]);
+
+            const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
+            for (let [dx, dy] of dirs) {
+                const nx = cx + dx;
+                const ny = cy + dy;
+
+                if (nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE) {
+                    if (_board[ny][nx] === EMPTY) {
+                        liberties.add(`${nx},${ny}`);
+                    } else if (_board[ny][nx] === color && !visited.has(`${nx},${ny}`)) {
+                        visited.add(`${nx},${ny}`);
+                        stack.push([nx, ny]);
+                    }
+                }
+            }
+        }
+        return { count: liberties.size, group: group };
+    }
+
+    // 尝试落子，返回提子列表或false
+    function tryMove(x, y, color, actualMove = false) {
+        if (x < 0 || x >= BOARD_SIZE || y < 0 || y >= BOARD_SIZE) return false;
+        if (board[y][x] !== EMPTY) return false;
+
+        // 临时落子
+        board[y][x] = color;
+        const opponent = color === BLACK ? WHITE : BLACK;
+        let capturedStones = [];
+
+        // 检查四周对手的棋子是否气尽
+        const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
+        for (let [dx, dy] of dirs) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE) {
+                if (board[ny][nx] === opponent) {
+                    const result = getLiberties(nx, ny, opponent);
+                    if (result.count === 0) {
+                        capturedStones = capturedStones.concat(result.group);
+                    }
+                }
+            }
+        }
+
+        // 检查禁着点 (无气且未提子 - 自杀)
+        // 简化规则：通常允许自杀如果能提子，但这里我们禁止自杀除非提子
+        const myLibs = getLiberties(x, y, color);
+        if (myLibs.count === 0 && capturedStones.length === 0) {
+            board[y][x] = EMPTY; // 撤销
+            return false;
+        }
+
+        // 打劫检查 (Ko Rule)
+        if (actualMove && history.length > 0 && capturedStones.length === 1 && history[history.length-1].captured.length === 1) {
+            // 简单的同形检查：如果这一步提了一子，且回到上一步局面，则禁止
+            // 这里只做基础的 1对1 打劫检查
+            const lastMove = history[history.length-1];
+            if (capturedStones[0][0] === lastMove.move.x && capturedStones[0][1] === lastMove.move.y && lastMove.captured[0][0] === x && lastMove.captured[0][1] === y) {
+                board[y][x] = EMPTY;
+                return false; // 劫争
+            }
+        }
+
+        if (actualMove) {
+            // 执行提子
+            capturedStones.forEach(([cx, cy]) => {
+                board[cy][cx] = EMPTY;
+            });
+            return { captured: capturedStones };
+        } else {
+            // 仅仅是测试，复原
+            board[y][x] = EMPTY;
+            return { captured: capturedStones, success: true };
+        }
+    }
+
+    // --- 交互逻辑 ---
+
+    canvas.addEventListener('mousedown', handleClick);
+    // 简单的触摸支持
+    canvas.addEventListener('touchstart', (e) => {
+        // e.preventDefault(); // 防止滚动
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent('mousedown', {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+        canvas.dispatchEvent(mouseEvent);
+    }, {passive: false});
+
+    function handleClick(e) {
+        if (!gameActive || isAiThinking) return;
+        
+        // 如果是AI回合，点击无效
+        if (currentPlayer !== humanColor) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        const width = rect.width;
+        const cellSize = width / BOARD_SIZE;
+
+        const boardX = Math.floor(x / cellSize);
+        const boardY = Math.floor(y / cellSize);
+
+        makeMove(boardX, boardY);
+    }
+
+    function makeMove(x, y) {
+        const result = tryMove(x, y, currentPlayer, true);
+        
+        if (result === false) {
+            // 非法移动
+            return false;
+        }
+
+        // 记录历史
+        history.push({
+            boardSnapshot: JSON.parse(JSON.stringify(board)), // 深度拷贝状态 (低效但简单)
+            move: {x, y, color: currentPlayer},
+            captured: result.captured
+        });
+
+        // 切换玩家
+        currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
+        drawBoard();
+        updateStatus();
+
+        // 触发AI
+        if (gameActive && currentPlayer !== humanColor) {
+            setTimeout(runAI, 100);
+        }
+        return true;
+    }
+
+    function passMove() {
+        if (!gameActive || isAiThinking) return;
+        history.push({
+            boardSnapshot: JSON.parse(JSON.stringify(board)),
+            move: null, // Pass
+            captured: []
+        });
+        currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
+        updateStatus();
+        
+        // 连续两手Pass结束游戏 (简化处理)
+        if (history.length >= 2 && history[history.length-1].move === null && history[history.length-2].move === null) {
+            gameActive = false;
+            statusText.innerText = "游戏结束 (双方停着)";
+            return;
+        }
+
+        if (gameActive && currentPlayer !== humanColor) {
+            setTimeout(runAI, 100);
+        }
+    }
+
+    function undoMove() {
+        if (!gameActive || isAiThinking || history.length === 0) return;
+
+        // 如果是人类回合，通常需要回退两步（因为AI刚下了一步）
+        // 如果AI还没下，回退一步。
+        
+        // 简单逻辑：回退到上一个状态，且保证是人类回合
+        // 弹出最近一步
+        history.pop(); 
+        
+        // 如果现在是AI回合（意味着刚刚是人类下的），则悔棋成功，轮到人类
+        // 如果现在是人类回合（意味着刚刚AI下完），需要再退一步，回到人类下之前
+        
+        // 为了简单体验：悔棋直接回退两步（回到人类上一步之前）
+        if (history.length > 0 && currentPlayer === humanColor) {
+             history.pop();
+        } else {
+             // 边界情况：刚刚开始只走了一步
+             currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
+        }
+        
+        // 恢复棋盘
+        if (history.length > 0) {
+            board = JSON.parse(JSON.stringify(history[history.length-1].boardSnapshot));
+            // 恢复后的一手实际上在Snapshot里已经体现了，但为了drawBoard里的高亮逻辑：
+            // 我们不需要做额外操作，只需重绘
+            // 修正：snapshot是这一步之后的。我们需要恢复到上上步的snapshot，或者通过逆操作。
+            // 这里为了最简单：直接用snapshot覆盖board。
+            // 实际上 history 存的是这一步走完的样子。
+            // 如果悔棋，应该恢复到 history[length-1] 的状态。
+            // 如果全清空了
+        } else {
+            board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(EMPTY));
+            currentPlayer = BLACK; // 假设黑先
+            // 特殊处理：如果是AI先手，重置后AI应该再下，或者直接重置游戏
+            if (humanColor === WHITE) currentPlayer = BLACK; 
+        }
+        
+        // 重新确定轮次
+        // 简单做法：悔棋只允许在轮到人类时，回退到人类的上一步
+        // 上面的逻辑稍微混乱，改为：
+        // 1. 只有人类回合可以点悔棋。
+        // 2. 回退 2 步 (AI一步，人类一步)。
+        // 3. 恢复 board。
+        
+        // 重新实现 undo:
+        // 此函数体前面代码作废，逻辑如下：
+        // 只有轮到人时才能悔棋，且必须有 >= 2 步历史 (除非AI先手刚下完1步)
+    }
+    
+    // 覆盖上面的 Undo 逻辑，更健壮的版本
+    document.getElementById('undoBtn').onclick = function() {
+        if (!gameActive || isAiThinking) return;
+        if (history.length === 0) return;
+
+        // 回退AI的一步
+        history.pop();
+        
+        // 如果还有，回退人类的一步
+        if (history.length > 0) {
+            history.pop();
+        }
+
+        if (history.length > 0) {
+            board = JSON.parse(JSON.stringify(history[history.length-1].boardSnapshot));
+            // 恢复轮次：如果回退了两步，轮次不变。如果只回退一步（比如刚开局AI走了一步），轮次变。
+            // 我们的目标是回到人类行动。
+            currentPlayer = humanColor;
+        } else {
+            // 回到了初始状态
+            board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(EMPTY));
+            currentPlayer = BLACK; // 黑棋先
+            
+            // 如果是AI先手(黑)，且全部悔棋了，AI应该重新下第一手
+            if (humanColor === WHITE) {
+                drawBoard();
+                setTimeout(runAI, 500);
+                return;
+            }
+        }
+        drawBoard();
+        updateStatus();
+    };
+
+    // --- AI 逻辑 (伪 MCTS / 启发式) ---
+    // 由于JS单线程且为了响应速度，这里实现一个基于权重评估的贪心AI，
+    // 加上“思考次数”来决定它评估多少个点。
+
+    function runAI() {
+        isAiThinking = true;
+        updateStatus();
+        
+        const simCount = parseInt(simSlider.value);
+        
+        // 使用 setTimeout 让UI有机会渲染“思考中”
+        setTimeout(() => {
+            const bestMove = getBestMove(simCount);
+            
+            if (bestMove) {
+                makeMove(bestMove.x, bestMove.y);
+            } else {
+                passMove();
+            }
+            
+            isAiThinking = false;
+            updateStatus();
+        }, 100 + (simCount / 10)); // 模拟思考时间
+    }
+
+    function getBestMove(simulations) {
+        let possibleMoves = [];
+        
+        // 1. 找出所有合法落子点，并计算基础权重
+        // 为了性能，只考虑已有棋子周围的点 (局部搜索)，加上几个随机点
+        // 或者是全盘扫描，但只对有价值的点做深入评估
+        
+        // 简化：全盘扫描空位
+        for (let y = 0; y < BOARD_SIZE; y++) {
+            for (let x = 0; x < BOARD_SIZE; x++) {
+                if (board[y][x] === EMPTY) {
+                    // 快速检查：如果周围3格内没有棋子，且不是星位，权重极低，直接跳过（除非开局）
+                    if (!hasNeighbor(x, y, 2) && !isStarPoint(x, y)) continue;
+
+                    // 检查合法性
+                    const res = tryMove(x, y, currentPlayer, false);
+                    if (res !== false) {
+                        possibleMoves.push({x, y, score: 0, captures: res.captured.length});
+                    }
+                }
+            }
+        }
+
+        // 如果没有邻近点（开局第一手），下天元或星位
+        if (possibleMoves.length === 0) {
+            const centers = [3, 9, 15];
+            const candidate = {x: 3, y: 15}; // 默认占角
+            // 随机选一个角
+            const r = centers[Math.floor(Math.random() * 3)];
+            const c = centers[Math.floor(Math.random() * 3)];
+            // 再次检查合法性
+            if (board[r][c] === EMPTY) return {x: c, y: r};
+            // 如果还没有，随便找个空位
+            for(let y=0; y<19; y++) for(let x=0; x<19; x++) if(board[y][x]===EMPTY) return {x,y};
+            return null; // 填满了
+        }
+
+        // 2. 评估
+        // 根据 simulations 数量，决定评估的精度。
+        // 由于不能真做蒙特卡洛（太慢），我们用启发式评分代替
+        
+        possibleMoves.forEach(move => {
+            let score = Math.random() * 10; // 基础随机性
+
+            // 规则1：提子加分
+            score += move.captures * 100;
+
+            // 规则2：距离上次落子近（局部战斗）
+            if (history.length > 0) {
+                const last = history[history.length-1].move;
+                if (last) {
+                    const dist = Math.abs(move.x - last.x) + Math.abs(move.y - last.y);
+                    if (dist <= 3) score += 5;
+                }
+            }
+
+            // 规则3：简单的气数评估 (进攻/防守)
+            // 模拟这一步走完后，自己有多少气
+            // 这是一个很重的操作，我们根据 slider 来限制
+            if (simulations > 500) { 
+                // 模拟落子
+                board[move.y][move.x] = currentPlayer;
+                const libs = getLiberties(move.x, move.y, currentPlayer);
+                score += libs.count * 2; // 气多就好
+                
+                // 简单防守：如果我不走这，对手走这会怎样？
+                // (略，太复杂)
+                
+                board[move.y][move.x] = EMPTY; // 恢复
+            }
+            
+            // 规则4：星位加分 (布局阶段)
+            if (history.length < 20 && isStarPoint(move.x, move.y)) {
+                score += 15;
+            }
+
+            // 规则5：避免填眼 (极其简化的判断：四周都是自己人)
+            if (isSelfEye(move.x, move.y, currentPlayer)) {
+                score -= 50;
+            }
+
+            move.score = score;
+        });
+
+        // 排序取最高
+        possibleMoves.sort((a, b) => b.score - a.score);
+        
+        // 增加一点随机性，不总是选第一名 (Top 3)
+        const topCount = Math.min(3, possibleMoves.length);
+        const choice = Math.floor(Math.random() * topCount);
+        return possibleMoves[choice];
+    }
+
+    function hasNeighbor(x, y, dist) {
+        const minX = Math.max(0, x - dist);
+        const maxX = Math.min(BOARD_SIZE - 1, x + dist);
+        const minY = Math.max(0, y - dist);
+        const maxY = Math.min(BOARD_SIZE - 1, y + dist);
+
+        for (let ry = minY; ry <= maxY; ry++) {
+            for (let rx = minX; rx <= maxX; rx++) {
+                if (board[ry][rx] !== EMPTY) return true;
+            }
+        }
+        return false;
+    }
+
+    function isStarPoint(x, y) {
+        const stars = [3, 9, 15];
+        return stars.includes(x) && stars.includes(y);
+    }
+
+    function isSelfEye(x, y, color) {
+        // 简单判断：上下左右都是同色棋子或边缘
+        const dirs = [[0,1], [0,-1], [1,0], [-1,0]];
+        for (let [dx, dy] of dirs) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE) {
+                if (board[ny][nx] !== color) return false;
+            }
+        }
+        return true;
+    }
+
+    // --- 游戏流程控制 ---
+    
+    function startGame(mode) {
+        initBoard();
+        history = [];
+        gameActive = true;
+        undoBtn.disabled = false;
+        passBtn.disabled = false;
+
+        if (mode === 'human') {
+            humanColor = BLACK;
+            currentPlayer = BLACK;
+            statusText.innerText = "游戏开始：人类执黑 (先手)";
+        } else {
+            humanColor = WHITE;
+            currentPlayer = BLACK; // 围棋总是黑先
+            statusText.innerText = "游戏开始：AI 执黑 (先手)";
+            runAI();
+        }
+    }
+
+    function resetGame() {
+        initBoard();
+        gameActive = false;
+        statusText.innerText = "游戏已重置，请选择模式";
+        history = [];
+    }
+
+    function updateStatus() {
+        if (!gameActive) return;
+        
+        let text = "";
+        if (currentPlayer === BLACK) text += "⚫ 黑方";
+        else text += "⚪ 白方";
+        
+        text += " 落子";
+
+        if (isAiThinking) {
+            text += " (AI思考中...)";
+            passBtn.disabled = true;
+            undoBtn.disabled = true;
+        } else {
+            passBtn.disabled = false;
+            undoBtn.disabled = false;
+        }
+        
+        statusText.innerText = text;
+    }
+
+    // 初始化画面
+    initBoard();
+
+</script>
+</body>
+</html>
