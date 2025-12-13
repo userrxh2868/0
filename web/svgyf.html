@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG 语法速查 + 实时预览</title>
+    
+    <!-- Material Symbols -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <!-- CodeMirror (用于完整编辑器) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material-darker.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/xq-light.min.css">
+
+    <style>
+        :root {
+            /* MD3 Light Theme Variables */
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            --md-sys-color-secondary: #625B71;
+            --md-sys-color-background: #FFFBFE;
+            --md-sys-color-surface: #FFFBFE;
+            --md-sys-color-surface-container: #F3EDF7;
+            --md-sys-color-outline: #79747E;
+            --md-sys-color-on-surface: #1C1B1F;
+            --font-family: 'Roboto', system-ui, sans-serif;
+            --border-radius: 16px;
+            --editor-height: calc(100vh - 220px);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                /* MD3 Dark Theme Variables */
+                --md-sys-color-primary: #D0BCFF;
+                --md-sys-color-on-primary: #381E72;
+                --md-sys-color-primary-container: #4F378B;
+                --md-sys-color-on-primary-container: #EADDFF;
+                --md-sys-color-secondary: #CCC2DC;
+                --md-sys-color-background: #1C1B1F;
+                --md-sys-color-surface: #1C1B1F;
+                --md-sys-color-surface-container: #2B2930;
+                --md-sys-color-outline: #938F99;
+                --md-sys-color-on-surface: #E6E1E5;
+            }
+        }
+
+        * { box-sizing: border-box; outline: none; }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-family);
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-surface);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* Header */
+        header {
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--md-sys-color-surface-container);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            margin: 0;
+            font-weight: 500;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        /* Material Inputs & Selects */
+        .select-wrapper {
+            position: relative;
+            min-width: 200px;
+        }
+
+        select {
+            appearance: none;
+            width: 100%;
+            padding: 10px 16px;
+            padding-right: 40px;
+            background-color: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        select:focus {
+            border-color: var(--md-sys-color-primary);
+            border-width: 2px;
+            padding: 9px 15px; /* Adjust for border width */
+        }
+
+        .select-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: var(--md-sys-color-on-surface);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .icon-btn:hover {
+            background-color: rgba(128, 128, 128, 0.1);
+        }
+
+        /* Main Layout */
+        main {
+            flex: 1;
+            display: flex;
+            padding: 16px;
+            gap: 16px;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        @media (max-width: 768px) {
+            main {
+                flex-direction: column;
+                overflow-y: auto;
+            }
+            :root {
+                --editor-height: 40vh;
+            }
+        }
+
+        /* Panels */
+        .panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--md-sys-color-surface-container);
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        .panel-label {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+            font-size: 0.75rem;
+            padding: 4px 12px;
+            border-bottom-right-radius: 12px;
+            z-index: 10;
+            font-weight: bold;
+        }
+
+        /* Full Editor Toolbar */
+        .editor-toolbar {
+            display: none; /* Default hidden for Simple mode */
+            background: var(--md-sys-color-surface);
+            border-bottom: 1px solid var(--md-sys-color-outline);
+            padding: 4px 8px;
+            gap: 4px;
+            align-items: center;
+        }
+        
+        .editor-toolbar.visible {
+            display: flex;
+        }
+
+        .tool-btn {
+            background: transparent;
+            border: none;
+            color: var(--md-sys-color-on-surface);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            display: flex;
+        }
+        .tool-btn:hover { background: rgba(128,128,128,0.1); }
+
+        /* Editors */
+        .editor-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* Simple Editor Styles */
+        .simple-editor-wrapper {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            font-family: monospace;
+            font-size: 14px;
+            background: var(--md-sys-color-surface);
+        }
+
+        .line-numbers {
+            background-color: var(--md-sys-color-surface-container);
+            color: var(--md-sys-color-secondary);
+            padding: 10px 5px;
+            text-align: right;
+            min-width: 35px;
+            user-select: none;
+            line-height: 1.5;
+            border-right: 1px solid rgba(128,128,128,0.2);
+            overflow: hidden;
+        }
+
+        textarea#simple-code {
+            flex: 1;
+            border: none;
+            resize: none;
+            padding: 10px;
+            background: transparent;
+            color: var(--md-sys-color-on-surface);
+            line-height: 1.5;
+            white-space: pre;
+            overflow: auto;
+        }
+
+        /* Full Editor Styles (CodeMirror overrides) */
+        .CodeMirror {
+            height: 100% !important;
+            width: 100%;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 14px;
+        }
+        
+        .cm-s-material-darker.CodeMirror {
+            background-color: #212121;
+        }
+        
+        /* Preview */
+        .preview-content {
+            flex: 1;
+            background-image: 
+                linear-gradient(45deg, #ccc 25%, transparent 25%), 
+                linear-gradient(-45deg, #ccc 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #ccc 75%), 
+                linear-gradient(-45deg, transparent 75%, #ccc 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-color: #fff; /* Checkerboard base */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: auto;
+        }
+
+        .preview-content svg {
+            max-width: 100%;
+            max-height: 100%;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Footer */
+        footer {
+            padding: 12px 24px;
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            background-color: var(--md-sys-color-surface);
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .btn {
+            border: none;
+            padding: 10px 24px;
+            border-radius: 100px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+        }
+        
+        .btn-primary:active { transform: scale(0.96); }
+
+        .btn-tonal {
+            background-color: var(--md-sys-color-secondary);
+            color: #fff;
+        }
+        
+        .btn-tonal:active { transform: scale(0.96); }
+
+        /* Toast Notification */
+        #toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--md-sys-color-on-surface);
+            color: var(--md-sys-color-surface);
+            padding: 10px 20px;
+            border-radius: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 100;
+            font-size: 0.9rem;
+        }
+        #toast.show { opacity: 1; }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>SVG 语法速查</h1>
+    <div class="header-controls">
+        <div class="select-wrapper">
+            <select id="snippet-select">
+                <option value="" disabled selected>—— 选一条插入 ——</option>
+            </select>
+            <span class="material-symbols-rounded select-icon">expand_more</span>
+        </div>
+        <button class="icon-btn" id="settings-btn" title="切换编辑器模式">
+            <span class="material-symbols-rounded">settings</span>
+        </button>
+    </div>
+</header>
+
+<main>
+    <!-- Code Editor Section -->
+    <div class="panel">
+        <div class="panel-label">代码</div>
+        
+        <!-- Toolbar for Full Editor -->
+        <div class="editor-toolbar" id="full-editor-toolbar">
+            <button class="tool-btn" onclick="editorUndo()" title="撤销">
+                <span class="material-symbols-rounded" style="font-size:18px">undo</span>
+            </button>
+            <button class="tool-btn" onclick="editorRedo()" title="重做">
+                <span class="material-symbols-rounded" style="font-size:18px">redo</span>
+            </button>
+            <div style="width:1px; height:16px; background:var(--md-sys-color-outline); margin:0 4px; opacity:0.5"></div>
+            <button class="tool-btn" onclick="copyCode()" title="复制">
+                <span class="material-symbols-rounded" style="font-size:18px">content_copy</span>
+            </button>
+        </div>
+
+        <div class="editor-container">
+            <!-- Simple Editor -->
+            <div id="simple-editor-box" class="simple-editor-wrapper">
+                <div class="line-numbers" id="line-numbers">1</div>
+                <textarea id="simple-code" spellcheck="false"></textarea>
+            </div>
+            
+            <!-- Container where CodeMirror will be injected -->
+            <div id="full-editor-box" style="display:none; width:100%; height:100%;"></div>
+        </div>
+    </div>
+
+    <!-- Preview Section -->
+    <div class="panel">
+        <div class="panel-label">预览</div>
+        <div class="preview-content" id="preview-window">
+            <!-- SVG renders here -->
+        </div>
+    </div>
+</main>
+
+<footer>
+    <button class="btn btn-tonal" id="clear-btn">
+        <span class="material-symbols-rounded">delete</span>
+        清空
+    </button>
+    <button class="btn btn-primary" id="format-btn">
+        <span class="material-symbols-rounded">code</span>
+        格式化
+    </button>
+</footer>
+
+<div id="toast">模式已切换</div>
+
+<!-- Scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
+<script>
+    // --- Data: SVG Snippets ---
+    const snippets = [
+        { label: "基础 - 矩形 (Rect)", code: `<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">\n  <rect width="100" height="100" x="50" y="50" fill="#6750A4" rx="10" />\n</svg>` },
+        { label: "基础 - 圆形 (Circle)", code: `<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">\n  <circle cx="100" cy="100" r="80" fill="#B3261E" stroke="#000" stroke-width="5" />\n</svg>` },
+        { label: "路径 - 心形 (Path)", code: `<svg viewBox="0 0 24 24" width="200" height="200" xmlns="http://www.w3.org/2000/svg">\n  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="#E25C66" />\n</svg>` },
+        { label: "渐变 (Gradient)", code: `<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">\n  <defs>\n    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">\n      <stop offset="0%" style="stop-color:#6750A4;stop-opacity:1" />\n      <stop offset="100%" style="stop-color:#D0BCFF;stop-opacity:1" />\n    </linearGradient>\n  </defs>\n  <ellipse cx="100" cy="100" rx="90" ry="60" fill="url(#grad1)" />\n</svg>` },
+        { label: "动画 - 旋转 (Animate)", code: `<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">\n  <rect x="75" y="75" width="50" height="50" fill="#4F378B">\n    <animateTransform attributeName="transform" type="rotate" from="0 100 100" to="360 100 100" dur="2s" repeatCount="indefinite" />\n  </rect>\n</svg>` },
+        { label: "描边动画 (Stroke Dasharray)", code: `<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">\n  <circle cx="100" cy="100" r="80" fill="none" stroke="#6750A4" stroke-width="10" stroke-dasharray="500" stroke-dashoffset="500">\n    <animate attributeName="stroke-dashoffset" from="500" to="0" dur="2s" fill="freeze" />\n  </circle>\n</svg>` }
+    ];
+
+    // --- State & DOM ---
+    let isFullEditor = false; // Default: Simple Editor
+    let cmInstance = null;
+    const defaultCode = snippets[0].code;
+
+    const dom = {
+        select: document.getElementById('snippet-select'),
+        simpleBox: document.getElementById('simple-editor-box'),
+        fullBox: document.getElementById('full-editor-box'),
+        simpleTx: document.getElementById('simple-code'),
+        lineNums: document.getElementById('line-numbers'),
+        preview: document.getElementById('preview-window'),
+        toolbar: document.getElementById('full-editor-toolbar'),
+        settingsBtn: document.getElementById('settings-btn'),
+        clearBtn: document.getElementById('clear-btn'),
+        formatBtn: document.getElementById('format-btn'),
+        toast: document.getElementById('toast')
+    };
+
+    // --- Initialization ---
+    function init() {
+        // Populate Select
+        snippets.forEach((s, idx) => {
+            let opt = document.createElement('option');
+            opt.value = idx;
+            opt.textContent = s.label;
+            dom.select.appendChild(opt);
+        });
+
+        // Event Listeners
+        dom.select.addEventListener('change', onSnippetSelect);
+        dom.simpleTx.addEventListener('input', onSimpleInput);
+        dom.simpleTx.addEventListener('scroll', syncLineNumbersScroll);
+        dom.clearBtn.addEventListener('click', clearCode);
+        dom.formatBtn.addEventListener('click', formatCode);
+        dom.settingsBtn.addEventListener('click', toggleEditorMode);
+
+        // Initial Set
+        dom.simpleTx.value = defaultCode;
+        updatePreview(defaultCode);
+        updateLineNumbers();
+    }
+
+    // --- Logic: Preview & Sync ---
+    function updatePreview(code) {
+        // Basic XSS protection/filtering could go here, but for a local tool innerHTML is acceptable
+        // Wrap in try-catch to prevent crashing on bad XML
+        try {
+            dom.preview.innerHTML = code;
+        } catch (e) {
+            console.log("Rendering error");
+        }
+    }
+
+    function getCode() {
+        return isFullEditor ? cmInstance.getValue() : dom.simpleTx.value;
+    }
+
+    function setCode(code) {
+        if (isFullEditor) {
+            cmInstance.setValue(code);
+        } else {
+            dom.simpleTx.value = code;
+            updateLineNumbers();
+        }
+        updatePreview(code);
+    }
+
+    // --- Logic: Simple Editor Line Numbers ---
+    function updateLineNumbers() {
+        const lines = dom.simpleTx.value.split('\n').length;
+        dom.lineNums.innerHTML = Array(lines).fill(0).map((_, i) => i + 1).join('<br>');
+    }
+
+    function onSimpleInput() {
+        updateLineNumbers();
+        updatePreview(dom.simpleTx.value);
+    }
+
+    function syncLineNumbersScroll() {
+        dom.lineNums.scrollTop = dom.simpleTx.scrollTop;
+    }
+
+    // --- Logic: Full Editor (CodeMirror) ---
+    function initCodeMirror() {
+        if (cmInstance) return;
+        
+        // Detect Dark Mode
+        const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+        cmInstance = CodeMirror(dom.fullBox, {
+            mode: "xml",
+            theme: isDark ? "material-darker" : "xq-light",
+            lineNumbers: true,
+            lineWrapping: true,
+            value: dom.simpleTx.value
+        });
+
+        cmInstance.on("change", () => {
+            updatePreview(cmInstance.getValue());
+        });
+    }
+
+    function editorUndo() { if(cmInstance) cmInstance.undo(); }
+    function editorRedo() { if(cmInstance) cmInstance.redo(); }
+    function copyCode() {
+        const code = cmInstance.getValue();
+        navigator.clipboard.writeText(code).then(() => showToast("已复制到剪贴板"));
+    }
+
+    // --- Logic: Mode Switching ---
+    function toggleEditorMode() {
+        isFullEditor = !isFullEditor;
+        
+        if (isFullEditor) {
+            // Switch to Full
+            dom.simpleBox.style.display = 'none';
+            dom.fullBox.style.display = 'block';
+            dom.toolbar.classList.add('visible');
+            initCodeMirror();
+            // Sync value from simple to full
+            cmInstance.setValue(dom.simpleTx.value);
+            // Refresh layout
+            setTimeout(() => cmInstance.refresh(), 10);
+            showToast("已切换至完整编辑器");
+        } else {
+            // Switch to Simple
+            dom.fullBox.style.display = 'none';
+            dom.simpleBox.style.display = 'flex';
+            dom.toolbar.classList.remove('visible');
+            // Sync value from full to simple
+            if (cmInstance) {
+                dom.simpleTx.value = cmInstance.getValue();
+                updateLineNumbers();
+            }
+            showToast("已切换至简易编辑器");
+        }
+    }
+
+    // --- Logic: Actions ---
+    function onSnippetSelect() {
+        const idx = dom.select.value;
+        if (idx !== "") {
+            setCode(snippets[idx].code);
+            // Reset select slightly to allow re-selecting same option visually if needed
+            // but keep value for logic. Actually, standard UX is fine.
+        }
+    }
+
+    function clearCode() {
+        setCode('');
+        dom.select.value = "";
+    }
+
+    // XML/SVG Formatter function
+    function formatXml(xml) {
+        let formatted = '';
+        let reg = /(>)(<)(\/*)/g;
+        xml = xml.replace(reg, '$1\r\n$2$3');
+        let pad = 0;
+        let nodes = xml.split('\r\n');
+        
+        for(let n in nodes) {
+            let node = nodes[n];
+            let indent = 0;
+            if (node.match(/.+<\/\w[^>]*>$/)) {
+                indent = 0;
+            } else if (node.match(/^<\/\w/)) {
+                if (pad != 0) pad -= 1;
+            } else if (node.match(/^<\w[^>]*[^\/]>.*$/)) {
+                indent = 1;
+            } else {
+                indent = 0;
+            }
+
+            let padding = '';
+            for (let i = 0; i < pad; i++) {
+                padding += '  ';
+            }
+
+            formatted += padding + node + '\r\n';
+            pad += indent;
+        }
+        return formatted.trim();
+    }
+
+    function formatCode() {
+        const current = getCode();
+        if(!current) return;
+        const formatted = formatXml(current);
+        setCode(formatted);
+        showToast("代码已格式化");
+    }
+
+    function showToast(msg) {
+        dom.toast.textContent = msg;
+        dom.toast.classList.add('show');
+        setTimeout(() => dom.toast.classList.remove('show'), 2000);
+    }
+
+    // Theme listener to update CodeMirror theme dynamically
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener('change', e => {
+        if(cmInstance) {
+            cmInstance.setOption("theme", e.matches ? "material-darker" : "xq-light");
+        }
+    });
+
+    // Start
+    init();
+
+</script>
+</body>
+</html>
