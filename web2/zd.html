@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>INK Computer</title>
+    <style>
+        /* --- 全局变量与 MD3 风格定义 --- */
+        :root {
+            --md-sys-color-background: #000000;
+            --md-sys-color-on-background: #00FF00;
+            --md-sys-color-surface: #121212;
+            --md-sys-color-surface-variant: #1E1E1E;
+            --md-sys-color-primary: #00FF00;
+            --md-sys-color-primary-container: #003300;
+            --md-sys-color-outline: #333333;
+            --md-sys-shape-corner-large: 24px;
+            --md-sys-shape-corner-medium: 16px;
+            --md-sys-shape-corner-small: 8px;
+            --font-family-mono: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-background);
+            font-family: var(--font-family-mono);
+            overflow: hidden; /* 防止页面整体滚动，内容在内部滚动 */
+        }
+
+        /* --- 欢迎屏幕 --- */
+        #welcome-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--md-sys-color-background);
+            z-index: 1000;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            cursor: pointer;
+        }
+
+        .welcome-title {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px var(--md-sys-color-primary);
+        }
+
+        .welcome-hint {
+            font-size: 1rem;
+            opacity: 0.8;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.2; }
+        }
+
+        /* --- 主界面布局 --- */
+        #main-interface {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            opacity: 0; /* 初始隐藏 */
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        /* 顶部状态栏 (MD3 Top App Bar 风格) */
+        header {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            background-color: rgba(18, 18, 18, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--md-sys-color-outline);
+            font-size: 1.2rem;
+            font-weight: bold;
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background-color: var(--md-sys-color-primary);
+            border-radius: 50%;
+            margin-right: 15px;
+            box-shadow: 0 0 5px var(--md-sys-color-primary);
+        }
+
+        /* 终端输出区域 */
+        #terminal-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.5;
+            padding-bottom: 100px; /* 为底部输入框留空间 */
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            word-wrap: break-word;
+        }
+        .log-entry.user { color: #fff; }
+        .log-entry.system { color: var(--md-sys-color-primary); }
+        .log-entry.error { color: #ff5555; }
+
+        /* 底部输入区域 (MD3 风格) */
+        #input-area {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(transparent, #000 20%);
+            z-index: 101;
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: center;
+            background-color: var(--md-sys-color-surface-variant);
+            border-radius: 28px; /* 全圆角 */
+            padding: 0 20px;
+            height: 56px;
+            border: 1px solid var(--md-sys-color-outline);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+
+        .prompt-char {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        #cmd-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-family: var(--font-family-mono);
+            font-size: 16px;
+            outline: none;
+        }
+
+        /* --- 浮动窗口 (MD3 Card 风格) --- */
+        #window-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* 允许点击穿透到下面的层，窗口本身会开启pointer-events */
+            overflow: hidden;
+            z-index: 50;
+        }
+
+        .floating-window {
+            position: absolute;
+            width: 300px;
+            min-height: 200px;
+            background-color: rgba(20, 20, 20, 0.95);
+            border: 1px solid var(--md-sys-color-primary);
+            border-radius: var(--md-sys-shape-corner-medium);
+            box-shadow: 0 10px 30px rgba(0, 50, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+            backdrop-filter: blur(5px);
+            /* 初始居中，通过JS调整 */
+            top: 20%;
+            left: 50%; 
+            transform: translateX(-50%);
+            touch-action: none; /* 关键：防止移动端拖动时触发页面滚动 */
+        }
+
+        .window-header {
+            height: 48px;
+            background-color: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            border-top-left-radius: var(--md-sys-shape-corner-medium);
+            border-top-right-radius: var(--md-sys-shape-corner-medium);
+            cursor: move;
+            user-select: none;
+        }
+
+        .window-title {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .close-btn {
+            cursor: pointer;
+            font-weight: bold;
+            padding: 5px;
+        }
+
+        .window-content {
+            padding: 16px;
+            flex: 1;
+            color: #ccc;
+            font-size: 14px;
+        }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #003300; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #005500; }
+
+        /* 移动端适配 */
+        @media (max-width: 600px) {
+            .welcome-title { font-size: 2rem; }
+            .floating-window { width: 90%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 欢迎屏幕 -->
+    <div id="welcome-screen">
+        <div class="welcome-title">INK Computer</div>
+        <div class="welcome-hint">[ 点击屏幕初始化系统 ]</div>
+    </div>
+
+    <!-- 主界面 -->
+    <div id="main-interface">
+        <header>
+            <div class="status-dot"></div>
+            <div>INK Computer <span style="font-size:0.8rem; opacity:0.6;">v1.0 MD3</span></div>
+        </header>
+
+        <div id="terminal-container">
+            <div class="log-entry system">System initialized successfully...</div>
+            <div class="log-entry system">Type 'help' to see available commands.</div>
+        </div>
+
+        <div id="window-layer"></div>
+
+        <div id="input-area">
+            <div class="input-wrapper">
+                <span class="prompt-char">></span>
+                <input type="text" id="cmd-input" placeholder="Enter command..." autocomplete="off">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 变量 ---
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const mainInterface = document.getElementById('main-interface');
+        const terminalContainer = document.getElementById('terminal-container');
+        const cmdInput = document.getElementById('cmd-input');
+        const windowLayer = document.getElementById('window-layer');
+        let zIndexCounter = 100;
+
+        // --- 1. 欢迎屏幕逻辑 ---
+        welcomeScreen.addEventListener('click', () => {
+            welcomeScreen.style.opacity = '0';
+            welcomeScreen.style.transform = 'scale(1.1)';
+            setTimeout(() => {
+                welcomeScreen.style.display = 'none';
+                mainInterface.style.opacity = '1';
+                mainInterface.style.pointerEvents = 'auto';
+                cmdInput.focus();
+            }, 500);
+        });
+
+        // --- 2. 终端输出逻辑 ---
+        function printLog(text, type = 'system') {
+            const div = document.createElement('div');
+            div.className = `log-entry ${type}`;
+            // 处理换行
+            div.innerHTML = text.replace(/\n/g, '<br>');
+            terminalContainer.appendChild(div);
+            // 自动滚动到底部
+            terminalContainer.scrollTop = terminalContainer.scrollHeight;
+        }
+
+        // --- 3. 命令行处理 ---
+        cmdInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const command = this.value.trim();
+                if (command) {
+                    printLog(`> ${command}`, 'user');
+                    processCommand(command);
+                }
+                this.value = '';
+            }
+        });
+
+        function processCommand(cmdStr) {
+            const parts = cmdStr.split(' ');
+            const cmd = parts[0].toLowerCase();
+            const args = parts.slice(1);
+
+            switch (cmd) {
+                case 'help':
+                    printLog(`Available commands:
+  - help: 显示帮助信息
+  - clear: 清空终端
+  - date: 显示当前时间
+  - window [标题] [内容]: 创建一个新窗口
+  - about: 关于 INK Computer`);
+                    break;
+                case 'clear':
+                    terminalContainer.innerHTML = '';
+                    break;
+                case 'date':
+                    printLog(new Date().toString());
+                    break;
+                case 'about':
+                    printLog("INK Computer\nMD3 Interface v1.0\nCreated by AI.");
+                    createWindow("About", "INK Computer 是一个基于 Web 技术的模拟终端界面。<br>它结合了复古风格与现代 Material Design。");
+                    break;
+                case 'window':
+                    if (args.length < 2) {
+                        printLog("Usage: window [title] [content]", "error");
+                    } else {
+                        const title = args[0];
+                        const content = args.slice(1).join(' ');
+                        createWindow(title, content);
+                        printLog(`Window '${title}' created.`);
+                    }
+                    break;
+                default:
+                    printLog(`Command not found: ${cmd}`, 'error');
+            }
+        }
+
+        // --- 4. 浮动窗口逻辑 (核心功能) ---
+        function createWindow(title, content) {
+            const win = document.createElement('div');
+            win.className = 'floating-window';
+            // 随机一点位置偏移，避免重叠
+            const offset = Math.floor(Math.random() * 50);
+            win.style.top = (20 + offset/10) + '%'; 
+            win.style.left = (50 + offset/10) + '%';
+            
+            // 提升层级
+            win.style.zIndex = ++zIndexCounter;
+            win.addEventListener('mousedown', () => bringToFront(win));
+            win.addEventListener('touchstart', () => bringToFront(win), {passive: true});
+
+            win.innerHTML = `
+                <div class="window-header">
+                    <span class="window-title">${title}</span>
+                    <span class="close-btn">✕</span>
+                </div>
+                <div class="window-content">${content}</div>
+            `;
+
+            // 关闭按钮
+            win.querySelector('.close-btn').addEventListener('click', () => {
+                win.remove();
+            });
+
+            // 拖拽逻辑 (Header 是把手)
+            const header = win.querySelector('.window-header');
+            makeDraggable(win, header);
+
+            windowLayer.appendChild(win);
+        }
+
+        function bringToFront(element) {
+            element.style.zIndex = ++zIndexCounter;
+        }
+
+        // --- 5. 拖拽实现 (兼容 PC 和 移动端) ---
+        function makeDraggable(element, handle) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+            handle.onmousedown = dragMouseDown;
+            handle.ontouchstart = dragTouchStart;
+
+            // PC 鼠标事件
+            function dragMouseDown(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                
+                // 设置新位置（移除 transform 居中，转为 absolute top/left 控制）
+                element.style.transform = 'none'; 
+                element.style.top = (element.offsetTop - pos2) + "px";
+                element.style.left = (element.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+
+            // Mobile 触摸事件
+            function dragTouchStart(e) {
+                const touch = e.touches[0];
+                pos3 = touch.clientX;
+                pos4 = touch.clientY;
+                document.ontouchend = closeDragTouch;
+                document.ontouchmove = elementTouchDrag;
+            }
+
+            function elementTouchDrag(e) {
+                // 如果是多指操作，不处理拖动（缩放等）
+                if (e.touches.length > 1) return;
+
+                const touch = e.touches[0];
+                pos1 = pos3 - touch.clientX;
+                pos2 = pos4 - touch.clientY;
+                pos3 = touch.clientX;
+                pos4 = touch.clientY;
+
+                element.style.transform = 'none';
+                element.style.top = (element.offsetTop - pos2) + "px";
+                element.style.left = (element.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragTouch() {
+                document.ontouchend = null;
+                document.ontouchmove = null;
+            }
+        }
+
+        // 初始化一条欢迎信息
+        setTimeout(() => {
+            if(window.innerWidth < 600) {
+                 printLog("Detected Mobile Device. Touch commands enabled.", "system");
+            }
+        }, 1000);
+
+    </script>
+</body>
+</html>
