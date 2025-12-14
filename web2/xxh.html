@@ -1,0 +1,2264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>像素画板</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        :root {
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            --md-sys-color-secondary: #625B71;
+            --md-sys-color-on-secondary: #FFFFFF;
+            --md-sys-color-secondary-container: #E8DEF8;
+            --md-sys-color-on-secondary-container: #1D192B;
+            --md-sys-color-tertiary: #7D5260;
+            --md-sys-color-on-tertiary: #FFFFFF;
+            --md-sys-color-tertiary-container: #FFD8E4;
+            --md-sys-color-on-tertiary-container: #31111D;
+            --md-sys-color-error: #B3261E;
+            --md-sys-color-on-error: #FFFFFF;
+            --md-sys-color-error-container: #F9DEDC;
+            --md-sys-color-on-error-container: #410E0B;
+            --md-sys-color-background: #FFFBFE;
+            --md-sys-color-on-background: #1C1B1F;
+            --md-sys-color-surface: #FFFBFE;
+            --md-sys-color-on-surface: #1C1B1F;
+            --md-sys-color-surface-variant: #E7E0EC;
+            --md-sys-color-on-surface-variant: #49454F;
+            --md-sys-color-outline: #79747E;
+            --md-sys-color-outline-variant: #CAC4D0;
+            --md-sys-color-surface-container: #F3EDF7;
+            --md-sys-color-surface-container-high: #ECE6F0;
+            --md-sys-color-surface-container-highest: #E6E0E9;
+            --md-sys-color-surface-container-low: #F7F2FA;
+            --md-sys-color-inverse-surface: #313033;
+            --md-sys-color-inverse-on-surface: #F4EFF4;
+            --md-sys-color-inverse-primary: #D0BCFF;
+            --md-sys-elevation-1: 0 1px 2px rgba(0,0,0,0.3), 0 1px 3px 1px rgba(0,0,0,0.15);
+            --md-sys-elevation-2: 0 1px 2px rgba(0,0,0,0.3), 0 2px 6px 2px rgba(0,0,0,0.15);
+            --md-sys-elevation-3: 0 4px 8px 3px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.3);
+            --md-sys-shape-corner-small: 8px;
+            --md-sys-shape-corner-medium: 12px;
+            --md-sys-shape-corner-large: 16px;
+            --md-sys-shape-corner-extra-large: 28px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-background);
+            min-height: 100vh;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Top App Bar */
+        .top-app-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: var(--md-sys-color-surface);
+            display: flex;
+            align-items: center;
+            padding: 0 4px;
+            z-index: 100;
+            box-shadow: var(--md-sys-elevation-2);
+        }
+
+        .top-app-bar .leading {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .top-app-bar .title {
+            flex: 1;
+            font-size: 22px;
+            font-weight: 400;
+            padding-left: 4px;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .top-app-bar .actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        /* Icon Button */
+        .icon-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: var(--md-sys-color-on-surface-variant);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            transition: background 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: var(--md-sys-color-surface-container-highest);
+        }
+
+        .icon-btn:active {
+            background: var(--md-sys-color-surface-variant);
+        }
+
+        .icon-btn .material-icons-round {
+            font-size: 24px;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding-top: 64px;
+            padding-bottom: 160px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Canvas Container */
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            width: 100%;
+            overflow: auto;
+            touch-action: none;
+        }
+
+        .canvas-wrapper {
+            background: var(--md-sys-color-surface-container);
+            border-radius: var(--md-sys-shape-corner-large);
+            padding: 8px;
+            box-shadow: var(--md-sys-elevation-1);
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        #pixelCanvas {
+            display: block;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            background: #FFFFFF;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        /* Bottom Tool Bar */
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--md-sys-color-surface-container);
+            padding: 8px 16px;
+            padding-bottom: max(8px, env(safe-area-inset-bottom));
+            z-index: 100;
+        }
+
+        .tool-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .tool-row:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Color Preview */
+        .color-preview {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--md-sys-shape-corner-medium);
+            border: 2px solid var(--md-sys-color-outline);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .color-preview::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: conic-gradient(#ccc 25%, #fff 25% 50%, #ccc 50% 75%, #fff 75%);
+            background-size: 8px 8px;
+        }
+
+        .color-preview-inner {
+            position: absolute;
+            inset: 0;
+            background: var(--preview-color, #000000);
+        }
+
+        /* Quick Colors */
+        .quick-colors {
+            display: flex;
+            gap: 6px;
+            flex: 1;
+            overflow-x: auto;
+            padding: 4px 0;
+            scrollbar-width: none;
+        }
+
+        .quick-colors::-webkit-scrollbar {
+            display: none;
+        }
+
+        .quick-color {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .quick-color:hover {
+            transform: scale(1.1);
+        }
+
+        .quick-color.active {
+            border-color: var(--md-sys-color-primary);
+            box-shadow: var(--md-sys-elevation-2);
+        }
+
+        /* Slider */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .slider-label {
+            font-size: 12px;
+            color: var(--md-sys-color-on-surface-variant);
+            min-width: 60px;
+        }
+
+        .md-slider {
+            flex: 1;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--md-sys-color-surface-variant);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        .md-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--md-sys-color-primary);
+            cursor: pointer;
+            box-shadow: var(--md-sys-elevation-1);
+            transition: transform 0.2s;
+        }
+
+        .md-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .slider-value {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--md-sys-color-on-surface);
+            min-width: 32px;
+            text-align: right;
+        }
+
+        /* Tool Buttons */
+        .tool-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: space-around;
+        }
+
+        .tool-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 12px;
+            border: none;
+            background: transparent;
+            color: var(--md-sys-color-on-surface-variant);
+            border-radius: var(--md-sys-shape-corner-medium);
+            cursor: pointer;
+            transition: background 0.2s;
+            min-width: 64px;
+        }
+
+        .tool-btn:hover {
+            background: var(--md-sys-color-surface-container-highest);
+        }
+
+        .tool-btn:active {
+            background: var(--md-sys-color-surface-variant);
+        }
+
+        .tool-btn.active {
+            background: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
+        }
+
+        .tool-btn .material-icons-round {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        .tool-btn span {
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        /* Dialogs */
+        .dialog-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.32);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+
+        .dialog-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .dialog {
+            background: var(--md-sys-color-surface-container-high);
+            border-radius: var(--md-sys-shape-corner-extra-large);
+            max-width: 560px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--md-sys-elevation-3);
+            transform: scale(0.9);
+            transition: transform 0.2s;
+        }
+
+        .dialog-overlay.active .dialog {
+            transform: scale(1);
+        }
+
+        .dialog-header {
+            padding: 24px 24px 16px;
+        }
+
+        .dialog-title {
+            font-size: 24px;
+            font-weight: 400;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .dialog-content {
+            padding: 0 24px 24px;
+        }
+
+        .dialog-actions {
+            padding: 16px 24px 24px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        /* MD3 Buttons */
+        .md-btn {
+            height: 40px;
+            padding: 0 24px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border: none;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+
+        .md-btn-text {
+            background: transparent;
+            color: var(--md-sys-color-primary);
+        }
+
+        .md-btn-text:hover {
+            background: var(--md-sys-color-primary-container);
+        }
+
+        .md-btn-filled {
+            background: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+        }
+
+        .md-btn-filled:hover {
+            box-shadow: var(--md-sys-elevation-1);
+        }
+
+        .md-btn-tonal {
+            background: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
+        }
+
+        .md-btn-tonal:hover {
+            box-shadow: var(--md-sys-elevation-1);
+        }
+
+        .md-btn-outlined {
+            background: transparent;
+            color: var(--md-sys-color-primary);
+            border: 1px solid var(--md-sys-color-outline);
+        }
+
+        .md-btn-outlined:hover {
+            background: var(--md-sys-color-primary-container);
+        }
+
+        /* Custom Color Picker */
+        .color-picker-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .color-spectrum {
+            width: 100%;
+            height: 200px;
+            border-radius: var(--md-sys-shape-corner-medium);
+            position: relative;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .color-spectrum-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to right, #fff, transparent),
+                        linear-gradient(to top, #000, transparent);
+            border-radius: inherit;
+        }
+
+        .color-spectrum-cursor {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.3), var(--md-sys-elevation-2);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .hue-slider-container {
+            position: relative;
+            height: 24px;
+        }
+
+        .hue-slider {
+            width: 100%;
+            height: 24px;
+            border-radius: 12px;
+            background: linear-gradient(to right, 
+                #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
+            cursor: pointer;
+            touch-action: none;
+        }
+
+        .hue-cursor {
+            position: absolute;
+            top: 50%;
+            width: 28px;
+            height: 28px;
+            border: 4px solid #fff;
+            border-radius: 50%;
+            box-shadow: var(--md-sys-elevation-2);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .alpha-slider-container {
+            position: relative;
+            height: 24px;
+        }
+
+        .alpha-slider-bg {
+            position: absolute;
+            inset: 0;
+            border-radius: 12px;
+            background: conic-gradient(#ccc 25%, #fff 25% 50%, #ccc 50% 75%, #fff 75%);
+            background-size: 8px 8px;
+        }
+
+        .alpha-slider {
+            position: absolute;
+            inset: 0;
+            border-radius: 12px;
+            cursor: pointer;
+            touch-action: none;
+        }
+
+        .alpha-cursor {
+            position: absolute;
+            top: 50%;
+            width: 28px;
+            height: 28px;
+            border: 4px solid #fff;
+            border-radius: 50%;
+            box-shadow: var(--md-sys-elevation-2);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            background: var(--cursor-color, #000);
+        }
+
+        .color-inputs {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .color-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .color-input-group label {
+            font-size: 12px;
+            color: var(--md-sys-color-on-surface-variant);
+            text-align: center;
+        }
+
+        .color-input-group input {
+            width: 100%;
+            height: 40px;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: var(--md-sys-shape-corner-small);
+            background: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
+            font-size: 14px;
+            text-align: center;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .color-input-group input:focus {
+            border-color: var(--md-sys-color-primary);
+            border-width: 2px;
+        }
+
+        .hex-input {
+            grid-column: span 2;
+        }
+
+        .color-preview-large {
+            height: 48px;
+            border-radius: var(--md-sys-shape-corner-medium);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .color-preview-large::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: conic-gradient(#ccc 25%, #fff 25% 50%, #ccc 50% 75%, #fff 75%);
+            background-size: 12px 12px;
+        }
+
+        .color-preview-large-inner {
+            position: absolute;
+            inset: 0;
+        }
+
+        /* New Canvas Dialog */
+        .size-presets {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .size-preset {
+            padding: 12px;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: var(--md-sys-shape-corner-medium);
+            background: transparent;
+            color: var(--md-sys-color-on-surface);
+            cursor: pointer;
+            text-align: center;
+            font-family: inherit;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .size-preset:hover {
+            background: var(--md-sys-color-surface-container-highest);
+        }
+
+        .size-preset.active {
+            background: var(--md-sys-color-primary-container);
+            border-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary-container);
+        }
+
+        .size-preset-label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .size-preset-size {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 2px;
+        }
+
+        .custom-size {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .size-input-group {
+            flex: 1;
+        }
+
+        .size-input-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--md-sys-color-on-surface-variant);
+            margin-bottom: 4px;
+        }
+
+        .size-input-group input {
+            width: 100%;
+            height: 48px;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: var(--md-sys-shape-corner-small);
+            background: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
+            font-size: 16px;
+            text-align: center;
+            font-family: inherit;
+            outline: none;
+        }
+
+        .size-input-group input:focus {
+            border-color: var(--md-sys-color-primary);
+            border-width: 2px;
+        }
+
+        /* Menu Dialog */
+        .menu-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            border: none;
+            background: transparent;
+            color: var(--md-sys-color-on-surface);
+            font-size: 16px;
+            font-family: inherit;
+            text-align: left;
+            cursor: pointer;
+            border-radius: var(--md-sys-shape-corner-small);
+            transition: background 0.2s;
+        }
+
+        .menu-item:hover {
+            background: var(--md-sys-color-surface-container-highest);
+        }
+
+        .menu-item .material-icons-round {
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        .menu-divider {
+            height: 1px;
+            background: var(--md-sys-color-outline-variant);
+            margin: 8px 0;
+        }
+
+        /* Progress Dialog */
+        .progress-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 24px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: var(--md-sys-color-surface-variant);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--md-sys-color-primary);
+            border-radius: 2px;
+            transition: width 0.3s ease-out;
+        }
+
+        .progress-text {
+            font-size: 14px;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        /* FAB */
+        .fab {
+            position: fixed;
+            bottom: 176px;
+            right: 16px;
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            border: none;
+            background: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+            cursor: pointer;
+            box-shadow: var(--md-sys-elevation-3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .fab:hover {
+            box-shadow: 0 6px 10px 4px rgba(0,0,0,0.15), 0 2px 3px rgba(0,0,0,0.3);
+        }
+
+        .fab:active {
+            transform: scale(0.95);
+        }
+
+        .fab .material-icons-round {
+            font-size: 24px;
+        }
+
+        /* Snackbar */
+        .snackbar {
+            position: fixed;
+            bottom: 180px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--md-sys-color-inverse-surface);
+            color: var(--md-sys-color-inverse-on-surface);
+            padding: 14px 16px;
+            border-radius: var(--md-sys-shape-corner-small);
+            box-shadow: var(--md-sys-elevation-3);
+            font-size: 14px;
+            z-index: 300;
+            opacity: 0;
+            transition: transform 0.3s, opacity 0.3s;
+            max-width: calc(100% - 32px);
+        }
+
+        .snackbar.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Hidden file inputs */
+        .hidden-input {
+            display: none;
+        }
+
+        /* Undo/Redo buttons */
+        .history-buttons {
+            position: fixed;
+            top: 72px;
+            right: 8px;
+            display: flex;
+            gap: 4px;
+            z-index: 50;
+        }
+
+        .history-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: var(--md-sys-color-surface-container-high);
+            color: var(--md-sys-color-on-surface);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--md-sys-elevation-1);
+            transition: background 0.2s;
+        }
+
+        .history-btn:disabled {
+            opacity: 0.38;
+            cursor: not-allowed;
+        }
+
+        .history-btn:not(:disabled):hover {
+            background: var(--md-sys-color-surface-container-highest);
+        }
+
+        /* Zoom indicator */
+        .zoom-indicator {
+            position: fixed;
+            top: 72px;
+            left: 8px;
+            padding: 8px 12px;
+            background: var(--md-sys-color-surface-container-high);
+            border-radius: var(--md-sys-shape-corner-small);
+            font-size: 12px;
+            color: var(--md-sys-color-on-surface);
+            box-shadow: var(--md-sys-elevation-1);
+            z-index: 50;
+        }
+
+        /* Grid overlay toggle */
+        .canvas-with-grid {
+            background-image: 
+                linear-gradient(45deg, #e0e0e0 25%, transparent 25%),
+                linear-gradient(-45deg, #e0e0e0 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #e0e0e0 75%),
+                linear-gradient(-45deg, transparent 75%, #e0e0e0 75%);
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .dialog {
+                margin: 16px;
+                max-height: calc(100vh - 32px);
+            }
+
+            .color-inputs {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .hex-input {
+                grid-column: span 2;
+            }
+
+            .size-presets {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Tool active states */
+        .tool-pencil.active .material-icons-round,
+        .tool-eraser.active .material-icons-round,
+        .tool-fill.active .material-icons-round,
+        .tool-picker.active .material-icons-round {
+            color: var(--md-sys-color-primary);
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--md-sys-color-outline);
+            border-radius: 2px;
+        }
+
+        /* Safe area for notch devices */
+        @supports (padding: max(0px)) {
+            .bottom-bar {
+                padding-bottom: max(8px, env(safe-area-inset-bottom));
+            }
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --md-sys-color-primary: #D0BCFF;
+                --md-sys-color-on-primary: #381E72;
+                --md-sys-color-primary-container: #4F378B;
+                --md-sys-color-on-primary-container: #EADDFF;
+                --md-sys-color-secondary: #CCC2DC;
+                --md-sys-color-on-secondary: #332D41;
+                --md-sys-color-secondary-container: #4A4458;
+                --md-sys-color-on-secondary-container: #E8DEF8;
+                --md-sys-color-background: #1C1B1F;
+                --md-sys-color-on-background: #E6E1E5;
+                --md-sys-color-surface: #1C1B1F;
+                --md-sys-color-on-surface: #E6E1E5;
+                --md-sys-color-surface-variant: #49454F;
+                --md-sys-color-on-surface-variant: #CAC4D0;
+                --md-sys-color-outline: #938F99;
+                --md-sys-color-outline-variant: #49454F;
+                --md-sys-color-surface-container: #211F26;
+                --md-sys-color-surface-container-high: #2B2930;
+                --md-sys-color-surface-container-highest: #36343B;
+                --md-sys-color-surface-container-low: #1D1B20;
+                --md-sys-color-inverse-surface: #E6E1E5;
+                --md-sys-color-inverse-on-surface: #313033;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top App Bar -->
+    <header class="top-app-bar">
+        <div class="leading">
+            <button class="icon-btn" id="menuBtn">
+                <span class="material-icons-round">menu</span>
+            </button>
+        </div>
+        <h1 class="title">像素画板</h1>
+        <div class="actions">
+            <button class="icon-btn" id="gridToggle" title="网格">
+                <span class="material-icons-round">grid_on</span>
+            </button>
+            <button class="icon-btn" id="moreBtn" title="更多">
+                <span class="material-icons-round">more_vert</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- History buttons -->
+    <div class="history-buttons">
+        <button class="history-btn" id="undoBtn" disabled title="撤销">
+            <span class="material-icons-round">undo</span>
+        </button>
+        <button class="history-btn" id="redoBtn" disabled title="重做">
+            <span class="material-icons-round">redo</span>
+        </button>
+    </div>
+
+    <!-- Zoom indicator -->
+    <div class="zoom-indicator" id="zoomIndicator">100%</div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="canvas-container" id="canvasContainer">
+            <div class="canvas-wrapper" id="canvasWrapper">
+                <canvas id="pixelCanvas"></canvas>
+            </div>
+        </div>
+    </main>
+
+    <!-- FAB for new canvas -->
+    <button class="fab" id="newCanvasFab" title="新建画板">
+        <span class="material-icons-round">add</span>
+    </button>
+
+    <!-- Bottom Tool Bar -->
+    <div class="bottom-bar">
+        <div class="tool-row">
+            <div class="color-preview" id="colorPreview" title="选择颜色">
+                <div class="color-preview-inner" id="colorPreviewInner"></div>
+            </div>
+            <div class="quick-colors" id="quickColors"></div>
+        </div>
+        <div class="tool-row">
+            <div class="slider-container">
+                <span class="slider-label">画笔大小</span>
+                <input type="range" class="md-slider" id="brushSize" min="1" max="16" value="1">
+                <span class="slider-value" id="brushSizeValue">1</span>
+            </div>
+        </div>
+        <div class="tool-row tool-buttons">
+            <button class="tool-btn tool-pencil active" id="toolPencil">
+                <span class="material-icons-round">edit</span>
+                <span>画笔</span>
+            </button>
+            <button class="tool-btn tool-eraser" id="toolEraser">
+                <span class="material-icons-round">auto_fix_normal</span>
+                <span>橡皮</span>
+            </button>
+            <button class="tool-btn tool-fill" id="toolFill">
+                <span class="material-icons-round">format_color_fill</span>
+                <span>填充</span>
+            </button>
+            <button class="tool-btn tool-picker" id="toolPicker">
+                <span class="material-icons-round">colorize</span>
+                <span>吸管</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Menu Dialog -->
+    <div class="dialog-overlay" id="menuDialog">
+        <div class="dialog">
+            <div class="dialog-header">
+                <h2 class="dialog-title">菜单</h2>
+            </div>
+            <div class="dialog-content">
+                <div class="menu-list">
+                    <button class="menu-item" id="menuNewCanvas">
+                        <span class="material-icons-round">add_box</span>
+                        新建画板
+                    </button>
+                    <button class="menu-item" id="menuClear">
+                        <span class="material-icons-round">delete_outline</span>
+                        清空画板
+                    </button>
+                    <div class="menu-divider"></div>
+                    <button class="menu-item" id="menuImportImage">
+                        <span class="material-icons-round">image</span>
+                        导入图片
+                    </button>
+                    <button class="menu-item" id="menuImportProject">
+                        <span class="material-icons-round">folder_open</span>
+                        导入工程文件
+                    </button>
+                    <div class="menu-divider"></div>
+                    <button class="menu-item" id="menuExportPng">
+                        <span class="material-icons-round">download</span>
+                        导出 PNG
+                    </button>
+                    <button class="menu-item" id="menuExportProject">
+                        <span class="material-icons-round">save</span>
+                        导出工程文件
+                    </button>
+                </div>
+            </div>
+            <div class="dialog-actions">
+                <button class="md-btn md-btn-text" id="menuClose">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Color Picker Dialog -->
+    <div class="dialog-overlay" id="colorPickerDialog">
+        <div class="dialog">
+            <div class="dialog-header">
+                <h2 class="dialog-title">选择颜色</h2>
+            </div>
+            <div class="dialog-content">
+                <div class="color-picker-container">
+                    <div class="color-spectrum" id="colorSpectrum">
+                        <div class="color-spectrum-overlay"></div>
+                        <div class="color-spectrum-cursor" id="spectrumCursor"></div>
+                    </div>
+                    <div class="hue-slider-container">
+                        <div class="hue-slider" id="hueSlider"></div>
+                        <div class="hue-cursor" id="hueCursor"></div>
+                    </div>
+                    <div class="alpha-slider-container">
+                        <div class="alpha-slider-bg"></div>
+                        <div class="alpha-slider" id="alphaSlider"></div>
+                        <div class="alpha-cursor" id="alphaCursor"></div>
+                    </div>
+                    <div class="color-preview-large">
+                        <div class="color-preview-large-inner" id="colorPreviewLarge"></div>
+                    </div>
+                    <div class="color-inputs">
+                        <div class="color-input-group hex-input">
+                            <label>HEX</label>
+                            <input type="text" id="hexInput" maxlength="9" placeholder="#000000FF">
+                        </div>
+                        <div class="color-input-group">
+                            <label>R</label>
+                            <input type="number" id="redInput" min="0" max="255" value="0">
+                        </div>
+                        <div class="color-input-group">
+                            <label>G</label>
+                            <input type="number" id="greenInput" min="0" max="255" value="0">
+                        </div>
+                        <div class="color-input-group">
+                            <label>B</label>
+                            <input type="number" id="blueInput" min="0" max="255" value="0">
+                        </div>
+                        <div class="color-input-group">
+                            <label>A</label>
+                            <input type="number" id="alphaInput" min="0" max="255" value="255">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="dialog-actions">
+                <button class="md-btn md-btn-text" id="colorPickerCancel">取消</button>
+                <button class="md-btn md-btn-filled" id="colorPickerConfirm">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Canvas Dialog -->
+    <div class="dialog-overlay" id="newCanvasDialog">
+        <div class="dialog">
+            <div class="dialog-header">
+                <h2 class="dialog-title">新建画板</h2>
+            </div>
+            <div class="dialog-content">
+                <div class="size-presets" id="sizePresets">
+                    <button class="size-preset" data-width="16" data-height="16">
+                        <div class="size-preset-label">小</div>
+                        <div class="size-preset-size">16×16</div>
+                    </button>
+                    <button class="size-preset active" data-width="32" data-height="32">
+                        <div class="size-preset-label">中</div>
+                        <div class="size-preset-size">32×32</div>
+                    </button>
+                    <button class="size-preset" data-width="64" data-height="64">
+                        <div class="size-preset-label">大</div>
+                        <div class="size-preset-size">64×64</div>
+                    </button>
+                    <button class="size-preset" data-width="128" data-height="128">
+                        <div class="size-preset-label">超大</div>
+                        <div class="size-preset-size">128×128</div>
+                    </button>
+                    <button class="size-preset" data-width="48" data-height="48">
+                        <div class="size-preset-label">图标</div>
+                        <div class="size-preset-size">48×48</div>
+                    </button>
+                    <button class="size-preset" data-width="0" data-height="0">
+                        <div class="size-preset-label">自定义</div>
+                        <div class="size-preset-size">自由尺寸</div>
+                    </button>
+                </div>
+                <div class="custom-size" id="customSize" style="display: none;">
+                    <div class="size-input-group">
+                        <label>宽度 (像素)</label>
+                        <input type="number" id="customWidth" min="1" max="256" value="32">
+                    </div>
+                    <span class="material-icons-round" style="color: var(--md-sys-color-outline);">close</span>
+                    <div class="size-input-group">
+                        <label>高度 (像素)</label>
+                        <input type="number" id="customHeight" min="1" max="256" value="32">
+                    </div>
+                </div>
+            </div>
+            <div class="dialog-actions">
+                <button class="md-btn md-btn-text" id="newCanvasCancel">取消</button>
+                <button class="md-btn md-btn-filled" id="newCanvasConfirm">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Dialog -->
+    <div class="dialog-overlay" id="progressDialog">
+        <div class="dialog">
+            <div class="dialog-header">
+                <h2 class="dialog-title" id="progressTitle">处理中...</h2>
+            </div>
+            <div class="dialog-content">
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">0%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Snackbar -->
+    <div class="snackbar" id="snackbar"></div>
+
+    <!-- Hidden file inputs -->
+    <input type="file" class="hidden-input" id="imageInput" accept="image/*">
+    <input type="file" class="hidden-input" id="projectInput" accept=".pxlart">
+
+    <script>
+        // ==================== 应用状态 ====================
+        const state = {
+            canvas: null,
+            ctx: null,
+            width: 32,
+            height: 32,
+            pixelSize: 10,
+            currentColor: { r: 0, g: 0, b: 0, a: 255 },
+            currentTool: 'pencil',
+            brushSize: 1,
+            isDrawing: false,
+            lastX: -1,
+            lastY: -1,
+            history: [],
+            historyIndex: -1,
+            maxHistory: 50,
+            showGrid: true,
+            zoom: 1,
+            panX: 0,
+            panY: 0
+        };
+
+        // 快速颜色预设
+        const quickColors = [
+            '#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF',
+            '#FFFF00', '#FF00FF', '#00FFFF', '#FF8000', '#8000FF',
+            '#FF0080', '#00FF80', '#0080FF', '#808080', '#C0C0C0'
+        ];
+
+        // ==================== 初始化 ====================
+        function init() {
+            state.canvas = document.getElementById('pixelCanvas');
+            state.ctx = state.canvas.getContext('2d', { willReadFrequently: true });
+            
+            initCanvas(32, 32);
+            initQuickColors();
+            initEventListeners();
+            updateColorPreview();
+            saveHistory();
+        }
+
+        function initCanvas(width, height) {
+            state.width = width;
+            state.height = height;
+            
+            // 计算像素大小以适应屏幕
+            const container = document.getElementById('canvasContainer');
+            const maxSize = Math.min(container.clientWidth - 48, container.clientHeight - 48);
+            state.pixelSize = Math.max(2, Math.floor(maxSize / Math.max(width, height)));
+            
+            state.canvas.width = width;
+            state.canvas.height = height;
+            state.canvas.style.width = (width * state.pixelSize) + 'px';
+            state.canvas.style.height = (height * state.pixelSize) + 'px';
+            
+            // 填充白色背景
+            state.ctx.fillStyle = '#FFFFFF';
+            state.ctx.fillRect(0, 0, width, height);
+            
+            updateZoomIndicator();
+        }
+
+        function initQuickColors() {
+            const container = document.getElementById('quickColors');
+            container.innerHTML = '';
+            
+            quickColors.forEach((color, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'quick-color' + (index === 0 ? ' active' : '');
+                btn.style.background = color;
+                btn.dataset.color = color;
+                btn.addEventListener('click', () => selectQuickColor(color, btn));
+                container.appendChild(btn);
+            });
+        }
+
+        function selectQuickColor(hexColor, btn) {
+            const rgb = hexToRgb(hexColor);
+            state.currentColor = { ...rgb, a: state.currentColor.a };
+            updateColorPreview();
+            
+            document.querySelectorAll('.quick-color').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        // ==================== 事件监听 ====================
+        function initEventListeners() {
+            const canvas = state.canvas;
+            
+            // 画布事件
+            canvas.addEventListener('mousedown', handlePointerStart);
+            canvas.addEventListener('mousemove', handlePointerMove);
+            canvas.addEventListener('mouseup', handlePointerEnd);
+            canvas.addEventListener('mouseleave', handlePointerEnd);
+            
+            canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+            canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+            canvas.addEventListener('touchend', handlePointerEnd);
+            
+            // 工具按钮
+            document.getElementById('toolPencil').addEventListener('click', () => setTool('pencil'));
+            document.getElementById('toolEraser').addEventListener('click', () => setTool('eraser'));
+            document.getElementById('toolFill').addEventListener('click', () => setTool('fill'));
+            document.getElementById('toolPicker').addEventListener('click', () => setTool('picker'));
+            
+            // 画笔大小滑块
+            const brushSlider = document.getElementById('brushSize');
+            brushSlider.addEventListener('input', (e) => {
+                state.brushSize = parseInt(e.target.value);
+                document.getElementById('brushSizeValue').textContent = state.brushSize;
+            });
+            
+            // 颜色选择器
+            document.getElementById('colorPreview').addEventListener('click', openColorPicker);
+            document.getElementById('colorPickerCancel').addEventListener('click', closeColorPicker);
+            document.getElementById('colorPickerConfirm').addEventListener('click', confirmColorPicker);
+            
+            // 颜色选择器控件
+            initColorPickerControls();
+            
+            // 菜单
+            document.getElementById('menuBtn').addEventListener('click', () => openDialog('menuDialog'));
+            document.getElementById('menuClose').addEventListener('click', () => closeDialog('menuDialog'));
+            
+            // 菜单项
+            document.getElementById('menuNewCanvas').addEventListener('click', () => {
+                closeDialog('menuDialog');
+                openDialog('newCanvasDialog');
+            });
+            document.getElementById('menuClear').addEventListener('click', clearCanvas);
+            document.getElementById('menuImportImage').addEventListener('click', () => {
+                closeDialog('menuDialog');
+                document.getElementById('imageInput').click();
+            });
+            document.getElementById('menuImportProject').addEventListener('click', () => {
+                closeDialog('menuDialog');
+                document.getElementById('projectInput').click();
+            });
+            document.getElementById('menuExportPng').addEventListener('click', exportPng);
+            document.getElementById('menuExportProject').addEventListener('click', exportProject);
+            
+            // 文件输入
+            document.getElementById('imageInput').addEventListener('change', handleImageImport);
+            document.getElementById('projectInput').addEventListener('change', handleProjectImport);
+            
+            // 新建画板
+            document.getElementById('newCanvasFab').addEventListener('click', () => openDialog('newCanvasDialog'));
+            document.getElementById('newCanvasCancel').addEventListener('click', () => closeDialog('newCanvasDialog'));
+            document.getElementById('newCanvasConfirm').addEventListener('click', createNewCanvas);
+            
+            // 尺寸预设
+            document.querySelectorAll('.size-preset').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.size-preset').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    const isCustom = btn.dataset.width === '0';
+                    document.getElementById('customSize').style.display = isCustom ? 'flex' : 'none';
+                });
+            });
+            
+            // 历史记录
+            document.getElementById('undoBtn').addEventListener('click', undo);
+            document.getElementById('redoBtn').addEventListener('click', redo);
+            
+            // 网格切换
+            document.getElementById('gridToggle').addEventListener('click', toggleGrid);
+            
+            // 更多菜单
+            document.getElementById('moreBtn').addEventListener('click', () => openDialog('menuDialog'));
+            
+            // 点击对话框外部关闭
+            document.querySelectorAll('.dialog-overlay').forEach(overlay => {
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) {
+                        closeDialog(overlay.id);
+                    }
+                });
+            });
+            
+            // 键盘快捷键
+            document.addEventListener('keydown', handleKeyboard);
+            
+            // 窗口大小变化
+            window.addEventListener('resize', handleResize);
+        }
+
+        // ==================== 绘画功能 ====================
+        function handlePointerStart(e) {
+            e.preventDefault();
+            state.isDrawing = true;
+            const pos = getCanvasPosition(e);
+            handleDraw(pos.x, pos.y);
+        }
+
+        function handlePointerMove(e) {
+            if (!state.isDrawing) return;
+            e.preventDefault();
+            const pos = getCanvasPosition(e);
+            
+            if (state.lastX !== -1 && state.lastY !== -1) {
+                drawLine(state.lastX, state.lastY, pos.x, pos.y);
+            }
+            
+            state.lastX = pos.x;
+            state.lastY = pos.y;
+        }
+
+        function handlePointerEnd() {
+            if (state.isDrawing) {
+                state.isDrawing = false;
+                state.lastX = -1;
+                state.lastY = -1;
+                saveHistory();
+            }
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            if (e.touches.length === 1) {
+                state.isDrawing = true;
+                const touch = e.touches[0];
+                const pos = getCanvasPosition(touch);
+                handleDraw(pos.x, pos.y);
+            }
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (!state.isDrawing || e.touches.length !== 1) return;
+            
+            const touch = e.touches[0];
+            const pos = getCanvasPosition(touch);
+            
+            if (state.lastX !== -1 && state.lastY !== -1) {
+                drawLine(state.lastX, state.lastY, pos.x, pos.y);
+            }
+            
+            state.lastX = pos.x;
+            state.lastY = pos.y;
+        }
+
+        function getCanvasPosition(e) {
+            const rect = state.canvas.getBoundingClientRect();
+            const scaleX = state.canvas.width / rect.width;
+            const scaleY = state.canvas.height / rect.height;
+            
+            return {
+                x: Math.floor((e.clientX - rect.left) * scaleX),
+                y: Math.floor((e.clientY - rect.top) * scaleY)
+            };
+        }
+
+        function handleDraw(x, y) {
+            if (x < 0 || x >= state.width || y < 0 || y >= state.height) return;
+            
+            switch (state.currentTool) {
+                case 'pencil':
+                    drawPixel(x, y, state.currentColor);
+                    break;
+                case 'eraser':
+                    drawPixel(x, y, { r: 255, g: 255, b: 255, a: 255 });
+                    break;
+                case 'fill':
+                    floodFill(x, y);
+                    saveHistory();
+                    break;
+                case 'picker':
+                    pickColor(x, y);
+                    break;
+            }
+            
+            state.lastX = x;
+            state.lastY = y;
+        }
+
+        function drawPixel(x, y, color) {
+            const size = state.brushSize;
+            const halfSize = Math.floor(size / 2);
+            
+            state.ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a / 255})`;
+            
+            for (let dy = -halfSize; dy < size - halfSize; dy++) {
+                for (let dx = -halfSize; dx < size - halfSize; dx++) {
+                    const px = x + dx;
+                    const py = y + dy;
+                    if (px >= 0 && px < state.width && py >= 0 && py < state.height) {
+                        state.ctx.fillRect(px, py, 1, 1);
+                    }
+                }
+            }
+        }
+
+        function drawLine(x0, y0, x1, y1) {
+            const dx = Math.abs(x1 - x0);
+            const dy = Math.abs(y1 - y0);
+            const sx = x0 < x1 ? 1 : -1;
+            const sy = y0 < y1 ? 1 : -1;
+            let err = dx - dy;
+            
+            while (true) {
+                handleDraw(x0, y0);
+                
+                if (x0 === x1 && y0 === y1) break;
+                
+                const e2 = 2 * err;
+                if (e2 > -dy) {
+                    err -= dy;
+                    x0 += sx;
+                }
+                if (e2 < dx) {
+                    err += dx;
+                    y0 += sy;
+                }
+            }
+        }
+
+        function floodFill(startX, startY) {
+            const imageData = state.ctx.getImageData(0, 0, state.width, state.height);
+            const data = imageData.data;
+            
+            const startIdx = (startY * state.width + startX) * 4;
+            const startColor = {
+                r: data[startIdx],
+                g: data[startIdx + 1],
+                b: data[startIdx + 2],
+                a: data[startIdx + 3]
+            };
+            
+            const fillColor = state.currentColor;
+            
+            if (colorsEqual(startColor, fillColor)) return;
+            
+            const stack = [[startX, startY]];
+            const visited = new Set();
+            
+            while (stack.length > 0) {
+                const [x, y] = stack.pop();
+                const key = `${x},${y}`;
+                
+                if (visited.has(key)) continue;
+                if (x < 0 || x >= state.width || y < 0 || y >= state.height) continue;
+                
+                const idx = (y * state.width + x) * 4;
+                const currentColor = {
+                    r: data[idx],
+                    g: data[idx + 1],
+                    b: data[idx + 2],
+                    a: data[idx + 3]
+                };
+                
+                if (!colorsEqual(currentColor, startColor)) continue;
+                
+                visited.add(key);
+                
+                data[idx] = fillColor.r;
+                data[idx + 1] = fillColor.g;
+                data[idx + 2] = fillColor.b;
+                data[idx + 3] = fillColor.a;
+                
+                stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+            }
+            
+            state.ctx.putImageData(imageData, 0, 0);
+        }
+
+        function colorsEqual(c1, c2) {
+            return c1.r === c2.r && c1.g === c2.g && c1.b === c2.b && c1.a === c2.a;
+        }
+
+        function pickColor(x, y) {
+            const imageData = state.ctx.getImageData(x, y, 1, 1);
+            const data = imageData.data;
+            
+            state.currentColor = {
+                r: data[0],
+                g: data[1],
+                b: data[2],
+                a: data[3]
+            };
+            
+            updateColorPreview();
+            setTool('pencil');
+            showSnackbar('已拾取颜色');
+        }
+
+        // ==================== 工具管理 ====================
+        function setTool(tool) {
+            state.currentTool = tool;
+            
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('tool' + tool.charAt(0).toUpperCase() + tool.slice(1)).classList.add('active');
+        }
+
+        // ==================== 颜色选择器 ====================
+        let colorPickerState = {
+            hue: 0,
+            saturation: 100,
+            brightness: 0,
+            alpha: 255,
+            isDraggingSpectrum: false,
+            isDraggingHue: false,
+            isDraggingAlpha: false
+        };
+
+        function openColorPicker() {
+            const color = state.currentColor;
+            const hsb = rgbToHsb(color.r, color.g, color.b);
+            
+            colorPickerState.hue = hsb.h;
+            colorPickerState.saturation = hsb.s;
+            colorPickerState.brightness = hsb.b;
+            colorPickerState.alpha = color.a;
+            
+            updateColorPickerUI();
+            openDialog('colorPickerDialog');
+        }
+
+        function closeColorPicker() {
+            closeDialog('colorPickerDialog');
+        }
+
+        function confirmColorPicker() {
+            const rgb = hsbToRgb(colorPickerState.hue, colorPickerState.saturation, colorPickerState.brightness);
+            state.currentColor = { ...rgb, a: colorPickerState.alpha };
+            updateColorPreview();
+            closeColorPicker();
+        }
+
+        function initColorPickerControls() {
+            const spectrum = document.getElementById('colorSpectrum');
+            const hueSlider = document.getElementById('hueSlider');
+            const alphaSlider = document.getElementById('alphaSlider');
+
+            // Spectrum events
+            spectrum.addEventListener('mousedown', (e) => {
+                colorPickerState.isDraggingSpectrum = true;
+                updateSpectrumFromEvent(e);
+            });
+            
+            spectrum.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                colorPickerState.isDraggingSpectrum = true;
+                updateSpectrumFromEvent(e.touches[0]);
+            }, { passive: false });
+
+            // Hue slider events
+            hueSlider.addEventListener('mousedown', (e) => {
+                colorPickerState.isDraggingHue = true;
+                updateHueFromEvent(e);
+            });
+            
+            hueSlider.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                colorPickerState.isDraggingHue = true;
+                updateHueFromEvent(e.touches[0]);
+            }, { passive: false });
+
+            // Alpha slider events
+            alphaSlider.addEventListener('mousedown', (e) => {
+                colorPickerState.isDraggingAlpha = true;
+                updateAlphaFromEvent(e);
+            });
+            
+            alphaSlider.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                colorPickerState.isDraggingAlpha = true;
+                updateAlphaFromEvent(e.touches[0]);
+            }, { passive: false });
+
+            // Global move events
+            document.addEventListener('mousemove', handleColorPickerMove);
+            document.addEventListener('touchmove', handleColorPickerTouchMove, { passive: false });
+            
+            document.addEventListener('mouseup', handleColorPickerEnd);
+            document.addEventListener('touchend', handleColorPickerEnd);
+
+            // Input events
+            document.getElementById('hexInput').addEventListener('input', handleHexInput);
+            document.getElementById('redInput').addEventListener('input', handleRgbInput);
+            document.getElementById('greenInput').addEventListener('input', handleRgbInput);
+            document.getElementById('blueInput').addEventListener('input', handleRgbInput);
+            document.getElementById('alphaInput').addEventListener('input', handleAlphaInputChange);
+        }
+
+        function handleColorPickerMove(e) {
+            if (colorPickerState.isDraggingSpectrum) updateSpectrumFromEvent(e);
+            if (colorPickerState.isDraggingHue) updateHueFromEvent(e);
+            if (colorPickerState.isDraggingAlpha) updateAlphaFromEvent(e);
+        }
+
+        function handleColorPickerTouchMove(e) {
+            if (colorPickerState.isDraggingSpectrum || colorPickerState.isDraggingHue || colorPickerState.isDraggingAlpha) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                if (colorPickerState.isDraggingSpectrum) updateSpectrumFromEvent(touch);
+                if (colorPickerState.isDraggingHue) updateHueFromEvent(touch);
+                if (colorPickerState.isDraggingAlpha) updateAlphaFromEvent(touch);
+            }
+        }
+
+        function handleColorPickerEnd() {
+            colorPickerState.isDraggingSpectrum = false;
+            colorPickerState.isDraggingHue = false;
+            colorPickerState.isDraggingAlpha = false;
+        }
+
+        function updateSpectrumFromEvent(e) {
+            const spectrum = document.getElementById('colorSpectrum');
+            const rect = spectrum.getBoundingClientRect();
+            
+            let x = (e.clientX - rect.left) / rect.width;
+            let y = (e.clientY - rect.top) / rect.height;
+            
+            x = Math.max(0, Math.min(1, x));
+            y = Math.max(0, Math.min(1, y));
+            
+            colorPickerState.saturation = x * 100;
+            colorPickerState.brightness = (1 - y) * 100;
+            
+            updateColorPickerUI();
+        }
+
+        function updateHueFromEvent(e) {
+            const hueSlider = document.getElementById('hueSlider');
+            const rect = hueSlider.getBoundingClientRect();
+            
+            let x = (e.clientX - rect.left) / rect.width;
+            x = Math.max(0, Math.min(1, x));
+            
+            colorPickerState.hue = x * 360;
+            updateColorPickerUI();
+        }
+
+        function updateAlphaFromEvent(e) {
+            const alphaSlider = document.getElementById('alphaSlider');
+            const rect = alphaSlider.getBoundingClientRect();
+            
+            let x = (e.clientX - rect.left) / rect.width;
+            x = Math.max(0, Math.min(1, x));
+            
+            colorPickerState.alpha = Math.round(x * 255);
+            updateColorPickerUI();
+        }
+
+        function handleHexInput(e) {
+            let hex = e.target.value.replace('#', '');
+            
+            if (hex.length === 6 || hex.length === 8) {
+                const r = parseInt(hex.substr(0, 2), 16);
+                const g = parseInt(hex.substr(2, 2), 16);
+                const b = parseInt(hex.substr(4, 2), 16);
+                const a = hex.length === 8 ? parseInt(hex.substr(6, 2), 16) : 255;
+                
+                if (!isNaN(r) && !isNaN(g) && !isNaN(b)) {
+                    const hsb = rgbToHsb(r, g, b);
+                    colorPickerState.hue = hsb.h;
+                    colorPickerState.saturation = hsb.s;
+                    colorPickerState.brightness = hsb.b;
+                    colorPickerState.alpha = a;
+                    updateColorPickerUI(true);
+                }
+            }
+        }
+
+        function handleRgbInput() {
+            const r = parseInt(document.getElementById('redInput').value) || 0;
+            const g = parseInt(document.getElementById('greenInput').value) || 0;
+            const b = parseInt(document.getElementById('blueInput').value) || 0;
+            
+            const hsb = rgbToHsb(
+                Math.max(0, Math.min(255, r)),
+                Math.max(0, Math.min(255, g)),
+                Math.max(0, Math.min(255, b))
+            );
+            
+            colorPickerState.hue = hsb.h;
+            colorPickerState.saturation = hsb.s;
+            colorPickerState.brightness = hsb.b;
+            updateColorPickerUI(true);
+        }
+
+        function handleAlphaInputChange() {
+            const a = parseInt(document.getElementById('alphaInput').value) || 0;
+            colorPickerState.alpha = Math.max(0, Math.min(255, a));
+            updateColorPickerUI(true);
+        }
+
+        function updateColorPickerUI(skipInputs = false) {
+            const { hue, saturation, brightness, alpha } = colorPickerState;
+            const rgb = hsbToRgb(hue, saturation, brightness);
+            
+            // Update spectrum background
+            const spectrum = document.getElementById('colorSpectrum');
+            const pureHueColor = hsbToRgb(hue, 100, 100);
+            spectrum.style.background = `rgb(${pureHueColor.r}, ${pureHueColor.g}, ${pureHueColor.b})`;
+            
+            // Update spectrum cursor
+            const spectrumCursor = document.getElementById('spectrumCursor');
+            spectrumCursor.style.left = (saturation) + '%';
+            spectrumCursor.style.top = (100 - brightness) + '%';
+            spectrumCursor.style.background = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+            
+            // Update hue cursor
+            const hueCursor = document.getElementById('hueCursor');
+            hueCursor.style.left = (hue / 360 * 100) + '%';
+            hueCursor.style.background = `hsl(${hue}, 100%, 50%)`;
+            
+            // Update alpha slider
+            const alphaSlider = document.getElementById('alphaSlider');
+            alphaSlider.style.background = `linear-gradient(to right, transparent, rgb(${rgb.r}, ${rgb.g}, ${rgb.b}))`;
+            
+            // Update alpha cursor
+            const alphaCursor = document.getElementById('alphaCursor');
+            alphaCursor.style.left = (alpha / 255 * 100) + '%';
+            alphaCursor.style.setProperty('--cursor-color', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha / 255})`);
+            alphaCursor.style.background = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha / 255})`;
+            
+            // Update preview
+            const preview = document.getElementById('colorPreviewLarge');
+            preview.style.background = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha / 255})`;
+            
+            // Update inputs
+            if (!skipInputs) {
+                document.getElementById('hexInput').value = '#' + rgbToHex(rgb.r, rgb.g, rgb.b) + 
+                    (alpha < 255 ? alpha.toString(16).padStart(2, '0').toUpperCase() : '');
+                document.getElementById('redInput').value = rgb.r;
+                document.getElementById('greenInput').value = rgb.g;
+                document.getElementById('blueInput').value = rgb.b;
+                document.getElementById('alphaInput').value = alpha;
+            }
+        }
+
+        function updateColorPreview() {
+            const { r, g, b, a } = state.currentColor;
+            const preview = document.getElementById('colorPreviewInner');
+            preview.style.background = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+        }
+
+        // ==================== 颜色转换 ====================
+        function rgbToHsb(r, g, b) {
+            r /= 255; g /= 255; b /= 255;
+            
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            const d = max - min;
+            
+            let h = 0;
+            const s = max === 0 ? 0 : d / max * 100;
+            const v = max * 100;
+            
+            if (d !== 0) {
+                switch (max) {
+                    case r: h = ((g - b) / d + (g < b ? 6 : 0)) * 60; break;
+                    case g: h = ((b - r) / d + 2) * 60; break;
+                    case b: h = ((r - g) / d + 4) * 60; break;
+                }
+            }
+            
+            return { h, s, b: v };
+        }
+
+        function hsbToRgb(h, s, b) {
+            s /= 100; b /= 100;
+            
+            const c = b * s;
+            const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+            const m = b - c;
+            
+            let r, g, bl;
+            
+            if (h < 60) { r = c; g = x; bl = 0; }
+            else if (h < 120) { r = x; g = c; bl = 0; }
+            else if (h < 180) { r = 0; g = c; bl = x; }
+            else if (h < 240) { r = 0; g = x; bl = c; }
+            else if (h < 300) { r = x; g = 0; bl = c; }
+            else { r = c; g = 0; bl = x; }
+            
+            return {
+                r: Math.round((r + m) * 255),
+                g: Math.round((g + m) * 255),
+                b: Math.round((bl + m) * 255)
+            };
+        }
+
+        function hexToRgb(hex) {
+            hex = hex.replace('#', '');
+            return {
+                r: parseInt(hex.substr(0, 2), 16),
+                g: parseInt(hex.substr(2, 2), 16),
+                b: parseInt(hex.substr(4, 2), 16)
+            };
+        }
+
+        function rgbToHex(r, g, b) {
+            return [r, g, b].map(x => x.toString(16).padStart(2, '0').toUpperCase()).join('');
+        }
+
+        // ==================== 历史记录 ====================
+        function saveHistory() {
+            const imageData = state.ctx.getImageData(0, 0, state.width, state.height);
+            
+            // 移除当前位置之后的历史记录
+            state.history = state.history.slice(0, state.historyIndex + 1);
+            
+            // 添加新的历史记录
+            state.history.push({
+                imageData: imageData,
+                width: state.width,
+                height: state.height
+            });
+            
+            // 限制历史记录数量
+            if (state.history.length > state.maxHistory) {
+                state.history.shift();
+            }
+            
+            state.historyIndex = state.history.length - 1;
+            updateHistoryButtons();
+        }
+
+        function undo() {
+            if (state.historyIndex > 0) {
+                state.historyIndex--;
+                restoreHistory();
+            }
+        }
+
+        function redo() {
+            if (state.historyIndex < state.history.length - 1) {
+                state.historyIndex++;
+                restoreHistory();
+            }
+        }
+
+        function restoreHistory() {
+            const record = state.history[state.historyIndex];
+            
+            if (record.width !== state.width || record.height !== state.height) {
+                initCanvas(record.width, record.height);
+            }
+            
+            state.ctx.putImageData(record.imageData, 0, 0);
+            updateHistoryButtons();
+        }
+
+        function updateHistoryButtons() {
+            document.getElementById('undoBtn').disabled = state.historyIndex <= 0;
+            document.getElementById('redoBtn').disabled = state.historyIndex >= state.history.length - 1;
+        }
+
+        // ==================== 画板管理 ====================
+        function createNewCanvas() {
+            const activePreset = document.querySelector('.size-preset.active');
+            let width, height;
+            
+            if (activePreset.dataset.width === '0') {
+                width = parseInt(document.getElementById('customWidth').value) || 32;
+                height = parseInt(document.getElementById('customHeight').value) || 32;
+            } else {
+                width = parseInt(activePreset.dataset.width);
+                height = parseInt(activePreset.dataset.height);
+            }
+            
+            width = Math.max(1, Math.min(256, width));
+            height = Math.max(1, Math.min(256, height));
+            
+            initCanvas(width, height);
+            state.history = [];
+            state.historyIndex = -1;
+            saveHistory();
+            
+            closeDialog('newCanvasDialog');
+            showSnackbar(`已创建 ${width}×${height} 画板`);
+        }
+
+        function clearCanvas() {
+            state.ctx.fillStyle = '#FFFFFF';
+            state.ctx.fillRect(0, 0, state.width, state.height);
+            saveHistory();
+            closeDialog('menuDialog');
+            showSnackbar('画板已清空');
+        }
+
+        function toggleGrid() {
+            state.showGrid = !state.showGrid;
+            const wrapper = document.getElementById('canvasWrapper');
+            
+            if (state.showGrid) {
+                const gridSize = state.pixelSize;
+                wrapper.style.backgroundImage = `
+                    linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px)
+                `;
+                wrapper.style.backgroundSize = `${gridSize}px ${gridSize}px`;
+                wrapper.style.backgroundPosition = '8px 8px';
+            } else {
+                wrapper.style.backgroundImage = 'none';
+            }
+            
+            document.getElementById('gridToggle').querySelector('.material-icons-round').textContent = 
+                state.showGrid ? 'grid_on' : 'grid_off';
+        }
+
+        // ==================== 导入导出 ====================
+        async function handleImageImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            showProgress('导入图片中...', 0);
+            
+            const img = new Image();
+            img.onload = async () => {
+                // 计算目标尺寸（保持纵横比，最大128）
+                let targetWidth = img.width;
+                let targetHeight = img.height;
+                const maxSize = 128;
+                
+                if (targetWidth > maxSize || targetHeight > maxSize) {
+                    if (targetWidth > targetHeight) {
+                        targetHeight = Math.round(targetHeight * maxSize / targetWidth);
+                        targetWidth = maxSize;
+                    } else {
+                        targetWidth = Math.round(targetWidth * maxSize / targetHeight);
+                        targetHeight = maxSize;
+                    }
+                }
+                
+                initCanvas(targetWidth, targetHeight);
+                
+                // 绘制图片到画布
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = targetWidth;
+                tempCanvas.height = targetHeight;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.imageSmoothingEnabled = false;
+                tempCtx.drawImage(img, 0, 0, targetWidth, targetHeight);
+                
+                // 像素化处理
+                const imageData = tempCtx.getImageData(0, 0, targetWidth, targetHeight);
+                
+                for (let i = 0; i <= 100; i += 10) {
+                    await sleep(50);
+                    updateProgress(i);
+                }
+                
+                state.ctx.putImageData(imageData, 0, 0);
+                
+                state.history = [];
+                state.historyIndex = -1;
+                saveHistory();
+                
+                hideProgress();
+                showSnackbar('图片导入成功');
+            };
+            
+            img.src = URL.createObjectURL(file);
+            e.target.value = '';
+        }
+
+        async function handleProjectImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            showProgress('导入工程文件...', 0);
+            
+            try {
+                const text = await file.text();
+                updateProgress(30);
+                
+                const project = JSON.parse(text);
+                updateProgress(50);
+                
+                if (project.type !== 'PXLART' || !project.data) {
+                    throw new Error('无效的工程文件');
+                }
+                
+                initCanvas(project.width, project.height);
+                updateProgress(70);
+                
+                // 还原像素数据
+                const imageData = state.ctx.createImageData(project.width, project.height);
+                const data = project.data;
+                
+                for (let i = 0; i < data.length; i++) {
+                    imageData.data[i] = data[i];
+                }
+                
+                state.ctx.putImageData(imageData, 0, 0);
+                updateProgress(90);
+                
+                state.history = [];
+                state.historyIndex = -1;
+                saveHistory();
+                
+                updateProgress(100);
+                await sleep(200);
+                hideProgress();
+                showSnackbar('工程文件导入成功');
+            } catch (err) {
+                hideProgress();
+                showSnackbar('导入失败：' + err.message);
+            }
+            
+            e.target.value = '';
+        }
+
+        function exportPng() {
+            closeDialog('menuDialog');
+            
+            // 创建放大的画布用于导出
+            const scale = Math.max(1, Math.floor(512 / Math.max(state.width, state.height)));
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = state.width * scale;
+            exportCanvas.height = state.height * scale;
+            const exportCtx = exportCanvas.getContext('2d');
+            exportCtx.imageSmoothingEnabled = false;
+            exportCtx.drawImage(state.canvas, 0, 0, exportCanvas.width, exportCanvas.height);
+            
+            const link = document.createElement('a');
+            link.download = `pixel-art-${Date.now()}.png`;
+            link.href = exportCanvas.toDataURL('image/png');
+            link.click();
+            
+            showSnackbar('PNG 已导出');
+        }
+
+        async function exportProject() {
+            closeDialog('menuDialog');
+            showProgress('导出工程文件...', 0);
+            
+            const imageData = state.ctx.getImageData(0, 0, state.width, state.height);
+            updateProgress(30);
+            
+            const project = {
+                type: 'PXLART',
+                version: '1.0',
+                width: state.width,
+                height: state.height,
+                data: Array.from(imageData.data),
+                createdAt: new Date().toISOString()
+            };
+            
+            updateProgress(60);
+            
+            const blob = new Blob([JSON.stringify(project)], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.download = `pixel-art-${Date.now()}.pxlart`;
+            link.href = URL.createObjectURL(blob);
+            
+            updateProgress(90);
+            await sleep(100);
+            
+            link.click();
+            
+            updateProgress(100);
+            await sleep(200);
+            hideProgress();
+            showSnackbar('工程文件已导出');
+        }
+
+        // ==================== 对话框管理 ====================
+        function openDialog(id) {
+            document.getElementById(id).classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDialog(id) {
+            document.getElementById(id).classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // ==================== 进度条 ====================
+        function showProgress(title, percent) {
+            document.getElementById('progressTitle').textContent = title;
+            updateProgress(percent);
+            openDialog('progressDialog');
+        }
+
+        function updateProgress(percent) {
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = Math.round(percent) + '%';
+        }
+
+        function hideProgress() {
+            closeDialog('progressDialog');
+        }
+
+        // ==================== Snackbar ====================
+        function showSnackbar(message) {
+            const snackbar = document.getElementById('snackbar');
+            snackbar.textContent = message;
+            snackbar.classList.add('show');
+            
+            setTimeout(() => {
+                snackbar.classList.remove('show');
+            }, 3000);
+        }
+
+        // ==================== 辅助函数 ====================
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function handleKeyboard(e) {
+            if (e.ctrlKey || e.metaKey) {
+                switch (e.key.toLowerCase()) {
+                    case 'z':
+                        e.preventDefault();
+                        if (e.shiftKey) redo();
+                        else undo();
+                        break;
+                    case 'y':
+                        e.preventDefault();
+                        redo();
+                        break;
+                    case 's':
+                        e.preventDefault();
+                        exportProject();
+                        break;
+                }
+            }
+            
+            switch (e.key.toLowerCase()) {
+                case 'b': setTool('pencil'); break;
+                case 'e': setTool('eraser'); break;
+                case 'g': setTool('fill'); break;
+                case 'i': setTool('picker'); break;
+            }
+        }
+
+        function handleResize() {
+            const container = document.getElementById('canvasContainer');
+            const maxSize = Math.min(container.clientWidth - 48, container.clientHeight - 48);
+            state.pixelSize = Math.max(2, Math.floor(maxSize / Math.max(state.width, state.height)));
+            
+            state.canvas.style.width = (state.width * state.pixelSize) + 'px';
+            state.canvas.style.height = (state.height * state.pixelSize) + 'px';
+            
+            if (state.showGrid) {
+                toggleGrid();
+                toggleGrid();
+            }
+            
+            updateZoomIndicator();
+        }
+
+        function updateZoomIndicator() {
+            const zoom = Math.round(state.pixelSize / 10 * 100);
+            document.getElementById('zoomIndicator').textContent = zoom + '%';
+        }
+
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
