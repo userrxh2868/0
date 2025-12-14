@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>MD3 Snake: v10.0 Cyber Evolution</title>
+    <style>
+        :root {
+            --md-primary: #D0BCFF;
+            --md-surface: #141218;
+            --md-error: #F2B8B5;
+            --glass: rgba(20, 20, 20, 0.65);
+            --hacker: #00FF00;
+        }
+
+        body {
+            margin: 0; overflow: hidden; background: #050505;
+            font-family: 'Roboto', sans-serif;
+            touch-action: none; user-select: none; -webkit-user-select: none;
+            color: #E6E1E5;
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* UI */
+        .score-pill {
+            position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+            background: var(--glass); backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.15); padding: 8px 24px; border-radius: 50px;
+            font-weight: bold; font-size: 1.2rem; pointer-events: none; z-index: 60;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        #minimap-container {
+            position: absolute; top: 16px; right: 16px; width: 140px; height: 140px;
+            background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 16px; overflow: hidden; z-index: 60;
+        }
+
+        #chat-box {
+            position: absolute; top: 170px; right: 16px; width: 220px;
+            background: rgba(20, 20, 20, 0.5); backdrop-filter: blur(4px);
+            border-left: 2px solid rgba(255,255,255,0.1); border-radius: 8px;
+            display: flex; flex-direction: column; overflow: hidden; z-index: 50;
+            transition: height 0.3s ease;
+        }
+        #chat-header {
+            padding: 6px 10px; background: rgba(255,255,255,0.05); font-size: 0.8rem;
+            display: flex; justify-content: space-between; cursor: pointer; pointer-events: auto;
+        }
+        #chat-content {
+            height: 140px; overflow-y: auto; display: flex; flex-direction: column-reverse;
+            padding: 8px; gap: 4px; font-size: 0.75rem; text-shadow: 0 1px 2px black; text-align: right;
+            pointer-events: none;
+        }
+        #chat-box.collapsed #chat-content { height: 0; padding: 0; }
+        .msg-line { animation: slideIn 0.3s ease-out; }
+        .msg-hacker { color: #00FF00; font-family: monospace; font-weight: bold; }
+        .msg-kill { color: #ffb4a9; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* Tools */
+        .left-btn-group {
+            position: absolute; top: 16px; left: 16px; display: flex; flex-direction: column; gap: 12px; z-index: 70;
+        }
+        .icon-btn {
+            width: 48px; height: 48px; background: rgba(50,50,50,0.8); color: white;
+            border-radius: 12px; display: flex; align-items: center; justify-content: center;
+            font-size: 24px; pointer-events: auto; cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); border: 1px solid #555;
+            transition: transform 0.1s;
+        }
+        .icon-btn:active { transform: scale(0.95); }
+
+        /* Controls */
+        #joystick-zone { position: absolute; bottom: 40px; left: 40px; width: 140px; height: 140px; pointer-events: auto; z-index: 60; }
+        #joystick-bg { width: 100%; height: 100%; border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); }
+        #joystick-knob { position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; background: var(--md-primary); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        
+        #boost-btn {
+            position: absolute; bottom: 50px; right: 40px; width: 90px; height: 90px;
+            background: #4F378B; color: white; border-radius: 50%; border: none; font-size: 36px;
+            pointer-events: auto; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 60;
+        }
+        
+        /* Modals */
+        .modal-panel {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: #211F26; border-radius: 28px 28px 0 0;
+            padding: 24px; max-height: 80vh; overflow-y: auto;
+            transform: translateY(110%); transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+            pointer-events: auto; z-index: 200; box-shadow: 0 -10px 60px rgba(0,0,0,0.7);
+            color: white; border-top: 1px solid #444; display: flex; flex-direction: column;
+        }
+        .modal-panel.open { transform: translateY(0); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px;}
+        
+        .mod-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .mod-group { font-size: 0.75rem; color: #aaa; margin: 18px 0 8px 0; text-transform: uppercase; font-weight: bold; border-left: 3px solid var(--md-primary); padding-left: 8px;}
+        
+        .btn-primary { background: var(--md-primary); color: #381E72; border: none; padding: 12px; border-radius: 50px; width: 100%; margin-bottom: 10px; font-weight: bold; font-size: 1rem;}
+        .btn-danger { background: #8B0000; color: white; border: none; padding: 12px; border-radius: 50px; width: 100%; margin-bottom: 10px; font-weight: bold;}
+        .btn-outline { background: transparent; color: var(--md-primary); border: 2px solid var(--md-primary); padding: 10px; border-radius: 50px; width: 100%; font-weight: bold;}
+
+        /* Components */
+        input[type=range] { width: 100%; accent-color: var(--md-primary); }
+        .switch { position: relative; display: inline-block; width: 46px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #555; transition: .3s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--md-primary); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        #backdrop { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.7); opacity: 0; pointer-events: none; transition: 0.3s; z-index: 150; }
+        #backdrop.show { opacity: 1; pointer-events: auto; }
+        
+        #room-list-content { flex: 1; overflow-y: auto; }
+        .room-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.05); margin-bottom: 5px; border-radius: 8px;}
+        .btn-kick { background: var(--md-error); color: black; border: none; padding: 4px 10px; border-radius: 6px; font-weight: bold; cursor: pointer;}
+        .hacker-badge { background: rgba(0,255,0,0.2); color: #00FF00; padding: 2px 4px; border-radius: 4px; font-size: 0.8em; margin-right: 4px; border: 1px solid #00FF00;}
+
+        /* Menu */
+        #main-menu { position: absolute; top:0; left:0; width:100%; height:100%; background: #050505; z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .menu-card { background: #1E1C22; padding: 30px; border-radius: 28px; width: 85%; max-width: 350px; text-align: center; box-shadow: 0 20px 50px black; border: 1px solid #333; }
+        select { width: 100%; padding: 12px; background: black; color: white; border: 1px solid #555; border-radius: 8px; margin: 10px 0 20px 0; }
+        
+        #game-over { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 400; flex-direction: column; align-items: center; justify-content: center; color: white; }
+    </style>
+</head>
+<body>
+
+    <div id="game-ui" style="display:none;">
+        <div class="left-btn-group">
+            <div class="icon-btn" onclick="openModMenu()">⚙️</div>
+            <div class="icon-btn" onclick="openRoomList()">📋</div>
+        </div>
+        <div class="score-pill">长度: <span id="scoreVal">0</span></div>
+        <div id="minimap-container"><canvas id="minimap"></canvas></div>
+        
+        <div id="chat-box">
+            <div id="chat-header" onclick="toggleChat()">
+                <span>频道信息</span> <span id="chat-toggle-icon">➖</span>
+            </div>
+            <div id="chat-content"></div>
+        </div>
+
+        <div id="joystick-zone"><div id="joystick-bg"></div><div id="joystick-knob"></div></div>
+        <button id="boost-btn">⚡</button>
+    </div>
+
+    <div id="main-menu">
+        <div class="menu-card">
+            <h1 style="color:var(--md-primary); margin-top:0;">Snake v10.0</h1>
+            <p style="color:#aaa; font-size:0.9rem;">
+                🧬 AI 拟人化自然走位<br>
+                🤖 外挂哥: 陀螺/自瞄/吸积<br>
+                🛡️ 新Mod: AT力场 & 暴食雨
+            </p>
+            <label style="display:block; text-align:left; font-size:0.8rem; color:#aaa;">地图大小</label>
+            <select id="mapSize">
+                <option value="2000">小 (2000)</option>
+                <option value="3000" selected>中 (3000)</option>
+                <option value="5000">大 (5000)</option>
+            </select>
+            <button class="btn-primary" onclick="initGame()">进入战场</button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+    <div id="backdrop"></div>
+
+    <!-- Mod 菜单 -->
+    <div id="mod-menu" class="modal-panel">
+        <div class="modal-header">
+            <span class="modal-title">Mod 控制台</span>
+            <span onclick="closeAllModals()" style="font-size:1.5rem;cursor:pointer">✕</span>
+        </div>
+
+        <div class="mod-group">领域展开 (NEW)</div>
+        <div class="mod-row"><b style="color:#FFF176">🌧️ 暴食之雨 (无限刷食)</b> <label class="switch"><input type="checkbox" onchange="mods.foodRain=this.checked"><span class="slider"></span></label></div>
+        <div class="mod-row"><b style="color:#81D4FA">🛡️ AT力场 (弹开敌人)</b> <label class="switch"><input type="checkbox" onchange="mods.forceField=this.checked"><span class="slider"></span></label></div>
+        <div class="mod-row"><b style="color:#FFD700">🪐 全图吞噬 (World Eater)</b> <label class="switch"><input type="checkbox" onchange="mods.worldEater=this.checked"><span class="slider"></span></label></div>
+
+        <div class="mod-group">能力增强</div>
+        <div class="mod-row"><b>🛡️ 无敌模式</b> <label class="switch"><input type="checkbox" id="m_god" onchange="mods.godMode=this.checked"><span class="slider"></span></label></div>
+        <div class="mod-row"><b style="color:#FF8A80">🔪 乱杀模式</b> <label class="switch"><input type="checkbox" id="m_kill" onchange="mods.instaKill=this.checked"><span class="slider"></span></label></div>
+        <div class="mod-row"><b style="color:#CCFF90">🚀 无限加速</b> <label class="switch"><input type="checkbox" id="m_inf" onchange="mods.infBoost=this.checked"><span class="slider"></span></label></div>
+        <div class="mod-row"><b style="color:#EA80FC">🤖 自动托管</b> <label class="switch"><input type="checkbox" id="m_auto" onchange="mods.autoPilot=this.checked"><span class="slider"></span></label></div>
+        <div class="mod-row"><b>🌀 旋风冲锋 (SpinBot)</b> <label class="switch"><input type="checkbox" onchange="mods.spinBot=this.checked"><span class="slider"></span></label></div>
+
+        <div class="mod-group">环境控制</div>
+        <div class="mod-row"><b>👻 幽灵隐身</b> <label class="switch"><input type="checkbox" id="m_gho" onchange="mods.ghost=this.checked"><span class="slider"></span></label></div>
+        <div class="mod-row"><b>⏸️ 冻结时间</b> <label class="switch"><input type="checkbox" id="m_stop" onchange="mods.stopTime=this.checked"><span class="slider"></span></label></div>
+
+        <div class="mod-group">参数调整</div>
+        <div class="mod-row" style="display:block">
+            <div style="display:flex;justify-content:space-between"><span>长度</span> <span id="lenDisplay">20</span></div>
+            <input type="range" min="10" max="2000" value="20" oninput="modSetLength(this.value)">
+        </div>
+        
+        <div style="margin-top:20px;">
+            <button class="btn-danger" onclick="nukeAll()">☢️ 核弹清屏</button>
+            <button class="btn-primary" onclick="spawnFood(500)">🍎 铺满食物</button>
+            <button class="btn-outline" onclick="exitToMenu()">🔙 返回菜单</button>
+        </div>
+    </div>
+
+    <!-- 房间列表 -->
+    <div id="room-list" class="modal-panel">
+        <div class="modal-header">
+            <span>玩家列表</span>
+            <span onclick="closeAllModals()" style="font-size:1.5rem;cursor:pointer">✕</span>
+        </div>
+        <div id="room-list-content"></div>
+    </div>
+
+    <div id="game-over">
+        <h1 style="color:#F2B8B5">你挂了!</h1>
+        <p>最终长度: <span id="finalScore"></span></p>
+        <button class="btn-primary" style="width:auto; padding:12px 40px" onclick="exitToMenu()">返回菜单</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const miniCtx = document.getElementById('minimap').getContext('2d');
+        const chatContent = document.getElementById('chat-content');
+
+        // Name Generators
+        const SURNAME = "赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜戚谢邹喻柏水窦章云苏潘葛奚范彭郎鲁韦昌马苗凤花方俞任袁柳酆鲍史唐费廉岑薛雷贺倪汤滕殷罗毕郝邬安常乐于时傅皮卡齐康伍余元卜顾孟平黄和穆萧尹姚邵湛汪祁毛禹狄米贝明臧计伏成戴谈宋茅庞熊纪舒屈项祝董梁杜阮蓝闵席季麻强贾路娄危江童颜郭梅盛林刁钟徐邱骆高夏蔡田樊胡凌霍虞万支柯昝管卢莫经房裘缪干解应宗丁宣邓郁单杭洪包诸左石崔吉钮龚".split("");
+        const NAME = "明刚伟芳秀英娜静强磊军洋勇艳杰娟敏超兰霞平刚桂云华强建文波辉红梅玲涛斌光宁欣宇龙浩鹏飞子轩梓涵一诺语桐星辰雨泽心怡".split("");
+        function getChineseName() { return SURNAME[Math.floor(Math.random()*SURNAME.length)] + NAME[Math.floor(Math.random()*NAME.length)]; }
+
+        let STATE = { running: false, w: 3000, h: 3000, zoom: 1.0 };
+        let mods = { 
+            godMode: false, instaKill: false, magnet: false, autoPilot: false, ghost: false, 
+            stopTime: false, infBoost: false, speed: 1.0, worldEater: false,
+            foodRain: false, forceField: false, spinBot: false
+        };
+
+        let player = null;
+        let bots = [];
+        let foods = [];
+        let audioCtx;
+        const COLORS = ['#F44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3', '#03A9F4', '#00BCD4', '#009688', '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800', '#FF5722'];
+
+        class Snake {
+            constructor(x, y, isBot) {
+                this.x = x; this.y = y; this.isBot = isBot;
+                this.name = isBot ? getChineseName() : "我";
+                this.isHacker = false;
+                this.lifeTime = 0; // 用于计算正弦波行走
+                this.wobblePhase = Math.random() * 100;
+
+                // Hacker Logic
+                if(isBot && Math.random() < 0.3) {
+                    this.isHacker = true;
+                    this.name = "[挂] " + this.name;
+                    this.hackerMode = 'normal'; // normal, spin, aimbot, magnet
+                    this.hackerTimer = 0;
+                }
+
+                this.angle = Math.random() * Math.PI * 2;
+                this.targetAngle = this.angle;
+                this.length = 20;
+                this.size = 12;
+                this.segments = []; for(let i=0; i<this.length; i++) this.segments.push({x,y});
+                
+                this.baseColor = this.isHacker ? '#00FF00' : (isBot ? COLORS[Math.floor(Math.random()*COLORS.length)] : '#D0BCFF');
+                this.color = this.baseColor;
+                this.alive = true;
+            }
+
+            update() {
+                if(!this.alive) return;
+                if(this.isBot && mods.stopTime) return;
+                this.lifeTime++;
+
+                // --- Player Mods ---
+                if(!this.isBot) {
+                    if(mods.autoPilot) this.aiThinking();
+                    if(mods.magnet || mods.worldEater) this.doMagnet(mods.worldEater ? 9999 : 300);
+                    if(mods.worldEater) this.size += 0.05;
+                    if(mods.foodRain && this.lifeTime % 5 === 0) dropFood({x:this.x + (Math.random()-0.5)*100, y:this.y + (Math.random()-0.5)*100}, true);
+                    if(mods.spinBot) this.angle += 0.4; // Player spin
+                }
+
+                // --- Hacker AI Logic (State Machine) ---
+                if(this.isBot && this.isHacker) {
+                    this.hackerTimer++;
+                    if(this.hackerTimer > 100) { // Switch mode periodically
+                        this.hackerTimer = 0;
+                        let r = Math.random();
+                        if(r < 0.4) this.hackerMode = 'normal';
+                        else if(r < 0.6) this.hackerMode = 'spin';
+                        else if(r < 0.8) this.hackerMode = 'aimbot';
+                        else this.hackerMode = 'magnet';
+                    }
+
+                    if(this.hackerMode === 'spin') { this.angle += 0.5; this.boosting = false; }
+                    else if(this.hackerMode === 'aimbot') { this.doAimbot(); this.boosting = true; }
+                    else if(this.hackerMode === 'magnet') { this.doMagnet(400); this.boosting = true; }
+                    else { this.boosting = false; }
+                }
+
+                // Speed
+                let baseSpd = 3;
+                if(this.isHacker && this.hackerMode !== 'normal') baseSpd = 5;
+                let spd = ((this.boosting && this.length>10) ? baseSpd*2 : baseSpd) * mods.speed;
+
+                // Length cost
+                if(this.boosting && this.length>10) {
+                    let noCost = (!this.isBot && (mods.infBoost || mods.worldEater)) || this.isHacker;
+                    if(!noCost && Math.random()<0.15) {
+                        this.length-=0.5;
+                        if(Math.random()<0.3) dropFood(this.segments[this.segments.length-1]);
+                    }
+                }
+
+                // Dynamic Size
+                if(!mods.worldEater) this.size = Math.min(50, 12 + Math.sqrt(this.length - 20) * 0.8);
+
+                // Turning Physics
+                if(!mods.spinBot && !(this.isHacker && this.hackerMode === 'spin')) {
+                    let diff = this.targetAngle - this.angle;
+                    while(diff < -Math.PI) diff += Math.PI*2;
+                    while(diff > Math.PI) diff -= Math.PI*2;
+                    
+                    let turnRate = (this.isHacker && this.hackerMode==='aimbot') ? 0.3 : 0.1;
+                    this.angle += diff * turnRate;
+                }
+
+                // Move
+                this.x += Math.cos(this.angle) * spd;
+                this.y += Math.sin(this.angle) * spd;
+
+                this.segments.unshift({x:this.x, y:this.y});
+                while(this.segments.length > Math.floor(this.length)) this.segments.pop();
+
+                // Boundary & ForceField
+                this.handleEnvironment();
+            }
+
+            handleEnvironment() {
+                // Force Field Effect
+                if(this.isBot && mods.forceField && player && player.alive) {
+                    let dist = Math.hypot(this.x - player.x, this.y - player.y);
+                    if(dist < 250) {
+                        // Push away
+                        let angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
+                        this.x -= Math.cos(angleToPlayer) * 10;
+                        this.y -= Math.sin(angleToPlayer) * 10;
+                    }
+                }
+
+                // Mod Colors
+                if(mods.rainbow) this.color = `hsl(${Date.now()/5%360},70%,60%)`;
+                else if(mods.ghost && !this.isBot) this.color = 'rgba(255,255,255,0.15)';
+                else this.color = this.baseColor;
+
+                // Walls
+                if(mods.godMode && !this.isBot) {
+                    if(this.x<0)this.x=STATE.w; if(this.x>STATE.w)this.x=0;
+                    if(this.y<0)this.y=STATE.h; if(this.y>STATE.h)this.y=0;
+                } else if(this.isBot) {
+                    this.x = Math.max(0, Math.min(STATE.w, this.x));
+                    this.y = Math.max(0, Math.min(STATE.h, this.y));
+                }
+            }
+
+            doMagnet(range) {
+                foods.forEach(f=>{
+                    let dx=this.x-f.x, dy=this.y-f.y, d=Math.hypot(dx,dy);
+                    if(d<range) { let p=(range-d)/12; f.x+=(dx/d)*p; f.y+=(dy/d)*p; }
+                });
+            }
+
+            doAimbot() {
+                // Find nearest enemy
+                let nearest = null, minD = 9999;
+                [player, ...bots].forEach(b => {
+                    if(b!==this && b.alive) {
+                        let d = Math.hypot(this.x-b.x, this.y-b.y);
+                        if(d<minD) { minD=d; nearest=b; }
+                    }
+                });
+                if(nearest) this.targetAngle = Math.atan2(nearest.y-this.y, nearest.x-this.x);
+            }
+
+            aiThinking() {
+                // Natural Movement: Add wobble when wandering
+                let baseTarget = this.angle;
+                
+                const sensors = [-0.6, -0.3, 0, 0.3, 0.6];
+                let bestScore = -99999;
+                let bestAngle = this.angle;
+
+                let tFood=null, minD=600;
+                for(let f of foods) { let d=Math.hypot(this.x-f.x, this.y-f.y); if(d<minD){minD=d; tFood=f;} }
+
+                let rayLen = 120 + this.size*2;
+
+                for(let s of sensors) {
+                    let ang = this.angle + s;
+                    let tx = this.x + Math.cos(ang) * rayLen;
+                    let ty = this.y + Math.sin(ang) * rayLen;
+                    let score = 0;
+
+                    // Walls
+                    if(tx<30||tx>STATE.w-30||ty<30||ty>STATE.h-30) score -= 5000;
+
+                    // Obstacles
+                    let hit = false;
+                    let all = [player, ...bots];
+                    for(let o of all) {
+                        if(!o || o===this || !o.alive) continue;
+                        if(o===player && mods.ghost) continue;
+
+                        let safeDist = o.size + this.size + 30;
+                        if(Math.hypot(tx-o.x, ty-o.y) < safeDist + 30) { score-=2000; hit=true; break; }
+                        
+                        if(!hit) {
+                            for(let k=0; k<o.segments.length; k+=5) {
+                                if(Math.hypot(tx-o.segments[k].x, ty-o.segments[k].y) < safeDist) {
+                                    score-=1000; hit=true; break;
+                                }
+                            }
+                        }
+                    }
+
+                    // Food vs Wandering
+                    if(tFood && !hit) {
+                        let fAng = Math.atan2(tFood.y-this.y, tFood.x-this.x);
+                        let dAng = Math.abs(ang - fAng);
+                        if(dAng>Math.PI) dAng = 2*Math.PI-dAng;
+                        score += (Math.PI - dAng) * 70;
+                    } else if(!hit) {
+                        // Natural wandering: slightly favor current direction + sine wave
+                        if(s === 0) score += 20;
+                    }
+
+                    if(score > bestScore) { bestScore=score; bestAngle=ang; }
+                }
+
+                // Apply Natural Wiggle if just wandering (score low)
+                if(bestScore < 50) {
+                    // Add sine wave oscillation
+                    let wiggle = Math.sin((this.lifeTime + this.wobblePhase) * 0.1) * 0.3;
+                    bestAngle += wiggle;
+                }
+
+                this.targetAngle = bestAngle;
+                this.boosting = (bestScore < -500); 
+            }
+
+            draw(ctx) {
+                if(!this.alive) return;
+                
+                // Body
+                ctx.lineWidth = this.size*2-2; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle=this.color;
+                ctx.beginPath();
+                if(this.segments.length) {
+                    ctx.moveTo(this.segments[0].x, this.segments[0].y);
+                    for(let i=2; i<this.segments.length; i+=2) ctx.lineTo(this.segments[i].x, this.segments[i].y);
+                }
+                ctx.stroke();
+                
+                // Head
+                ctx.fillStyle=this.color; ctx.beginPath(); ctx.arc(this.x,this.y,this.size,0,Math.PI*2); ctx.fill();
+                
+                // Eyes
+                ctx.fillStyle='white'; 
+                let ex=this.x+Math.cos(this.angle)*this.size*0.6, ey=this.y+Math.sin(this.angle)*this.size*0.6;
+                ctx.beginPath(); ctx.arc(ex,ey,this.size*0.35,0,Math.PI*2); ctx.fill();
+
+                // Name
+                if(this.isBot) {
+                    ctx.fillStyle = this.isHacker ? "#00FF00" : "white";
+                    ctx.font = "bold 12px Arial"; ctx.textAlign = "center";
+                    let suffix = "";
+                    if(this.isHacker) {
+                        if(this.hackerMode === 'spin') suffix = " [SPIN]";
+                        if(this.hackerMode === 'aimbot') suffix = " [AIM]";
+                    }
+                    ctx.fillText(this.name + suffix, this.x, this.y - this.size - 10);
+                }
+            }
+        }
+
+        // --- Core ---
+        function initGame() {
+            let s = parseInt(document.getElementById('mapSize').value);
+            STATE.w = s; STATE.h = s;
+            player = new Snake(s/2, s/2, false);
+            bots = []; foods = []; chatContent.innerHTML='';
+            
+            for(let i=0; i<30; i++) addBot();
+            spawnFood(s*s/7000);
+
+            document.getElementById('main-menu').style.display='none';
+            document.getElementById('game-ui').style.display='block';
+            document.getElementById('game-over').style.display='none';
+            STATE.running = true;
+            resize();
+            loop();
+        }
+
+        function addBot() {
+            bots.push(new Snake(Math.random()*STATE.w, Math.random()*STATE.h, true));
+            let b = bots[bots.length-1];
+            if(b.isHacker) chatMsg(`⚠️ 挂哥 ${b.name} 进场`, 'hacker');
+            updateRoomListUI();
+        }
+
+        function spawnFood(n) { for(let i=0; i<n; i++) foods.push({x:Math.random()*STATE.w, y:Math.random()*STATE.h, size:5+Math.random()*5, color:COLORS[Math.floor(Math.random()*COLORS.length)]}); }
+        function dropFood(pos, isBig) { foods.push({x:pos.x, y:pos.y, size:isBig?8:5, color:isBig?'#FFD700':'#fff'}); }
+
+        function loop() {
+            if(!STATE.running) return;
+            while(bots.length < 40) addBot();
+
+            if(player.alive) { player.update(); checkCollisions(player); }
+            bots.forEach(b => { b.update(); checkCollisions(b); });
+
+            // Kill Mods
+            if(mods.instaKill || mods.worldEater) {
+                bots.forEach(b => {
+                    if(!b.alive) return;
+                    let safe = player.size + b.size + (mods.worldEater ? 40 : 10);
+                    if(Math.hypot(player.x-b.x, player.y-b.y) < safe) killSnake(b, player);
+                });
+            }
+
+            if(foods.length<50) spawnFood(20);
+            render();
+            document.getElementById('scoreVal').innerText = Math.floor(player.length);
+            requestAnimationFrame(loop);
+        }
+
+        function checkCollisions(s) {
+            if(!s.alive) return;
+            let eatRange = s.size + 5; 
+            for(let i=foods.length-1; i>=0; i--) {
+                let f=foods[i];
+                if((s.x-f.x)**2+(s.y-f.y)**2 < (eatRange+f.size)**2) {
+                    foods.splice(i,1); s.length++;
+                    if(!s.isBot) playPop();
+                }
+            }
+            if((!mods.godMode||s.isBot) && (s.x<0||s.x>STATE.w||s.y<0||s.y>STATE.h)) { killSnake(s, null); return; }
+            if(s===player && (mods.godMode || mods.worldEater)) return;
+            let others = [player, ...bots];
+            for(let o of others) {
+                if(!o||o===s||!o.alive) continue;
+                if(mods.ghost && (o===player||s===player)) continue;
+                let colDist = s.size + o.size - 2;
+                for(let i=0; i<o.segments.length; i+=3) {
+                    if((s.x-o.segments[i].x)**2 + (s.y-o.segments[i].y)**2 < colDist**2) { killSnake(s, o); return; }
+                }
+            }
+        }
+
+        function killSnake(v, k) {
+            if(!v.alive) return;
+            v.alive = false;
+            let vn = v.name, kn = k ? k.name : "墙";
+            chatMsg(k ? `⚔️ ${kn} 吃掉 ${vn}` : `☠️ ${vn} 暴毙`, 'kill');
+            
+            let dropCount = Math.min(v.length, 150); 
+            for(let i=0; i<dropCount; i+=2) {
+                let seg = v.segments[Math.floor(i/dropCount*v.segments.length)];
+                if(seg) foods.push({x:seg.x+(Math.random()-0.5)*30, y:seg.y+(Math.random()-0.5)*30, size:v.size*0.6, color:v.color});
+            }
+
+            if(!v.isBot) {
+                document.getElementById('finalScore').innerText = Math.floor(v.length);
+                document.getElementById('game-over').style.display='flex';
+            } else {
+                bots = bots.filter(b=>b!==v);
+                updateRoomListUI();
+            }
+        }
+
+        function nukeAll() { bots.forEach(b => killSnake(b, player)); chatMsg("☢️ 核弹清洗", 'kill'); }
+        
+        // --- System UI ---
+        function openModMenu() { closeAllModals(); document.getElementById('mod-menu').classList.add('open'); document.getElementById('backdrop').classList.add('show'); }
+        function openRoomList() { closeAllModals(); document.getElementById('room-list').classList.add('open'); document.getElementById('backdrop').classList.add('show'); updateRoomListUI(); }
+        function closeAllModals() { document.querySelectorAll('.modal-panel').forEach(p=>p.classList.remove('open')); document.getElementById('backdrop').classList.remove('show'); }
+        function toggleChat() { document.getElementById('chat-box').classList.toggle('collapsed'); document.getElementById('chat-toggle-icon').innerText = document.getElementById('chat-box').classList.contains('collapsed') ? '➕' : '➖'; }
+        
+        function updateRoomListUI() {
+            if(!document.getElementById('room-list').classList.contains('open')) return;
+            const list = document.getElementById('room-list-content');
+            let html = '';
+            if(player.alive) html += `<div class="room-item"><div><span style="color:#D0BCFF">我</span></div><span>L:${Math.floor(player.length)}</span></div>`;
+            bots.forEach((b,i)=>{
+                if(b.alive) {
+                    let tag = b.isHacker ? '<span class="hacker-badge">挂</span>' : '';
+                    html += `<div class="room-item"><div>${tag}<span>${b.name}</span></div><div><button class="btn-kick" onclick="kickBot(${i})">踢出</button></div></div>`;
+                }
+            });
+            list.innerHTML = html;
+        }
+
+        window.kickBot = function(i) { if(bots[i]) { killSnake(bots[i], player); updateRoomListUI(); } };
+        window.modSetLength=v=>{player.length=parseInt(v);document.getElementById('lenDisplay').innerText=v;};
+        window.modSetZoom=v=>{STATE.zoom=parseFloat(v);document.getElementById('zoomDisplay').innerText=v;};
+        window.spawnFood=n=>{for(let i=0;i<n;i++)foods.push({x:Math.random()*STATE.w,y:Math.random()*STATE.h,size:5+Math.random()*5,color:COLORS[Math.floor(Math.random()*COLORS.length)]});closeAllModals();};
+
+        function exitToMenu() {
+            STATE.running=false; document.getElementById('game-ui').style.display='none'; document.getElementById('game-over').style.display='none'; closeAllModals(); document.getElementById('main-menu').style.display='flex';
+            mods = {godMode:false,instaKill:false,magnet:false,autoPilot:false,ghost:false,stopTime:false,infBoost:false,speed:1.0,worldEater:false,foodRain:false,forceField:false,spinBot:false};
+            document.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);
+        }
+
+        function chatMsg(t, type) {
+            let d=document.createElement('div'); d.className='msg-line '+(type?`msg-${type}`:''); d.innerText=t;
+            chatContent.prepend(d); if(chatContent.children.length>50) chatContent.lastChild.remove();
+        }
+
+        function render() {
+            ctx.fillStyle = '#050505'; ctx.fillRect(0,0,canvas.width, canvas.height);
+            let cx=player.x, cy=player.y;
+            let tx=canvas.width/2 - cx*STATE.zoom, ty=canvas.height/2 - cy*STATE.zoom;
+            ctx.save(); ctx.translate(tx,ty); ctx.scale(STATE.zoom,STATE.zoom);
+            
+            ctx.strokeStyle='#222'; ctx.lineWidth=20; ctx.strokeRect(0,0,STATE.w,STATE.h);
+            ctx.beginPath(); ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=2;
+            let sx=Math.max(0,cx-canvas.width/STATE.zoom), ex=Math.min(STATE.w,cx+canvas.width/STATE.zoom);
+            let sy=Math.max(0,cy-canvas.height/STATE.zoom), ey=Math.min(STATE.h,cy+canvas.height/STATE.zoom);
+            for(let x=Math.floor(sx/100)*100;x<ex;x+=100){ctx.moveTo(x,0);ctx.lineTo(x,STATE.h);}
+            for(let y=Math.floor(sy/100)*100;y<ey;y+=100){ctx.moveTo(0,y);ctx.lineTo(STATE.w,y);}
+            ctx.stroke();
+
+            foods.forEach(f=>{ctx.beginPath();ctx.fillStyle=f.color;ctx.arc(f.x,f.y,f.size,0,Math.PI*2);ctx.fill();});
+            bots.forEach(b=>b.draw(ctx));
+            player.draw(ctx);
+            ctx.restore();
+
+            // Minimap
+            miniCtx.clearRect(0,0,140,140); miniCtx.fillStyle='rgba(0,0,0,0.3)'; miniCtx.fillRect(0,0,140,140);
+            let scX=140/STATE.w, scY=140/STATE.h;
+            [player, ...bots].forEach(s=>{
+                if(!s.alive) return;
+                miniCtx.strokeStyle = s.isBot?(s.isHacker?'#00FF00':'#F44336'):'#00FF00'; 
+                if(s.hackerState && s.hackerState.isWorldEater) miniCtx.strokeStyle = "white"; 
+                miniCtx.lineWidth=2; miniCtx.beginPath();
+                if(s.segments.length){
+                    miniCtx.moveTo(s.segments[0].x*scX, s.segments[0].y*scY);
+                    for(let i=4; i<s.segments.length; i+=4) miniCtx.lineTo(s.segments[i].x*scX, s.segments[i].y*scY);
+                }
+                miniCtx.stroke();
+            });
+        }
+
+        function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;document.getElementById('minimap').width=140;document.getElementById('minimap').height=140;}
+        window.onresize=resize;
+        const jZ=document.getElementById('joystick-zone'), jK=document.getElementById('joystick-knob');
+        let jAct=false, jC={x:0,y:0};
+        jZ.addEventListener('touchstart',e=>{e.preventDefault();let r=jZ.getBoundingClientRect();jAct=true;jC={x:r.left+r.width/2,y:r.top+r.height/2};moveJ(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
+        jZ.addEventListener('touchmove',e=>{e.preventDefault();if(jAct)moveJ(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
+        jZ.addEventListener('touchend',()=>{jAct=false;jK.style.transform='translate(-50%,-50%)';});
+        function moveJ(x,y){let dx=x-jC.x,dy=y-jC.y,a=Math.atan2(dy,dx),d=Math.min(Math.hypot(dx,dy),50);jK.style.transform=`translate(calc(-50% + ${Math.cos(a)*d}px),calc(-50% + ${Math.sin(a)*d}px))`;player.targetAngle=a;}
+        const bB=document.getElementById('boost-btn');
+        bB.addEventListener('touchstart',e=>{e.preventDefault();player.boosting=true;});
+        bB.addEventListener('touchend',e=>{e.preventDefault();player.boosting=false;});
+        bB.addEventListener('mousedown',()=>{player.boosting=true;});
+        window.addEventListener('mouseup',()=>{if(player)player.boosting=false;});
+        document.getElementById('backdrop').onclick = closeAllModals;
+        function playPop(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();let o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.setValueAtTime(600,audioCtx.currentTime);o.frequency.exponentialRampToValueAtTime(1000,audioCtx.currentTime+0.1);g.gain.setValueAtTime(0.05,audioCtx.currentTime);g.gain.linearRampToValueAtTime(0,audioCtx.currentTime+0.1);o.start();o.stop(audioCtx.currentTime+0.1);}
+    </script>
+</body>
+</html>
