@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>3D Particle Galaxy</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* 防止手机端滚动 */
+            background-color: #000;
+            font-family: 'Arial', sans-serif;
+            touch-action: none; /* 优化触摸体验 */
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* UI 控件样式 */
+        #ui-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+        }
+
+        label {
+            color: #fff;
+            font-size: 14px;
+            margin-right: 8px;
+        }
+
+        select {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid #555;
+            padding: 5px;
+            border-radius: 4px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        select:focus {
+            border-color: #00aaff;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 1.2rem;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 画质调节 UI -->
+    <div id="ui-container">
+        <label for="quality">画质 (分辨率):</label>
+        <select id="quality">
+            <option value="low">低 (流畅)</option>
+            <option value="medium" selected>中 (平衡)</option>
+            <option value="high">高 (清晰)</option>
+        </select>
+    </div>
+
+    <div id="loading">星系生成中...</div>
+
+    <!-- 引入 Three.js 和 OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // --- 1. 初始化场景 ---
+        const canvas = document.createElement('canvas');
+        document.body.appendChild(canvas);
+
+        const scene = new THREE.Scene();
+        
+        // 添加一点点环境雾气，增加深邃感
+        scene.fog = new THREE.FogExp2(0x000000, 0.03);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.x = 3;
+        camera.position.y = 3;
+        camera.position.z = 5;
+
+        const renderer = new THREE.WebGLRenderer({
+            canvas: canvas,
+            antialias: false, // 移动端通常关闭抗锯齿以提高性能
+            powerPreference: "high-performance"
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        // 允许阴影贴图（虽然这里主要是自发光粒子）
+        renderer.shadowMap.enabled = false;
+
+        // 控制器
+        const controls = new THREE.OrbitControls(camera, canvas);
+        controls.enableDamping = true; // 开启阻尼，滑动有惯性
+        controls.dampingFactor = 0.05;
+        controls.enablePan = false; // 禁用平移，防止视角跑偏
+        controls.minDistance = 0.5;
+        controls.maxDistance = 15;
+
+        // --- 2. 辅助函数：生成圆形发光纹理 ---
+        // 为了不依赖外部图片导致跨域问题，我们用Canvas代码生成一个发光点纹理
+        function createParticleTexture() {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 32;
+            tempCanvas.height = 32;
+            const ctx = tempCanvas.getContext('2d');
+            
+            const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.2, 'rgba(240, 240, 255, 0.6)');
+            gradient.addColorStop(0.5, 'rgba(128, 128, 255, 0.1)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 32, 32);
+            
+            const texture = new THREE.CanvasTexture(tempCanvas);
+            return texture;
+        }
+
+        const particleTexture = createParticleTexture();
+
+        // --- 3. 星系参数配置 ---
+        const parameters = {
+            count: 20000,     // 粒子数量 (会在调节画质时改变)
+            size: 0.02,       // 粒子基础大小
+            radius: 5,        // 星系半径
+            branches: 3,      // 旋臂数量
+            spin: 1,          // 旋转弯曲度
+            randomness: 0.2,  // 随机散布程度
+            randomnessPower: 3, // 聚集程度（越高越聚集中间）
+            insideColor: '#ff6030', // 核心颜色 (橙红)
+            outsideColor: '#1b3984', // 边缘颜色 (深蓝)
+        };
+
+        let geometry = null;
+        let material = null;
+        let points = null;
+
+        // --- 4. 生成星系的核心函数 ---
+        const generateGalaxy = () => {
+            // 如果旧的星系存在，先销毁释放内存
+            if(points !== null) {
+                geometry.dispose();
+                material.dispose();
+                scene.remove(points);
+            }
+
+            geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(parameters.count * 3);
+            const colors = new Float32Array(parameters.count * 3);
+            const scales = new Float32Array(parameters.count * 1); // 用于粒子大小闪烁
+
+            const colorInside = new THREE.Color(parameters.insideColor);
+            const colorOutside = new THREE.Color(parameters.outsideColor);
+
+            for(let i = 0; i < parameters.count; i++) {
+                const i3 = i * 3;
+
+                // 半径
+                const radius = Math.random() * parameters.radius;
+
+                // 旋臂角度
+                const spinAngle = radius * parameters.spin;
+                const branchAngle = (i % parameters.branches) / parameters.branches * Math.PI * 2;
+
+                // 随机偏移 (制造体积感)
+                const randomX = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * parameters.randomness * radius;
+                const randomY = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * parameters.randomness * radius;
+                const randomZ = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * parameters.randomness * radius;
+
+                // 核心坐标计算
+                positions[i3    ] = Math.cos(branchAngle + spinAngle) * radius + randomX;
+                positions[i3 + 1] = randomY; // Y轴稍微扁平
+                positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * radius + randomZ;
+
+                // 颜色混合
+                const mixedColor = colorInside.clone();
+                mixedColor.lerp(colorOutside, radius / parameters.radius);
+
+                colors[i3    ] = mixedColor.r;
+                colors[i3 + 1] = mixedColor.g;
+                colors[i3 + 2] = mixedColor.b;
+                
+                // 随机大小系数
+                scales[i] = Math.random();
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.setAttribute('aScale', new THREE.BufferAttribute(scales, 1));
+
+            material = new THREE.PointsMaterial({
+                size: parameters.size,
+                sizeAttenuation: true, // 远小近大
+                depthWrite: false, // 允许粒子重叠时颜色叠加
+                blending: THREE.AdditiveBlending, // 发光叠加效果
+                vertexColors: true, // 启用顶点颜色
+                map: particleTexture,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            points = new THREE.Points(geometry, material);
+            scene.add(points);
+            
+            // 隐藏加载提示
+            document.getElementById('loading').style.opacity = 0;
+        };
+
+        // --- 5. 画质管理系统 ---
+        const qualitySelect = document.getElementById('quality');
+        
+        const updateQuality = () => {
+            const val = qualitySelect.value;
+            const pixelRatio = window.devicePixelRatio;
+
+            if (val === 'low') {
+                // 低画质：分辨率减半，粒子少
+                renderer.setPixelRatio(pixelRatio * 0.5); 
+                parameters.count = 5000;
+                parameters.size = 0.04; // 粒子少时稍微变大一点
+            } else if (val === 'medium') {
+                // 中画质：标准分辨率（限制上限），粒子适中
+                renderer.setPixelRatio(Math.min(pixelRatio, 2)); 
+                parameters.count = 25000;
+                parameters.size = 0.025;
+            } else if (val === 'high') {
+                // 高画质：原生分辨率，海量粒子
+                renderer.setPixelRatio(pixelRatio); 
+                parameters.count = 80000; // 手机端8万粒子是比较极限但震撼的数量
+                parameters.size = 0.015; // 粒子更细腻
+            }
+
+            generateGalaxy();
+        };
+
+        // 监听下拉菜单变化
+        qualitySelect.addEventListener('change', updateQuality);
+
+        // 初始生成 (默认中画质)
+        updateQuality();
+
+        // --- 6. 窗口自适应 ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            // 重新应用当前的 pixel ratio
+            const val = qualitySelect.value;
+            if(val === 'low') renderer.setPixelRatio(window.devicePixelRatio * 0.5);
+        });
+
+        // --- 7. 动画循环 ---
+        const clock = new THREE.Clock();
+
+        const tick = () => {
+            const elapsedTime = clock.getElapsedTime();
+
+            // 旋转星系
+            if(points) {
+                // 整体旋转
+                points.rotation.y = elapsedTime * 0.05;
+                
+                // 这里可以添加着色器动画让粒子闪烁，但为了兼容性和代码简洁，
+                // 我们主要依靠整体旋转和AdditiveBlending产生的视觉动效
+            }
+
+            // 更新控制器
+            controls.update();
+
+            // 渲染
+            renderer.render(scene, camera);
+
+            // 下一帧
+            window.requestAnimationFrame(tick);
+        };
+
+        tick();
+
+    </script>
+</body>
+</html>
