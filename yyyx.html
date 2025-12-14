@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MD3 Audio Analyzer Rhythm</title>
+    <style>
+        :root {
+            --md-sys-color-primary: #D0BCFF;
+            --md-sys-color-on-primary: #381E72;
+            --md-sys-color-primary-container: #4F378B;
+            --md-sys-color-on-primary-container: #EADDFF;
+            --md-sys-color-background: #141218;
+            --md-sys-color-on-background: #E6E1E5;
+            --md-sys-color-surface: #1C1B1F;
+            --md-sys-color-surface-variant: #49454F;
+            --md-sys-color-outline: #938F99;
+            --md-sys-color-error: #F2B8B5;
+            
+            --lane-count: 4;
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-background);
+            font-family: 'Roboto', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 界面层 */
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: var(--md-sys-color-background);
+            z-index: 10;
+            transition: opacity 0.3s;
+        }
+
+        .hidden { display: none !important; opacity: 0; }
+
+        /* MD3 组件样式 */
+        h1 { font-size: 2rem; margin-bottom: 2rem; color: var(--md-sys-color-primary); text-align: center;}
+        
+        .card {
+            background: var(--md-sys-color-surface);
+            padding: 24px;
+            border-radius: 28px;
+            width: 90%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .btn {
+            background: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border: none;
+            height: 48px;
+            border-radius: 24px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: filter 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn:active { filter: brightness(0.8); }
+        .btn-secondary {
+            background: var(--md-sys-color-surface-variant);
+            color: var(--md-sys-color-on-background);
+        }
+
+        select {
+            background: var(--md-sys-color-surface-variant);
+            color: white;
+            border: 1px solid var(--md-sys-color-outline);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        input[type="file"] { display: none; }
+        .file-upload-label {
+            border: 2px dashed var(--md-sys-color-outline);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            color: var(--md-sys-color-primary);
+            cursor: pointer;
+        }
+
+        /* 游戏区域 */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            display: none; /* 默认隐藏 */
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .hud {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            font-weight: bold;
+            font-size: 1.2rem;
+            text-shadow: 0 2px 4px black;
+        }
+
+        .combo-container {
+            position: absolute;
+            top: 30%;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+        .combo-num { font-size: 4rem; color: var(--md-sys-color-primary); font-weight: 900; }
+        .combo-text { font-size: 1.2rem; letter-spacing: 2px; }
+        .judge-text {
+            position: absolute;
+            top: 45%;
+            width: 100%;
+            text-align: center;
+            font-size: 2rem;
+            font-weight: bold;
+            pointer-events: none;
+            animation: pop 0.2s ease-out;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1.0); opacity: 0; }
+        }
+
+        /* 底部按键区域反馈 */
+        .lanes-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 150px;
+            display: flex;
+            z-index: 5;
+        }
+        .lane-trigger {
+            flex: 1;
+            border-right: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+        }
+        .lane-trigger:last-child { border: none; }
+        .lane-trigger.active {
+            background: linear-gradient(to top, rgba(208, 188, 255, 0.4), transparent);
+        }
+
+        #loading-text { font-size: 0.9rem; color: var(--md-sys-color-outline); text-align: center;}
+    </style>
+</head>
+<body>
+
+    <!-- 主菜单 -->
+    <div id="menu-screen" class="screen">
+        <h1>Sonic Flow</h1>
+        <div class="card">
+            <label class="file-upload-label">
+                <span id="file-name">点击上传 MP3 音乐</span>
+                <input type="file" id="audio-file" accept="audio/*">
+            </label>
+
+            <div style="display:flex; flex-direction:column;">
+                <label style="font-size:12px; margin-bottom:5px; color:var(--md-sys-color-outline)">谱面生成算法</label>
+                <select id="algo-select">
+                    <option value="bass">低音冲击 (Bass Heavy)</option>
+                    <option value="vocal">人声/旋律 (Mid-High)</option>
+                    <option value="chaos">混合混乱 (Chaos Mode)</option>
+                </select>
+            </div>
+
+            <button class="btn" id="start-btn" disabled>开始游戏</button>
+            <button class="btn btn-secondary" id="preset-btn">使用预设无名曲 (JS生成)</button>
+            <div id="loading-text"></div>
+        </div>
+    </div>
+
+    <!-- 结算/重试 -->
+    <div id="result-screen" class="screen hidden">
+        <h1>完成!</h1>
+        <div class="card">
+            <div style="text-align:center;">
+                <h2 id="final-score" style="font-size:3rem; margin:0; color:var(--md-sys-color-primary)">0</h2>
+                <p>Score</p>
+            </div>
+            <div style="display:flex; justify-content:space-around; width:100%">
+                <div>Perfect: <span id="res-perfect">0</span></div>
+                <div>Miss: <span id="res-miss">0</span></div>
+            </div>
+            <button class="btn" onclick="location.reload()">返回主菜单</button>
+        </div>
+    </div>
+
+    <!-- 游戏界面 -->
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div class="hud">
+            <span id="score-display">000000</span>
+            <button onclick="endGame()" style="background:none; border:none; color:white; font-size:1rem;">✕</button>
+        </div>
+        <div class="combo-container" id="combo-box">
+            <div class="combo-num" id="combo-display">0</div>
+            <div class="combo-text">COMBO</div>
+        </div>
+        <div id="judge-display" class="judge-text"></div>
+        <div class="lanes-overlay" id="input-zones">
+            <div class="lane-trigger" data-lane="0"></div>
+            <div class="lane-trigger" data-lane="1"></div>
+            <div class="lane-trigger" data-lane="2"></div>
+            <div class="lane-trigger" data-lane="3"></div>
+        </div>
+    </div>
+
+<script>
+    /**
+     * 核心逻辑：
+     * 1. AudioContext 读取并解码音频。
+     * 2. 预处理：使用 OfflineAudioContext 快速跑一遍音频，通过 AnalyserNode 提取峰值数据生成 Note Map。
+     * 3. 游戏循环：Canvas 渲染下落的 Note，根据 CurrentTime 进行同步。
+     */
+
+    // --- 全局变量 ---
+    let audioCtx, audioBuffer, sourceNode;
+    let notes = []; // { time: float, lane: 0-3, hit: bool }
+    let gameState = {
+        isPlaying: false,
+        startTime: 0,
+        score: 0,
+        combo: 0,
+        perfect: 0,
+        miss: 0,
+        speed: 1500 // Note 从顶到底的时间 (ms)，数值越小越快
+    };
+    
+    // 配置
+    const LANE_COUNT = 4;
+    const HIT_Line_Y_RATIO = 0.85; // 判定线在屏幕 85% 高度处
+    const PRE_SPAWN_TIME = 2; // 提前几秒生成 Note
+
+    // DOM 元素
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const fileInput = document.getElementById('audio-file');
+    const fileNameDisplay = document.getElementById('file-name');
+    const startBtn = document.getElementById('start-btn');
+    const presetBtn = document.getElementById('preset-btn');
+    const loadingText = document.getElementById('loading-text');
+
+    // --- 文件处理 ---
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            fileNameDisplay.textContent = file.name;
+            loadingText.textContent = "正在解码音频，请稍候...";
+            startBtn.disabled = true;
+            
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const arrayBuffer = await file.arrayBuffer();
+                audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                loadingText.textContent = "音频准备就绪 (" + Math.floor(audioBuffer.duration) + "s)";
+                startBtn.disabled = false;
+            } catch (err) {
+                loadingText.textContent = "解析失败: " + err.message;
+            }
+        }
+    });
+
+    startBtn.addEventListener('click', () => {
+        if (!audioBuffer) return;
+        const algo = document.getElementById('algo-select').value;
+        startGame(audioBuffer, algo);
+    });
+
+    presetBtn.addEventListener('click', () => {
+        startPresetGame();
+    });
+
+    // --- 音频分析与谱面生成 (核心) ---
+
+    async function analyzeAndGenerateMap(buffer, algorithm) {
+        loadingText.textContent = "正在生成谱面...";
+        
+        // 这是一个计算密集型任务，通常应该在 Worker 中做，这里为了单文件简单直接在主线程做（可能会卡顿一下）
+        // 使用 OfflineAudioContext 进行快速渲染分析
+        const offlineCtx = new OfflineAudioContext(1, buffer.length, buffer.sampleRate);
+        const source = offlineCtx.createBufferSource();
+        source.buffer = buffer;
+        
+        // 创建分析器
+        const analyser = offlineCtx.createAnalyser();
+        analyser.fftSize = 2048; 
+        source.connect(analyser);
+        analyser.connect(offlineCtx.destination);
+        
+        source.start(0);
+
+        // 我们不能实时获取 OfflineContext 的 analyser 数据。
+        // 所以我们手动处理 PCM 数据 (Raw Data) 会更精确和简单。
+        
+        const rawData = buffer.getChannelData(0); // 获取左声道
+        const sampleRate = buffer.sampleRate;
+        const generatedNotes = [];
+        
+        // 分块分析参数
+        const windowSize = Math.floor(sampleRate / 20); // 0.05秒一个采样窗口
+        let lastNoteTime = -100;
+
+        // 算法参数
+        let threshold = 0.5; // 音量阈值
+        let minInterval = 0.2; // 最小间隔 (秒)
+        
+        if (algorithm === 'bass') {
+            // 简单模拟低通滤波：简单移动平均
+            threshold = 0.6; 
+            minInterval = 0.35;
+        } else if (algorithm === 'vocal') {
+            threshold = 0.3;
+            minInterval = 0.15;
+        } else {
+            // Chaos
+            minInterval = 0.1;
+            threshold = 0.4;
+        }
+
+        // 遍历音频数据
+        for (let i = 0; i < rawData.length; i += windowSize) {
+            let sum = 0;
+            // 计算该窗口的 RMS (均方根) 音量
+            for (let j = 0; j < windowSize && i + j < rawData.length; j++) {
+                sum += rawData[i + j] * rawData[i + j];
+            }
+            let rms = Math.sqrt(sum / windowSize);
+            
+            // 简单的动态阈值：如果当前很响，提升阈值避免密集 Note
+            const currentTime = i / sampleRate;
+
+            if (rms > threshold && (currentTime - lastNoteTime > minInterval)) {
+                // 这是一个节拍
+                
+                // 决定轨道
+                let lane = 0;
+                if (algorithm === 'bass') {
+                    // 低音稍微随机，偏向中间
+                    lane = Math.random() > 0.5 ? 1 : 2; 
+                    if (Math.random() > 0.8) lane = Math.random() > 0.5 ? 0 : 3;
+                } else if (algorithm === 'vocal') {
+                    // 根据当前 i 的位置模拟音高变化 (这不准确但是为了游戏性)
+                    lane = Math.floor((Math.sin(currentTime * 2) + 1) * 2); 
+                    if(lane > 3) lane = 3;
+                } else {
+                    lane = Math.floor(Math.random() * 4);
+                }
+
+                generatedNotes.push({
+                    time: currentTime,
+                    lane: lane,
+                    hit: false,
+                    color: getLaneColor(lane)
+                });
+                lastNoteTime = currentTime;
+            }
+        }
+
+        console.log(`Generated ${generatedNotes.length} notes using ${algorithm}`);
+        return generatedNotes;
+    }
+
+    // 预设模式逻辑
+    function startPresetGame() {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // 创建一个简单的节拍器背景音
+        const duration = 60; // 60秒
+        const sampleRate = audioCtx.sampleRate;
+        const frameCount = sampleRate * duration;
+        const buffer = audioCtx.createBuffer(1, frameCount, sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        // 生成简单的电子音
+        for (let i = 0; i < frameCount; i++) {
+            // 简单的方波节奏
+            const t = i / sampleRate;
+            if (t % 0.5 < 0.1) {
+                data[i] = Math.sin(t * 800) * 0.5; // Beep
+            } else {
+                data[i] = 0;
+            }
+        }
+        
+        audioBuffer = buffer;
+        
+        // 生成规则的 Note
+        const presetNotes = [];
+        for(let t=1; t<duration; t+=0.5) {
+            presetNotes.push({
+                time: t,
+                lane: Math.floor(Math.random() * 4),
+                hit: false,
+                color: getLaneColor(Math.floor(Math.random() * 4))
+            });
+            // 偶尔加双押
+            if (Math.random() > 0.7) {
+                 presetNotes.push({
+                    time: t,
+                    lane: (Math.floor(Math.random() * 4) + 2) % 4,
+                    hit: false,
+                    color: getLaneColor(0)
+                });
+            }
+        }
+        
+        notes = presetNotes;
+        initGameEngine();
+    }
+
+    // --- 游戏引擎 ---
+
+    async function startGame(buffer, algo) {
+        notes = await analyzeAndGenerateMap(buffer, algo);
+        initGameEngine();
+    }
+
+    function initGameEngine() {
+        // UI 切换
+        document.getElementById('menu-screen').classList.add('hidden');
+        document.getElementById('game-container').style.display = 'block';
+        resizeCanvas();
+
+        gameState.score = 0;
+        gameState.combo = 0;
+        gameState.perfect = 0;
+        gameState.miss = 0;
+        updateScore();
+
+        // 音频播放
+        sourceNode = audioCtx.createBufferSource();
+        sourceNode.buffer = audioBuffer;
+        sourceNode.connect(audioCtx.destination);
+        
+        // 延迟一点开始，给 Note 掉落时间
+        const startDelay = 2; // 秒
+        gameState.startTime = audioCtx.currentTime + startDelay;
+        sourceNode.start(gameState.startTime);
+
+        gameState.isPlaying = true;
+        
+        requestAnimationFrame(gameLoop);
+    }
+
+    function getLaneColor(lane) {
+        const colors = ['#FFB7B2', '#B5EAD7', '#C7CEEA', '#E2F0CB'];
+        return colors[lane % 4];
+    }
+
+    function resizeCanvas() {
+        canvas.width = document.getElementById('game-container').offsetWidth;
+        canvas.height = document.getElementById('game-container').offsetHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // --- 游戏主循环 ---
+    function gameLoop() {
+        if (!gameState.isPlaying) return;
+
+        const currentTime = audioCtx.currentTime;
+        const songTime = currentTime - gameState.startTime; // 当前歌曲播放到的时间
+
+        // 结束检测
+        if (songTime > audioBuffer.duration + 1) {
+            endGame();
+            return;
+        }
+
+        // 清空画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 绘制轨道背景
+        const laneWidth = canvas.width / LANE_COUNT;
+        const hitY = canvas.height * HIT_Line_Y_RATIO;
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+        ctx.lineWidth = 2;
+        for (let i = 1; i < LANE_COUNT; i++) {
+            ctx.beginPath();
+            ctx.moveTo(i * laneWidth, 0);
+            ctx.lineTo(i * laneWidth, canvas.height);
+            ctx.stroke();
+        }
+
+        // 绘制判定线
+        ctx.strokeStyle = "#D0BCFF";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(0, hitY);
+        ctx.lineTo(canvas.width, hitY);
+        ctx.stroke();
+
+        // 绘制 & 更新 Notes
+        // Speed: 像素/秒 = 屏幕高度 / (speedMs / 1000)
+        // Note Y = hitY - (NoteTime - SongTime) * SpeedPixelPerSec
+        // 简化: Note 需要移动的距离是 hitY。花费时间 speed/1000 秒。
+        // 速度 v = hitY / (gameState.speed / 1000)
+        
+        const fallSpeed = hitY / (gameState.speed / 1000); 
+
+        notes.forEach(note => {
+            if (note.hit) return; // 已经打过的
+
+            const timeDiff = note.time - songTime;
+            
+            // 只有在屏幕范围内的才绘制 (简单的优化)
+            if (timeDiff < 2 && timeDiff > -0.5) {
+                const y = hitY - (timeDiff * fallSpeed);
+                const x = note.lane * laneWidth;
+
+                // 绘制 Note (圆角矩形)
+                ctx.fillStyle = note.color || '#D0BCFF';
+                
+                // 简单的发光效果
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = note.color;
+                
+                roundRect(ctx, x + 10, y - 20, laneWidth - 20, 40, 10);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Miss 检测
+                if (timeDiff < -0.2) { // 超过 200ms 没点
+                    triggerMiss(note);
+                }
+            }
+        });
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    // 辅助: 绘制圆角矩形
+    function roundRect(ctx, x, y, w, h, r) {
+        if (w < 2 * r) r = w / 2;
+        if (h < 2 * r) r = h / 2;
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+    }
+
+    // --- 输入处理 ---
+    const inputZones = document.getElementById('input-zones');
+    
+    // 触摸开始
+    inputZones.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const touch = e.changedTouches[i];
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (target && target.classList.contains('lane-trigger')) {
+                const lane = parseInt(target.dataset.lane);
+                handleInput(lane);
+                visualFeedback(target);
+            }
+        }
+    }, {passive: false});
+
+    // 键盘支持 (调试用)
+    document.addEventListener('keydown', (e) => {
+        const keyMap = { 'd': 0, 'f': 1, 'j': 2, 'k': 3 };
+        if (gameState.isPlaying && keyMap.hasOwnProperty(e.key)) {
+            const lane = keyMap[e.key];
+            handleInput(lane);
+            const el = document.querySelector(`.lane-trigger[data-lane="${lane}"]`);
+            if(el) visualFeedback(el);
+        }
+    });
+
+    function visualFeedback(element) {
+        element.classList.add('active');
+        setTimeout(() => element.classList.remove('active'), 100);
+    }
+
+    function handleInput(lane) {
+        if (!gameState.isPlaying) return;
+        
+        const songTime = audioCtx.currentTime - gameState.startTime;
+        
+        // 寻找该轨道上最近的未击打 Note
+        // 过滤出该轨道，且在判定窗口内的 Note (-0.15s ~ +0.15s)
+        const hitWindow = 0.20; // 宽容度
+        
+        const targetNote = notes.find(n => 
+            !n.hit && 
+            n.lane === lane && 
+            Math.abs(n.time - songTime) < hitWindow
+        );
+
+        if (targetNote) {
+            targetNote.hit = true;
+            const diff = Math.abs(targetNote.time - songTime);
+            
+            if (diff < 0.08) {
+                triggerJudge('Perfect', 100);
+            } else {
+                triggerJudge('Good', 50);
+            }
+        }
+    }
+
+    // --- 判定逻辑 ---
+    function triggerJudge(text, scoreAdd) {
+        gameState.score += scoreAdd + (gameState.combo * 10); // 连击加分
+        gameState.combo++;
+        if (text === 'Perfect') gameState.perfect++;
+        
+        updateScore();
+        showJudgeText(text, text === 'Perfect' ? '#FFD8E4' : '#E6E1E5');
+        
+        // 连击显示
+        const comboEl = document.getElementById('combo-box');
+        const comboNum = document.getElementById('combo-display');
+        comboEl.style.opacity = 1;
+        comboNum.textContent = gameState.combo;
+        comboNum.style.transform = "scale(1.5)";
+        setTimeout(() => comboNum.style.transform = "scale(1)", 100);
+    }
+
+    function triggerMiss(note) {
+        note.hit = true; // 标记为处理过
+        gameState.combo = 0;
+        gameState.miss++;
+        document.getElementById('combo-box').style.opacity = 0;
+        showJudgeText('Miss', '#F2B8B5');
+    }
+
+    function showJudgeText(text, color) {
+        const el = document.getElementById('judge-display');
+        el.innerText = text;
+        el.style.color = color;
+        // 重置动画
+        el.style.animation = 'none';
+        el.offsetHeight; /* trigger reflow */
+        el.style.animation = 'pop 0.2s ease-out';
+    }
+
+    function updateScore() {
+        document.getElementById('score-display').textContent = gameState.score.toString().padStart(6, '0');
+    }
+
+    function endGame() {
+        gameState.isPlaying = false;
+        if (sourceNode) sourceNode.stop();
+        
+        document.getElementById('game-container').style.display = 'none';
+        document.getElementById('result-screen').classList.remove('hidden');
+        
+        document.getElementById('final-score').textContent = gameState.score;
+        document.getElementById('res-perfect').textContent = gameState.perfect;
+        document.getElementById('res-miss').textContent = gameState.miss;
+    }
+
+</script>
+</body>
+</html>
