@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MD3 贪吃蛇 v4.0 终极版</title>
+    <style>
+        /* --- 动态主题变量 --- */
+        :root {
+            --md-primary: #6750a4;
+            --md-surface: #fffbfe;
+            --md-surface-variant: #e7e0ec;
+            --md-outline: #79747e;
+            --md-bg: #f3edf7;
+            --md-text: #1c1b1f;
+            --bot-color: #b90063;
+        }
+
+        /* 暗黑模式变量覆盖 */
+        [data-theme="dark"] {
+            --md-primary: #d0bcff;
+            --md-surface: #1c1b1f;
+            --md-surface-variant: #49454f;
+            --md-outline: #938f99;
+            --md-bg: #141218;
+            --md-text: #e6e1e5;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--md-bg);
+            color: var(--md-text);
+            font-family: 'Roboto', system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none; 
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+            border-radius: 24px;
+            background: var(--md-surface);
+            overflow: hidden;
+            transition: background-color 0.3s;
+        }
+
+        .ui-header {
+            position: absolute; top: 24px; left: 24px; right: 24px;
+            display: flex; justify-content: space-between; pointer-events: none; z-index: 10;
+        }
+
+        .score-pill {
+            background: var(--md-surface-variant); 
+            color: var(--md-text); 
+            padding: 8px 20px;
+            border-radius: 20px; font-weight: 700; font-size: 1.1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex; gap: 10px;
+        }
+
+        .version-tag {
+            position: fixed; bottom: 10px; right: 15px;
+            font-size: 0.75rem; color: var(--md-outline); opacity: 0.6; pointer-events: none;
+        }
+
+        #pause-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center; justify-content: center;
+            font-size: 2rem; font-weight: bold; color: #fff;
+            z-index: 5; pointer-events: none;
+        }
+
+        .fab {
+            position: fixed; bottom: 32px; right: 32px;
+            width: 64px; height: 64px; border-radius: 20px;
+            background-color: var(--md-primary); 
+            color: [data-theme="dark"] #381e72; /* 暗模式下文字颜色 */
+            border: none; box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+            font-size: 28px; cursor: pointer; z-index: 20;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.1s;
+        }
+        .fab:active { transform: scale(0.92); }
+
+        /* --- 弹窗样式 --- */
+        dialog {
+            border: none; border-radius: 28px;
+            background: var(--md-surface); padding: 0; /* 让头部贴边 */
+            color: var(--md-text);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            width: 85%; max-width: 380px;
+            max-height: 85vh;
+            overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain;
+            animation: fadeUp 0.3s cubic-bezier(0.2, 0, 0, 1);
+        }
+        dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(30px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* 优化的公告样式 */
+        .anno-header {
+            background: linear-gradient(135deg, #6750a4, #9c27b0);
+            color: white; padding: 24px 24px 20px;
+            border-radius: 0 0 24px 24px; /* 底部圆角 */
+            margin-bottom: 20px;
+        }
+        .anno-title { margin: 0; font-size: 1.6rem; display: flex; align-items: center; gap: 10px; }
+        .anno-badge { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 8px; font-size: 0.8rem; }
+        
+        .anno-body { padding: 0 24px 24px; }
+        .update-item {
+            display: flex; gap: 12px; margin-bottom: 16px;
+            background: var(--md-surface-variant); padding: 12px; border-radius: 16px;
+        }
+        .update-icon { font-size: 1.5rem; }
+        .update-text h4 { margin: 0 0 4px 0; font-size: 1rem; color: var(--md-primary); }
+        .update-text p { margin: 0; font-size: 0.85rem; opacity: 0.8; line-height: 1.4; }
+
+        /* MOD 菜单内部 */
+        .mod-content { padding: 24px; }
+        .mod-header-row {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+        }
+        h2 { margin: 0; font-size: 1.5rem; }
+
+        .mod-section { margin-bottom: 24px; }
+        .mod-title {
+            font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;
+            color: var(--md-outline); font-weight: bold; margin-bottom: 12px; display: block;
+        }
+
+        .mod-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 0; border-bottom: 1px solid var(--md-outline);
+            border-color: rgba(121, 116, 126, 0.2);
+        }
+
+        /* 控件样式 */
+        .range-container { width: 100%; padding: 5px 0; }
+        .range-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; }
+        input[type=range] {
+            width: 100%; height: 6px; background: var(--md-surface-variant); border-radius: 3px; outline: none; -webkit-appearance: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 20px; height: 20px;
+            background: var(--md-primary); border-radius: 50%; cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+        }
+
+        .switch { position: relative; display: inline-block; width: 48px; height: 28px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--md-surface-variant); border-radius: 34px; transition: .3s;
+            border: 2px solid var(--md-outline);
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 16px; width: 16px;
+            left: 4px; bottom: 4px; background-color: var(--md-outline);
+            transition: .3s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--md-primary); border-color: var(--md-primary); }
+        input:checked + .slider:before { transform: translateX(20px); background-color: #fff; }
+
+        .btn-full {
+            background: var(--md-primary); color: #fff; border:none; padding: 14px;
+            width: 100%; border-radius: 20px; font-weight: bold; margin-top: 10px; cursor: pointer;
+            font-size: 1rem;
+        }
+        .btn-small {
+            background: var(--md-surface-variant); color: var(--md-primary); border:none; padding: 6px 14px;
+            border-radius: 8px; font-weight: bold; font-size: 0.8rem; cursor: pointer;
+        }
+        .close-icon-btn {
+            background: none; border: none; color: var(--md-primary); font-size: 1.5rem; cursor: pointer; padding: 0;
+        }
+
+        #start-msg {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: var(--md-outline); font-weight: 500; pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ui-header">
+        <div class="score-pill">
+            <span>Len: <b id="score">1</b></span>
+            <span style="opacity:0.6">|</span>
+            <span>Best: <b id="highScore">0</b></span>
+        </div>
+    </div>
+    
+    <div class="version-tag">v4.0 Ultimate</div>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="start-msg">滑动屏幕开始</div>
+        <div id="pause-overlay">PAUSED</div>
+    </div>
+
+    <button class="fab" id="openModBtn">⚙️</button>
+
+    <!-- 优化的公告弹窗 -->
+    <dialog id="annoDialog">
+        <div class="anno-header">
+            <h3 class="anno-title">🚀 版本更新 <span class="anno-badge">v4.0</span></h3>
+            <div style="margin-top:5px; opacity:0.9; font-size:0.9rem;">终极体验大升级</div>
+        </div>
+        <div class="anno-body">
+            <div class="update-item">
+                <div class="update-icon">🎨</div>
+                <div class="update-text">
+                    <h4>主题与视觉</h4>
+                    <p>新增「暗黑模式」与「RGB幻彩蛇」，视觉体验拉满。</p>
+                </div>
+            </div>
+            <div class="update-item">
+                <div class="update-icon">🌀</div>
+                <div class="update-text">
+                    <h4>物理重构</h4>
+                    <p>新增「传送门」(Pac-Man) 模式，撞墙直接穿越；新增「变速齿轮」自由调节快慢。</p>
+                </div>
+            </div>
+            <div class="update-item">
+                <div class="update-icon">💾</div>
+                <div class="update-text">
+                    <h4>记录系统</h4>
+                    <p>本地自动保存历史最高分 (Best Score)。</p>
+                </div>
+            </div>
+            <button class="btn-full" id="closeAnnoBtn">开始探索</button>
+        </div>
+    </dialog>
+
+    <!-- MOD 菜单弹窗 -->
+    <dialog id="modDialog">
+        <div class="mod-content">
+            <div class="mod-header-row">
+                <h2>控制台</h2>
+                <button class="close-icon-btn" id="closeModBtn">✕</button>
+            </div>
+
+            <!-- 主题设置 -->
+            <div class="mod-section">
+                <span class="mod-title">视觉与主题</span>
+                <div class="mod-item">
+                    <span>🌙 暗黑模式</span>
+                    <label class="switch">
+                        <input type="checkbox" id="modDarkTheme">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="mod-item">
+                    <span>🌈 RGB 幻彩蛇</span>
+                    <label class="switch">
+                        <input type="checkbox" id="modRainbow">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 速度与长度 -->
+            <div class="mod-section">
+                <span class="mod-title">物理参数</span>
+                <div class="range-container">
+                    <div class="range-header">
+                        <span>⚡ 游戏速度</span>
+                        <span id="speedValue" style="color:var(--md-primary); font-weight:bold;">1.0x</span>
+                    </div>
+                    <input type="range" id="speedRange" min="5" max="30" value="9">
+                </div>
+                <div class="range-container">
+                    <div class="range-header">
+                        <span>🔊 音效音量</span>
+                        <span id="volValue" style="color:var(--md-primary); font-weight:bold;">50%</span>
+                    </div>
+                    <input type="range" id="volRange" min="0" max="100" value="50">
+                </div>
+                <div class="range-container">
+                    <div class="range-header">
+                        <span>🐍 设定长度</span>
+                        <span id="rangeValue" style="color:var(--md-primary); font-weight:bold;">1</span>
+                    </div>
+                    <input type="range" id="lengthRange" min="1" max="300" value="1">
+                </div>
+            </div>
+
+            <div class="mod-section">
+                <span class="mod-title">空间规则</span>
+                
+                <div class="mod-item">
+                    <div style="display:flex; flex-direction:column;">
+                        <span>🌀 传送门 (Pac-Man)</span>
+                        <span style="font-size:0.75rem; opacity:0.7;">撞墙传送到对面</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="modPortal">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div class="mod-item">
+                    <span>🛡️ 撞墙保护 (智能转向)</span>
+                    <label class="switch">
+                        <input type="checkbox" id="modWallGod">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="mod-section">
+                <span class="mod-title">联机 AI</span>
+                <div class="mod-item">
+                    <span>🤖 启用 AI 蛇</span>
+                    <label class="switch">
+                        <input type="checkbox" id="modOnline">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="mod-item">
+                    <span>🤡 AI 饥荒模式</span>
+                    <label class="switch">
+                        <input type="checkbox" id="modAiStarve">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="mod-section">
+                <span class="mod-title">其他 MOD</span>
+                <div class="mod-item"><span>👻 幽灵模式</span><label class="switch"><input type="checkbox" id="modGhost"><span class="slider"></span></label></div>
+                <div class="mod-item"><span>✂️ 噬尾模式</span><label class="switch"><input type="checkbox" id="modCannibalism"><span class="slider"></span></label></div>
+                <div class="mod-item"><span>💩 排泄模式</span><label class="switch"><input type="checkbox" id="modPoop"><span class="slider"></span></label></div>
+                <div class="mod-item"><span>🥕 胡萝卜模式</span><label class="switch"><input type="checkbox" id="modCarrot"><span class="slider"></span></label></div>
+                <div class="mod-item"><span>🚫 虚无模式</span><label class="switch"><input type="checkbox" id="modInvalidFood"><span class="slider"></span></label></div>
+                <div class="mod-item"><span>🔄 掉头模式</span><label class="switch"><input type="checkbox" id="modReverse"><span class="slider"></span></label></div>
+                <div class="mod-item">
+                    <span>满地苹果</span>
+                    <button class="btn-small" id="btnFillMap">生成</button>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
+    <script>
+        // --- 1. 系统与音效 ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let masterVolume = 0.5;
+
+        function playTone(type) {
+            if (masterVolume <= 0) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+            const vol = masterVolume * 0.2;
+            const t = audioCtx.currentTime;
+
+            if (type === 'eat') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(400, t); osc.frequency.exponentialRampToValueAtTime(600, t+0.1);
+                gainNode.gain.setValueAtTime(vol, t); gainNode.gain.exponentialRampToValueAtTime(0.001, t+0.1);
+                osc.start(); osc.stop(t+0.1);
+            } else if (type === 'die') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t); osc.frequency.linearRampToValueAtTime(50, t+0.3);
+                gainNode.gain.setValueAtTime(vol*2, t); gainNode.gain.linearRampToValueAtTime(0.001, t+0.3);
+                osc.start(); osc.stop(t+0.3);
+            } else if (type === 'click') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(800, t);
+                gainNode.gain.setValueAtTime(vol*0.5, t); gainNode.gain.exponentialRampToValueAtTime(0.001, t+0.05);
+                osc.start(); osc.stop(t+0.05);
+            }
+        }
+
+        // --- 2. 核心变量 & 主题 ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const highScoreEl = document.getElementById('highScore');
+        const startMsg = document.getElementById('start-msg');
+        const pauseOverlay = document.getElementById('pause-overlay');
+        
+        let gridSize = 20;
+        let tileX, tileY;
+        let speed = 9; // 动态速度
+        let lastTime = 0;
+        let isRunning = false;
+        let isPaused = false;
+        let isGameOver = false;
+        let highScore = localStorage.getItem('snakeHighScore') || 0;
+        highScoreEl.innerText = highScore;
+
+        let snake = [];
+        let foods = [];
+        let bots = [];
+        let dx = 0, dy = 0;
+        let nextDx = 0, nextDy = 0;
+
+        // MODS
+        const Mods = {
+            online: false, aiStarve: false, wallGod: false, cannibalism: false, ghost: false,
+            carrot: false, poop: false, invalidFood: false, reverse: false,
+            portal: false, // 新：传送门
+            rainbow: false, // 新：幻彩
+            dark: false // 新：暗黑
+        };
+
+        // 配色方案 (支持切换)
+        const Themes = {
+            light: { head: '#21005d', body: '#6750a4', food: '#b3261e', bg: '#ffffff', botBody: '#b90063', botHead: '#8c004b' },
+            dark: { head: '#d0bcff', body: '#9a82db', food: '#ffb4ab', bg: '#1c1b1f', botBody: '#ffb7e1', botHead: '#ff89c8' }
+        };
+        let currentTheme = Themes.light;
+
+        if (!ctx.roundRect) ctx.roundRect = function(x, y, w, h, r) { ctx.rect(x, y, w, h); };
+
+        function resize() {
+            const margin = 32;
+            tileX = Math.floor((window.innerWidth - margin) / gridSize);
+            tileY = Math.floor((window.innerHeight - margin) / gridSize);
+            canvas.width = tileX * gridSize;
+            canvas.height = tileY * gridSize;
+            if(!isRunning) reset();
+        }
+
+        // --- 3. Bot 逻辑 ---
+        class Bot {
+            constructor() { this.respawn(); }
+            respawn() {
+                this.x = Math.floor(Math.random() * tileX);
+                this.y = Math.floor(Math.random() * tileY);
+                this.body = [{x: this.x, y: this.y}, {x: this.x, y: this.y}];
+                this.dead = false;
+            }
+            update() {
+                if (this.dead) return;
+                let target = foods[0] || snake[0];
+                let head = this.body[0];
+                let moves = [];
+                // 简单的追踪
+                if (target.x > head.x) moves.push({dx:1, dy:0});
+                else if (target.x < head.x) moves.push({dx:-1, dy:0});
+                if (target.y > head.y) moves.push({dx:0, dy:1});
+                else if (target.y < head.y) moves.push({dx:0, dy:-1});
+                moves.push({dx:0, dy:1}, {dx:0, dy:-1}, {dx:1, dy:0}, {dx:-1, dy:0});
+
+                let chosen = null;
+                for (let m of moves) {
+                    let nx = head.x + m.dx, ny = head.y + m.dy;
+                    if (nx < 0 || nx >= tileX || ny < 0 || ny >= tileY) continue;
+                    if (isBody(nx, ny)) continue; 
+                    if (this.body.some(p => p.x === nx && p.y === ny)) continue;
+                    chosen = m; break;
+                }
+                if (chosen) {
+                    let newHead = {x: head.x + chosen.dx, y: head.y + chosen.dy};
+                    let ate = false;
+                    for(let i=0; i<foods.length; i++) {
+                        if(newHead.x === foods[i].x && newHead.y === foods[i].y) {
+                            if (!Mods.aiStarve) { ate = true; foods.splice(i, 1); if(foods.length===0) spawnFood(); }
+                            break;
+                        }
+                    }
+                    this.body.unshift(newHead);
+                    if(!ate) this.body.pop();
+                }
+            }
+            draw() {
+                if (this.dead) return;
+                this.body.forEach((p, i) => {
+                    ctx.fillStyle = i===0 ? currentTheme.botHead : currentTheme.botBody;
+                    let s = gridSize - 2;
+                    ctx.beginPath();
+                    ctx.roundRect(p.x*gridSize+1, p.y*gridSize+1, s, s, 4);
+                    ctx.fill();
+                });
+            }
+        }
+
+        // --- 4. 游戏循环 ---
+        function reset() {
+            snake = [{x: Math.floor(tileX/2), y: Math.floor(tileY/2)}];
+            foods = []; bots = [];
+            spawnFood();
+            dx = 0; dy = 0; nextDx = 0; nextDy = 0;
+            scoreEl.innerText = "1";
+            isRunning = false; isPaused = false; isGameOver = false;
+            startMsg.style.display = 'block';
+            pauseOverlay.style.display = 'none';
+            if (Mods.online) for(let i=0; i<3; i++) bots.push(new Bot());
+            draw();
+        }
+
+        function loop(timestamp) {
+            requestAnimationFrame(loop);
+            if(isGameOver) return;
+            // 动态速度支持
+            if ((timestamp - lastTime) / 1000 < 1 / speed) return;
+            lastTime = timestamp;
+            if (isRunning && !isPaused) update();
+            draw();
+        }
+
+        function update() {
+            if (nextDx !== 0 || nextDy !== 0) { dx = nextDx; dy = nextDy; }
+            if (dx === 0 && dy === 0) return;
+
+            let head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+            // --- 碰撞逻辑 ---
+            let hitWall = (head.x < 0 || head.x >= tileX || head.y < 0 || head.y >= tileY);
+            
+            // 传送门模式 (Portal) - 优先级高于墙壁保护
+            if (hitWall && Mods.portal) {
+                hitWall = false; // 传送后不算撞墙
+                if (head.x < 0) head.x = tileX - 1;
+                else if (head.x >= tileX) head.x = 0;
+                else if (head.y < 0) head.y = tileY - 1;
+                else if (head.y >= tileY) head.y = 0;
+            }
+
+            let hitBot = bots.some(b => b.body.some(p => p.x === head.x && p.y === head.y));
+
+            if (hitWall || hitBot) {
+                let isSafe = Mods.wallGod || Mods.ghost;
+                if (hitWall && Mods.wallGod) {
+                    // 智能转向
+                    const dirs = dx !== 0 ? [{x:0,y:-1}, {x:0,y:1}] : [{x:-1,y:0}, {x:1,y:0}];
+                    let saved = false;
+                    for (let d of dirs) {
+                        let tx = snake[0].x + d.x, ty = snake[0].y + d.y;
+                        let isObstacle = isBody(tx, ty) && !Mods.ghost;
+                        if (tx >= 0 && tx < tileX && ty >= 0 && ty < tileY && !isObstacle) {
+                            dx = d.x; dy = d.y; nextDx=dx; nextDy=dy;
+                            head = {x: snake[0].x + dx, y: snake[0].y + dy};
+                            saved = true; break;
+                        }
+                    }
+                    if (!saved && !Mods.ghost) return gameOver(); 
+                } else if (hitWall && !Mods.wallGod) {
+                    return gameOver();
+                } else if (hitBot && isSafe) {
+                    bots.forEach(b => { if (b.body.some(p => p.x === head.x && p.y === head.y)) b.respawn(); });
+                    playTone('eat');
+                } else if (hitBot && !isSafe) {
+                    return gameOver();
+                }
+            }
+
+            // 撞自己
+            let bodyIndex = snake.findIndex((p, i) => i !== 0 && p.x === head.x && p.y === head.y); // findIndex更安全
+            if (bodyIndex !== -1) {
+                if (!Mods.ghost) {
+                    if (Mods.cannibalism) { snake.splice(bodyIndex); playTone('eat'); }
+                    else return gameOver();
+                }
+            }
+
+            snake.unshift(head);
+            bots.forEach(b => b.update());
+
+            // 苹果逻辑
+            if (Mods.carrot) {
+                foods = [];
+                let cx = head.x + (dx * 3), cy = head.y + (dy * 3);
+                if (cx >= 0 && cx < tileX && cy >= 0 && cy < tileY) foods.push({x: cx, y: cy});
+            }
+
+            let ate = false;
+            if (!Mods.invalidFood) {
+                for(let i=0; i<foods.length; i++) {
+                    if(head.x === foods[i].x && head.y === foods[i].y) {
+                        ate = true; foods.splice(i, 1); break;
+                    }
+                }
+            }
+
+            if (!ate) {
+                let tail = snake.pop();
+                if (Mods.poop) { if (!isBody(tail.x, tail.y)) foods.push({x: tail.x, y: tail.y}); }
+            } else {
+                playTone('eat');
+                if (foods.length === 0 && !Mods.carrot) spawnFood();
+            }
+            scoreEl.innerText = snake.length;
+        }
+
+        function isBody(x, y) { return snake.some(p => p.x === x && p.y === y); }
+
+        function spawnFood() {
+            let fx, fy, valid = false, attempts = 0;
+            while(!valid && attempts < 50) {
+                fx = Math.floor(Math.random() * tileX); fy = Math.floor(Math.random() * tileY);
+                if(!isBody(fx, fy)) valid = true;
+                attempts++;
+            }
+            if(valid) foods.push({x: fx, y: fy});
+        }
+
+        function gameOver() {
+            isGameOver = true; playTone('die');
+            // 更新最高分
+            if (snake.length > highScore) {
+                highScore = snake.length;
+                localStorage.setItem('snakeHighScore', highScore);
+                highScoreEl.innerText = highScore;
+            }
+            alert("游戏结束! 长度: " + snake.length);
+            reset();
+        }
+
+        function draw() {
+            ctx.fillStyle = currentTheme.bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            bots.forEach(b => b.draw());
+            
+            snake.forEach((p, i) => {
+                if (Mods.rainbow) {
+                    // RGB 模式
+                    ctx.fillStyle = `hsl(${(Date.now()/5 + i*10)%360}, 70%, 60%)`;
+                } else {
+                    ctx.fillStyle = i===0 ? currentTheme.head : currentTheme.body;
+                    if (Mods.ghost && i !== 0) ctx.fillStyle = 'rgba(103, 80, 164, 0.5)';
+                }
+                
+                let s = gridSize - 2;
+                ctx.beginPath();
+                ctx.roundRect(p.x*gridSize+1, p.y*gridSize+1, s, s, 4);
+                ctx.fill();
+            });
+
+            ctx.fillStyle = currentTheme.food;
+            foods.forEach(f => {
+                let r = (gridSize-4)/2;
+                ctx.beginPath(); ctx.arc(f.x*gridSize+gridSize/2, f.y*gridSize+gridSize/2, r, 0, 6.28); ctx.fill();
+            });
+        }
+
+        // --- 5. 交互 ---
+        let tx = 0, ty = 0;
+        const stopProp = (e) => e.stopPropagation();
+        
+        document.addEventListener('touchstart', e => {
+            tx = e.touches[0].clientX; ty = e.touches[0].clientY;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }, {passive:false});
+        document.addEventListener('touchmove', e => e.preventDefault(), {passive:false});
+        document.addEventListener('touchend', e => {
+            let dx_t = e.changedTouches[0].clientX - tx;
+            let dy_t = e.changedTouches[0].clientY - ty;
+            if (Math.abs(dx_t) < 15 && Math.abs(dy_t) < 15) return;
+            if(!isRunning && !isGameOver) { isRunning = true; startMsg.style.display='none'; }
+            if(Math.abs(dx_t) > Math.abs(dy_t)) {
+                if(dx_t > 0) { if(Mods.reverse || dx !== -1) { nextDx=1; nextDy=0; } }
+                else { if(Mods.reverse || dx !== 1) { nextDx=-1; nextDy=0; } }
+            } else {
+                if(dy_t > 0) { if(Mods.reverse || dy !== -1) { nextDx=0; nextDy=1; } }
+                else { if(Mods.reverse || dy !== 1) { nextDx=0; nextDy=-1; } }
+            }
+        });
+
+        const annoDialog = document.getElementById('annoDialog');
+        const modDialog = document.getElementById('modDialog');
+        [modDialog, annoDialog].forEach(d => {
+            d.addEventListener('touchstart', stopProp); d.addEventListener('touchmove', stopProp); d.addEventListener('touchend', stopProp);
+        });
+
+        // 暂停控制
+        const pauseGame = () => { isPaused = true; pauseOverlay.style.display = 'flex'; };
+        const resumeGame = () => { isPaused = false; pauseOverlay.style.display = 'none'; };
+
+        window.addEventListener('load', () => { annoDialog.showModal(); pauseGame(); });
+        document.getElementById('closeAnnoBtn').onclick = () => { playTone('click'); annoDialog.close(); resumeGame(); };
+        
+        document.getElementById('openModBtn').onclick = () => {
+            playTone('click'); pauseGame();
+            document.getElementById('lengthRange').value = snake.length;
+            document.getElementById('rangeValue').innerText = snake.length;
+            modDialog.showModal();
+        };
+        document.getElementById('closeModBtn').onclick = () => { playTone('click'); modDialog.close(); resumeGame(); };
+
+        // 控件绑定
+        const bindMod = (id, key) => document.getElementById(id).onchange = (e) => { playTone('click'); Mods[key] = e.target.checked; };
+        bindMod('modOnline', 'online'); bindMod('modAiStarve', 'aiStarve');
+        bindMod('modWallGod', 'wallGod'); bindMod('modGhost', 'ghost');
+        bindMod('modCannibalism', 'cannibalism'); bindMod('modCarrot', 'carrot');
+        bindMod('modPoop', 'poop'); bindMod('modInvalidFood', 'invalidFood'); bindMod('modReverse', 'reverse');
+        
+        // v4.0 新绑定
+        bindMod('modPortal', 'portal');
+        bindMod('modRainbow', 'rainbow');
+        
+        // 暗黑模式切换
+        document.getElementById('modDarkTheme').onchange = (e) => {
+            playTone('click');
+            Mods.dark = e.target.checked;
+            document.documentElement.setAttribute('data-theme', Mods.dark ? 'dark' : 'light');
+            currentTheme = Mods.dark ? Themes.dark : Themes.light;
+            draw();
+        };
+
+        // 变速齿轮
+        document.getElementById('speedRange').addEventListener('input', (e) => {
+            speed = parseInt(e.target.value);
+            document.getElementById('speedValue').innerText = (speed/9).toFixed(1) + "x";
+        });
+
+        // 其他滑块
+        document.getElementById('volRange').addEventListener('input', (e) => {
+            masterVolume = e.target.value / 100;
+            document.getElementById('volValue').innerText = e.target.value + "%";
+        });
+        document.getElementById('lengthRange').addEventListener('input', (e) => {
+            let target = parseInt(e.target.value);
+            document.getElementById('rangeValue').innerText = target;
+            let diff = target - snake.length;
+            if (diff > 0) for(let i=0; i<diff; i++) snake.push({...snake[snake.length-1]});
+            else if (diff < 0) snake.splice(target);
+            scoreEl.innerText = snake.length;
+            draw();
+        });
+
+        // 互斥逻辑
+        const ghostSwitch = document.getElementById('modGhost');
+        const canniSwitch = document.getElementById('modCannibalism');
+        ghostSwitch.addEventListener('change', () => { if(Mods.ghost) { canniSwitch.checked=false; Mods.cannibalism=false; }});
+        canniSwitch.addEventListener('change', () => { if(Mods.cannibalism) { ghostSwitch.checked=false; Mods.ghost=false; }});
+
+        // 传送门 vs 撞墙保护 (传送门优先)
+        const portalSwitch = document.getElementById('modPortal');
+        const wallSwitch = document.getElementById('modWallGod');
+        portalSwitch.addEventListener('change', () => { if(Mods.portal) wallSwitch.checked = false; Mods.wallGod = false; });
+        wallSwitch.addEventListener('change', () => { if(Mods.wallGod) portalSwitch.checked = false; Mods.portal = false; });
+
+        document.getElementById('btnFillMap').onclick = () => {
+            playTone('click'); foods = [];
+            for(let x=0; x<tileX; x++) for(let y=0; y<tileY; y++) if(!isBody(x,y)) foods.push({x,y});
+            modDialog.close(); resumeGame();
+        };
+
+        window.onresize = resize;
+        resize();
+        requestAnimationFrame(loop);
+    </script>
+</body>
+</html>
