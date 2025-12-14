@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>富豪模拟器 - Stock Sim</title>
+    <!-- 引入 Chart.js 用于绘制精美图表 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-main: #ffffff;
+            --text-sub: #b0b0b0;
+            --accent-green: #00C853; /* 涨 */
+            --accent-red: #FF3D00;   /* 跌 */
+            --primary: #2962FF;
+            --nav-height: 60px;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部资产区域 */
+        .header {
+            padding: 20px;
+            background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+        .total-assets-label { font-size: 12px; color: var(--text-sub); margin-bottom: 5px; }
+        .total-assets-value { font-size: 32px; font-weight: 700; letter-spacing: 1px; }
+        .asset-row { display: flex; gap: 20px; margin-top: 15px; }
+        .asset-item div:first-child { font-size: 11px; color: var(--text-sub); }
+        .asset-item div:last-child { font-size: 16px; font-weight: 600; margin-top: 2px; }
+
+        /* 主内容区域 - 可滚动 */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: 80px; /* 为底部导航留空间 */
+        }
+        
+        .section-title { font-size: 18px; font-weight: 600; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* 股票卡片列表 */
+        .stock-list { display: flex; flex-direction: column; gap: 12px; }
+        .stock-card {
+            background-color: var(--card-bg);
+            padding: 15px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.1s;
+        }
+        .stock-card:active { transform: scale(0.98); background-color: #252525; }
+        .stock-info h3 { margin: 0; font-size: 16px; }
+        .stock-info span { font-size: 12px; color: var(--text-sub); }
+        .stock-price { text-align: right; }
+        .price-current { font-size: 16px; font-weight: 600; display: block; }
+        .price-change { font-size: 12px; padding: 2px 6px; border-radius: 4px; font-weight: 500; }
+        
+        .up { color: var(--accent-green); }
+        .down { color: var(--accent-red); }
+        .bg-up { background-color: rgba(0, 200, 83, 0.15); color: var(--accent-green); }
+        .bg-down { background-color: rgba(255, 61, 0, 0.15); color: var(--accent-red); }
+
+        /* 底部导航 */
+        .bottom-nav {
+            height: var(--nav-height);
+            background-color: #1a1a1a;
+            border-top: 1px solid #333;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            z-index: 20;
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 10px;
+            color: var(--text-sub);
+            padding: 10px;
+            cursor: pointer;
+        }
+        .nav-item.active { color: var(--primary); }
+        .nav-icon { font-size: 20px; margin-bottom: 4px; }
+
+        /* 交易弹窗 (模拟新页面) */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color);
+            z-index: 50;
+            display: none;
+            flex-direction: column;
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
+        .modal-header {
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+        .close-btn { background: none; border: none; color: var(--text-main); font-size: 24px; cursor: pointer; }
+        
+        .chart-container { height: 250px; width: 100%; padding: 10px; }
+        
+        .trade-controls {
+            padding: 20px;
+            background: var(--card-bg);
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            margin-top: auto; /* 推到底部 */
+        }
+        
+        .trade-info { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 14px; }
+        .btn-group { display: flex; gap: 15px; }
+        .btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn:active { opacity: 0.8; }
+        .btn-buy { background-color: var(--accent-green); box-shadow: 0 4px 10px rgba(0, 200, 83, 0.3); }
+        .btn-sell { background-color: var(--accent-red); box-shadow: 0 4px 10px rgba(255, 61, 0, 0.3); }
+
+        /* Toast 提示 */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.9);
+            color: black;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .toast.show { opacity: 1; }
+
+        /* 隐藏滚动条 */
+        ::-webkit-scrollbar { width: 0px; }
+    </style>
+</head>
+<body>
+
+    <!-- 顶部 -->
+    <div class="header">
+        <div class="total-assets-label">总资产 (USD)</div>
+        <div class="total-assets-value" id="totalAssets">$10,000.00</div>
+        <div class="asset-row">
+            <div class="asset-item">
+                <div>现金余额</div>
+                <div id="cashBalance">$10,000.00</div>
+            </div>
+            <div class="asset-item">
+                <div>持仓盈亏</div>
+                <div id="totalPnL" style="color: var(--text-sub);">+0.00%</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 市场页面 -->
+    <div class="content" id="marketPage">
+        <div class="section-title">
+            <span>热门市场</span>
+            <span style="font-size: 12px; color: var(--primary);">实时更新</span>
+        </div>
+        <div class="stock-list" id="stockList">
+            <!-- JS 动态生成 -->
+        </div>
+    </div>
+
+    <!-- 持仓页面 (默认隐藏) -->
+    <div class="content" id="portfolioPage" style="display: none;">
+        <div class="section-title">我的持仓</div>
+        <div class="stock-list" id="portfolioList">
+            <!-- JS 动态生成 -->
+            <div style="text-align: center; color: #555; margin-top: 50px;">暂无持仓<br>快去市场交易吧</div>
+        </div>
+    </div>
+
+    <!-- 底部导航 -->
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('market')">
+            <div class="nav-icon">📊</div>
+            <div>市场</div>
+        </div>
+        <div class="nav-item" onclick="switchTab('portfolio')">
+            <div class="nav-icon">💼</div>
+            <div>资产</div>
+        </div>
+        <div class="nav-item" onclick="resetGame()">
+            <div class="nav-icon">⚙️</div>
+            <div>重置</div>
+        </div>
+    </div>
+
+    <!-- 交易详情弹窗 -->
+    <div class="modal" id="tradeModal">
+        <div class="modal-header">
+            <div style="font-weight: 600; font-size: 18px;" id="modalTitle">AAPL</div>
+            <button class="close-btn" onclick="closeModal()">×</button>
+        </div>
+        <div class="chart-container">
+            <canvas id="stockChart"></canvas>
+        </div>
+        <div style="padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                <h1 id="modalPrice" style="margin: 0; font-size: 36px;">$150.00</h1>
+                <span id="modalChange" class="price-change bg-up">+1.2%</span>
+            </div>
+            <div style="margin-top: 10px; color: var(--text-sub); font-size: 14px;">
+                持有数量: <span id="modalHoldings" style="color: white; font-weight: bold;">0</span> 股
+            </div>
+        </div>
+        <div class="trade-controls">
+            <div class="trade-info">
+                <span>可用资金</span>
+                <span id="modalCash">$10,000.00</span>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-buy" onclick="executeTrade('buy')">买入 (1股)</button>
+                <button class="btn btn-sell" onclick="executeTrade('sell')">卖出 (1股)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">交易成功</div>
+
+    <script>
+        // --- 1. 游戏数据状态 ---
+        const INITIAL_CASH = 10000;
+        let user = {
+            cash: INITIAL_CASH,
+            portfolio: {} // { "AAPL": { amount: 10, avgPrice: 145 } }
+        };
+
+        // 模拟股票数据
+        let stocks = [
+            { symbol: "AAPL", name: "Apple Inc.", price: 175.50, history: [] },
+            { symbol: "TSLA", name: "Tesla, Inc.", price: 240.20, history: [] },
+            { symbol: "NVDA", name: "NVIDIA Corp.", price: 460.15, history: [] },
+            { symbol: "AMZN", name: "Amazon.com", price: 135.80, history: [] },
+            { symbol: "MSFT", name: "Microsoft", price: 330.50, history: [] },
+            { symbol: "GOOGL", name: "Alphabet Inc.", price: 138.20, history: [] },
+            { symbol: "BTC", name: "Bitcoin", price: 42000.00, history: [] } // 加入一点刺激的
+        ];
+
+        // 初始化历史数据用于图表
+        stocks.forEach(s => {
+            for(let i=0; i<20; i++) s.history.push(s.price);
+        });
+
+        let currentStock = null; // 当前选中的股票
+        let chartInstance = null; // 图表实例
+
+        // --- 2. 初始化与加载 ---
+        function init() {
+            loadGame();
+            renderMarket();
+            updateUI();
+            
+            // 启动市场模拟循环 (每2秒更新一次价格)
+            setInterval(() => {
+                simulateMarket();
+                renderMarket(); // 如果当前在市场页
+                if(currentStock) updateModalUI(); // 如果打开了弹窗
+                updateUI(); // 更新顶部资产
+            }, 2000);
+        }
+
+        // --- 3. 市场模拟逻辑 ---
+        function simulateMarket() {
+            stocks.forEach(stock => {
+                // 随机波动 -1.5% 到 +1.5%
+                let changePercent = (Math.random() - 0.5) * 0.03; 
+                let changeAmount = stock.price * changePercent;
+                stock.price += changeAmount;
+                if(stock.price < 0.01) stock.price = 0.01; // 防止价格为负
+                
+                // 更新历史数据，保持最近20个点
+                stock.history.push(stock.price);
+                if(stock.history.length > 20) stock.history.shift();
+            });
+            saveGame();
+        }
+
+        // --- 4. 渲染逻辑 ---
+        function renderMarket() {
+            const list = document.getElementById('stockList');
+            list.innerHTML = '';
+            
+            stocks.forEach(stock => {
+                const prevPrice = stock.history[stock.history.length - 2] || stock.price;
+                const change = stock.price - prevPrice;
+                const percent = (change / prevPrice) * 100;
+                
+                const isUp = change >= 0;
+                const colorClass = isUp ? 'up' : 'down';
+                const bgClass = isUp ? 'bg-up' : 'bg-down';
+                const sign = isUp ? '+' : '';
+
+                const item = document.createElement('div');
+                item.className = 'stock-card';
+                item.onclick = () => openModal(stock);
+                item.innerHTML = `
+                    <div class="stock-info">
+                        <h3>${stock.symbol}</h3>
+                        <span>${stock.name}</span>
+                    </div>
+                    <div class="stock-price">
+                        <span class="price-current ${colorClass}">$${stock.price.toFixed(2)}</span>
+                        <span class="price-change ${bgClass}">${sign}${percent.toFixed(2)}%</span>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function renderPortfolio() {
+            const list = document.getElementById('portfolioList');
+            list.innerHTML = '';
+            
+            let hasStocks = false;
+            Object.keys(user.portfolio).forEach(symbol => {
+                const holding = user.portfolio[symbol];
+                if(holding.amount > 0) {
+                    hasStocks = true;
+                    const currentPrice = stocks.find(s => s.symbol === symbol).price;
+                    const profit = (currentPrice - holding.avgPrice) * holding.amount;
+                    const profitPercent = ((currentPrice - holding.avgPrice) / holding.avgPrice) * 100;
+                    const isUp = profit >= 0;
+
+                    const item = document.createElement('div');
+                    item.className = 'stock-card';
+                    item.innerHTML = `
+                        <div class="stock-info">
+                            <h3>${symbol}</h3>
+                            <span>持仓: ${holding.amount} 股</span>
+                        </div>
+                        <div class="stock-price">
+                            <span class="price-current">$${(currentPrice * holding.amount).toFixed(2)}</span>
+                            <span class="price-change ${isUp ? 'bg-up' : 'bg-down'}">
+                                ${isUp ? '+' : ''}${profit.toFixed(2)} (${isUp?'+':''}${profitPercent.toFixed(1)}%)
+                            </span>
+                        </div>
+                    `;
+                    item.onclick = () => openModal(stocks.find(s => s.symbol === symbol));
+                    list.appendChild(item);
+                }
+            });
+
+            if(!hasStocks) {
+                list.innerHTML = '<div style="text-align: center; color: #555; margin-top: 50px;">暂无持仓<br>快去市场交易吧</div>';
+            }
+        }
+
+        function updateUI() {
+            // 计算总资产
+            let stockValue = 0;
+            let totalCost = 0;
+            
+            Object.keys(user.portfolio).forEach(symbol => {
+                const holding = user.portfolio[symbol];
+                const stock = stocks.find(s => s.symbol === symbol);
+                if(stock) {
+                    stockValue += stock.price * holding.amount;
+                    totalCost += holding.avgPrice * holding.amount;
+                }
+            });
+
+            const totalAssets = user.cash + stockValue;
+            let totalPnL = 0;
+            if (totalCost > 0) {
+                totalPnL = ((stockValue - totalCost) / totalCost) * 100;
+            }
+
+            document.getElementById('totalAssets').innerText = formatMoney(totalAssets);
+            document.getElementById('cashBalance').innerText = formatMoney(user.cash);
+            
+            const pnlEl = document.getElementById('totalPnL');
+            pnlEl.innerText = (totalPnL >= 0 ? '+' : '') + totalPnL.toFixed(2) + '%';
+            pnlEl.className = totalPnL >= 0 ? 'up' : 'down';
+            
+            // 同时更新弹窗里的现金
+            document.getElementById('modalCash').innerText = formatMoney(user.cash);
+        }
+
+        // --- 5. 交互与弹窗 ---
+        function openModal(stock) {
+            currentStock = stock;
+            document.getElementById('tradeModal').style.display = 'flex';
+            updateModalUI();
+            drawChart();
+        }
+
+        function closeModal() {
+            document.getElementById('tradeModal').style.display = 'none';
+            currentStock = null;
+        }
+
+        function updateModalUI() {
+            if(!currentStock) return;
+            document.getElementById('modalTitle').innerText = currentStock.symbol;
+            document.getElementById('modalPrice').innerText = formatMoney(currentStock.price);
+            
+            const prevPrice = currentStock.history[currentStock.history.length - 2];
+            const change = (currentStock.price - prevPrice) / prevPrice * 100;
+            const el = document.getElementById('modalChange');
+            el.innerText = (change >=0 ? '+' : '') + change.toFixed(2) + '%';
+            el.className = `price-change ${change >=0 ? 'bg-up' : 'bg-down'}`;
+
+            const holding = user.portfolio[currentStock.symbol];
+            document.getElementById('modalHoldings').innerText = holding ? holding.amount : 0;
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.content').forEach(el => el.style.display = 'none');
+            
+            if(tab === 'market') {
+                document.getElementById('marketPage').style.display = 'block';
+                document.querySelectorAll('.nav-item')[0].classList.add('active');
+                renderMarket();
+            } else {
+                document.getElementById('portfolioPage').style.display = 'block';
+                document.querySelectorAll('.nav-item')[1].classList.add('active');
+                renderPortfolio();
+            }
+        }
+
+        // --- 6. 交易逻辑 ---
+        function executeTrade(type) {
+            if(!currentStock) return;
+            
+            const price = currentStock.price;
+            const symbol = currentStock.symbol;
+            
+            if(type === 'buy') {
+                if(user.cash >= price) {
+                    user.cash -= price;
+                    if(!user.portfolio[symbol]) user.portfolio[symbol] = { amount: 0, avgPrice: 0 };
+                    
+                    // 计算新成本价
+                    let h = user.portfolio[symbol];
+                    let totalVal = (h.amount * h.avgPrice) + price;
+                    h.amount += 1;
+                    h.avgPrice = totalVal / h.amount;
+                    
+                    showToast(`买入 1股 ${symbol}`);
+                } else {
+                    showToast("资金不足！");
+                    return;
+                }
+            } else {
+                if(user.portfolio[symbol] && user.portfolio[symbol].amount > 0) {
+                    user.cash += price;
+                    user.portfolio[symbol].amount -= 1;
+                    showToast(`卖出 1股 ${symbol}`);
+                } else {
+                    showToast("没有持仓可卖！");
+                    return;
+                }
+            }
+            updateUI();
+            updateModalUI();
+            saveGame();
+        }
+
+        // --- 7. 工具函数 ---
+        function drawChart() {
+            const ctx = document.getElementById('stockChart').getContext('2d');
+            if(chartInstance) chartInstance.destroy(); // 销毁旧图表
+            
+            const labels = currentStock.history.map((_, i) => i);
+            const data = currentStock.history;
+            const isUp = data[data.length-1] >= data[0];
+            const color = isUp ? '#00C853' : '#FF3D00';
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Price',
+                        data: data,
+                        borderColor: color,
+                        backgroundColor: (context) => {
+                            const ctx = context.chart.ctx;
+                            const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+                            gradient.addColorStop(0, isUp ? 'rgba(0, 200, 83, 0.2)' : 'rgba(255, 61, 0, 0.2)');
+                            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+                            return gradient;
+                        },
+                        borderWidth: 2,
+                        fill: true,
+                        pointRadius: 0,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { display: false },
+                        y: { 
+                            display: true, 
+                            grid: { color: '#333' },
+                            ticks: { color: '#666' }
+                        }
+                    },
+                    animation: { duration: 0 } // 关闭动画以提高即时感
+                }
+            });
+        }
+
+        function formatMoney(num) {
+            return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+
+        // --- 8. 存档系统 ---
+        function saveGame() {
+            localStorage.setItem('stockSimUser', JSON.stringify(user));
+        }
+
+        function loadGame() {
+            const saved = localStorage.getItem('stockSimUser');
+            if(saved) {
+                user = JSON.parse(saved);
+            }
+        }
+
+        function resetGame() {
+            if(confirm('确定要重置所有资产和进度吗？')) {
+                user = { cash: INITIAL_CASH, portfolio: {} };
+                saveGame();
+                location.reload();
+            }
+        }
+
+        // 启动应用
+        init();
+
+    </script>
+</body>
+</html>
