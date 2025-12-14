@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设备性能与信息检测</title>
+    
+    <!-- 引入 Google Fonts (Roboto) 和 Material Symbols -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+    <style>
+        /* CSS Variables - Material Design 3 Color Tokens */
+        :root {
+            /* Light Mode Default */
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            --md-sys-color-background: #FFEFDF; /* Slight tint */
+            --md-sys-color-surface: #F3F3F3;
+            --md-sys-color-surface-variant: #E7E0EC;
+            --md-sys-color-on-surface: #1D1B20;
+            --md-sys-color-on-surface-variant: #49454F;
+            --md-sys-color-outline: #79747E;
+            
+            --border-radius-lg: 24px;
+            --border-radius-md: 16px;
+            --gap: 16px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                /* Dark Mode */
+                --md-sys-color-primary: #D0BCFF;
+                --md-sys-color-on-primary: #381E72;
+                --md-sys-color-primary-container: #4F378B;
+                --md-sys-color-on-primary-container: #EADDFF;
+                --md-sys-color-background: #141218;
+                --md-sys-color-surface: #1C1B1F;
+                --md-sys-color-surface-variant: #49454F;
+                --md-sys-color-on-surface: #E6E1E5;
+                --md-sys-color-on-surface-variant: #CAC4D0;
+                --md-sys-color-outline: #938F99;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-surface);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap);
+        }
+
+        /* Header Styles */
+        header {
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: var(--md-sys-color-on-surface-variant);
+            font-size: 0.9rem;
+        }
+
+        /* Card Styles */
+        .card {
+            background-color: var(--md-sys-color-surface);
+            border-radius: var(--border-radius-lg);
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            /* MD3 Elevation 1 */
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.20);
+        }
+
+        /* FPS Section */
+        .fps-card {
+            background-color: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+        }
+
+        .fps-value {
+            font-size: 6rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .fps-label {
+            font-size: 1.25rem;
+            font-weight: 500;
+            opacity: 0.8;
+            margin-top: 8px;
+        }
+
+        .fps-note {
+            font-size: 0.8rem;
+            opacity: 0.6;
+            margin-top: 16px;
+        }
+
+        /* Device Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: var(--gap);
+        }
+
+        .info-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .icon-box {
+            background-color: var(--md-sys-color-surface-variant);
+            color: var(--md-sys-color-on-surface-variant);
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .icon-box span {
+            font-size: 24px;
+        }
+
+        .info-text {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; 
+        }
+
+        .info-label {
+            font-size: 0.85rem;
+            color: var(--md-sys-color-on-surface-variant);
+            font-weight: 500;
+        }
+
+        .info-data {
+            font-size: 1rem;
+            font-weight: 400;
+            color: var(--md-sys-color-on-surface);
+            word-wrap: break-word;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.8rem;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        
+        .updating {
+            animation: pulse 0.5s ease;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>设备检测</h1>
+            <div class="subtitle">基于 Material Design 3</div>
+        </header>
+
+        <!-- FPS Counter Section -->
+        <section class="card fps-card">
+            <div class="fps-value" id="fps-display">--</div>
+            <div class="fps-label">FPS (刷新率)</div>
+            <div class="fps-note">如果开启了省电模式，数值可能会被限制在 60 或更低。</div>
+        </section>
+
+        <!-- Device Info Section -->
+        <section class="card">
+            <div class="info-grid">
+                
+                <!-- Screen Resolution -->
+                <div class="info-item">
+                    <div class="icon-box">
+                        <span class="material-symbols-rounded">aspect_ratio</span>
+                    </div>
+                    <div class="info-text">
+                        <span class="info-label">屏幕分辨率</span>
+                        <span class="info-data" id="info-res">检测中...</span>
+                    </div>
+                </div>
+
+                <!-- Pixel Ratio -->
+                <div class="info-item">
+                    <div class="icon-box">
+                        <span class="material-symbols-rounded">grid_4x4</span>
+                    </div>
+                    <div class="info-text">
+                        <span class="info-label">像素密度 (DPR)</span>
+                        <span class="info-data" id="info-dpr">检测中...</span>
+                    </div>
+                </div>
+
+                <!-- GPU -->
+                <div class="info-item">
+                    <div class="icon-box">
+                        <span class="material-symbols-rounded">videogame_asset</span>
+                    </div>
+                    <div class="info-text">
+                        <span class="info-label">显卡 / GPU</span>
+                        <span class="info-data" id="info-gpu">检测中...</span>
+                    </div>
+                </div>
+
+                <!-- CPU Cores -->
+                <div class="info-item">
+                    <div class="icon-box">
+                        <span class="material-symbols-rounded">memory</span>
+                    </div>
+                    <div class="info-text">
+                        <span class="info-label">逻辑处理器核心</span>
+                        <span class="info-data" id="info-cpu">检测中...</span>
+                    </div>
+                </div>
+
+                <!-- OS / Platform -->
+                <div class="info-item">
+                    <div class="icon-box">
+                        <span class="material-symbols-rounded">devices</span>
+                    </div>
+                    <div class="info-text">
+                        <span class="info-label">操作系统平台</span>
+                        <span class="info-data" id="info-os">检测中...</span>
+                    </div>
+                </div>
+
+                <!-- Memory -->
+                <div class="info-item">
+                    <div class="icon-box">
+                        <span class="material-symbols-rounded">sd_card</span>
+                    </div>
+                    <div class="info-text">
+                        <span class="info-label">设备内存 (估算)</span>
+                        <span class="info-data" id="info-ram">检测中...</span>
+                    </div>
+                </div>
+
+                <!-- Browser Language -->
+                <div class="info-item">
+                    <div class="icon-box">
+                        <span class="material-symbols-rounded">language</span>
+                    </div>
+                    <div class="info-text">
+                        <span class="info-label">首选语言</span>
+                        <span class="info-data" id="info-lang">检测中...</span>
+                    </div>
+                </div>
+                 
+                 <!-- Connection -->
+                 <div class="info-item">
+                    <div class="icon-box">
+                        <span class="material-symbols-rounded">wifi</span>
+                    </div>
+                    <div class="info-text">
+                        <span class="info-label">网络类型 (估算)</span>
+                        <span class="info-data" id="info-net">检测中...</span>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <footer>
+            <p>User Agent: <span id="info-ua" style="font-family: monospace; font-size: 0.7rem;"></span></p>
+        </footer>
+    </div>
+
+    <script>
+        /**
+         * FPS Detection Logic
+         * 使用 requestAnimationFrame 计算每秒渲染的帧数
+         */
+        const fpsDisplay = document.getElementById('fps-display');
+        let frameCount = 0;
+        let lastTime = performance.now();
+        let fps = 0;
+
+        function loop(currentTime) {
+            frameCount++;
+            const deltaTime = currentTime - lastTime;
+
+            // 每 1000ms (1秒) 更新一次显示
+            if (deltaTime >= 1000) {
+                fps = Math.round((frameCount * 1000) / deltaTime);
+                fpsDisplay.textContent = fps;
+                
+                // 简单的视觉反馈，如果 FPS 很高，加粗显示
+                if(fps > 60) {
+                    fpsDisplay.style.color = 'var(--md-sys-color-on-primary-container)'; // 保持原色
+                }
+                
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+
+            requestAnimationFrame(loop);
+        }
+        
+        // 启动 FPS 循环
+        requestAnimationFrame(loop);
+
+
+        /**
+         * Device Info Extraction
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // 1. 屏幕分辨率
+            const width = window.screen.width;
+            const height = window.screen.height;
+            document.getElementById('info-res').textContent = `${width} x ${height}`;
+
+            // 2. DPR
+            const dpr = window.devicePixelRatio || 1;
+            document.getElementById('info-dpr').textContent = `${dpr.toFixed(1)}x`;
+
+            // 3. CPU Cores
+            const cpu = navigator.hardwareConcurrency;
+            document.getElementById('info-cpu').textContent = cpu ? `${cpu} 核` : '未知';
+
+            // 4. RAM (Chrome/Edge Only)
+            // deviceMemory 返回的是近似值 (2, 4, 8)
+            const ram = navigator.deviceMemory;
+            document.getElementById('info-ram').textContent = ram ? `~${ram} GB` : '不支持检测';
+
+            // 5. Language
+            document.getElementById('info-lang').textContent = navigator.language;
+
+            // 6. OS / Platform (Simplified)
+            let osName = "未知设备";
+            const ua = navigator.userAgent;
+            if (ua.indexOf("Win") !== -1) osName = "Windows";
+            else if (ua.indexOf("Mac") !== -1) osName = "macOS";
+            else if (ua.indexOf("Linux") !== -1 && ua.indexOf("Android") === -1) osName = "Linux";
+            else if (ua.indexOf("Android") !== -1) osName = "Android";
+            else if (ua.indexOf("like Mac") !== -1) osName = "iOS";
+            
+            document.getElementById('info-os').textContent = osName;
+
+            // 7. GPU Info (WebGL)
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (gl) {
+                    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                    if (debugInfo) {
+                        const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                        // 清理一些杂乱的字符串
+                        const cleanRenderer = renderer.replace(/ANGLE \((.*)\)/, '$1'); 
+                        document.getElementById('info-gpu').textContent = cleanRenderer;
+                    } else {
+                        document.getElementById('info-gpu').textContent = "WebGL 受限";
+                    }
+                } else {
+                    document.getElementById('info-gpu').textContent = "不支持 WebGL";
+                }
+            } catch (e) {
+                document.getElementById('info-gpu').textContent = "检测出错";
+            }
+
+            // 8. Network Type
+            const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            if (conn) {
+                document.getElementById('info-net').textContent = conn.effectiveType ? conn.effectiveType.toUpperCase() : (conn.type || '未知');
+            } else {
+                document.getElementById('info-net').textContent = '不支持检测';
+            }
+
+            // Footer UA
+            document.getElementById('info-ua').textContent = ua;
+        });
+
+    </script>
+</body>
+</html>
