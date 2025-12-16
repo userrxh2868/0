@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>极光物理沙盒 (最终修复版)</title>
+    <style>
+        body {
+            margin: 0; background-color: #080808; color: #ccc;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            overflow: hidden; display: flex; flex-direction: column; height: 100vh; user-select: none;
+        }
+        
+        #ui-header {
+            background: rgba(30, 30, 30, 0.95); padding: 8px 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.7); z-index: 10; flex-shrink: 0;
+            border-bottom: 1px solid #333; backdrop-filter: blur(5px);
+        }
+        #element-scroll {
+            display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px;
+            scrollbar-width: none; -webkit-overflow-scrolling: touch;
+        }
+        #element-scroll::-webkit-scrollbar { display: none; }
+        
+        .btn {
+            border: 1px solid #333; border-radius: 6px; padding: 8px 12px;
+            background: #252525; color: #bbb; font-size: 13px; cursor: pointer;
+            white-space: nowrap; display: flex; align-items: center; gap: 8px;
+            transition: all 0.2s; font-weight: 600;
+        }
+        .btn:active { transform: scale(0.95); }
+        .btn.active {
+            background: #444; color: white; border-color: #888;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5); transform: translateY(-2px);
+        }
+        .btn-toggle { background: #1a2a3a; border-color: #2a3a4a; color: #89a; }
+        .btn-toggle.active { background: #2a4a6a; color: #fff; border-color: #4a8aca; box-shadow: 0 0 15px rgba(0, 100, 255, 0.3); }
+
+        .dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 4px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); }
+
+        #toolbar {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 8px; font-size: 12px; color: #888;
+        }
+        input[type="range"] { width: 100px; height: 4px; accent-color: #00d2ff; cursor: pointer; }
+        
+        #game-container { flex: 1; position: relative; background: #000; overflow: hidden; touch-action: none; }
+        canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+    </style>
+</head>
+<body>
+
+<div id="ui-header">
+    <div id="element-scroll"></div>
+    <div id="toolbar">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <button id="btn-light" class="btn btn-toggle active" onclick="toggleLight()">💡 光影: 开</button>
+            <span style="display:flex;align-items:center;">
+                🖊️ <input type="range" id="brush-size" min="1" max="20" value="4">
+                <span id="brush-val" style="margin-left:6px;width:15px;text-align:center;">4</span>
+            </span>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <div id="fps" style="font-family:monospace;">FPS:60</div>
+            <button class="btn" onclick="clearMap()" style="background:#4a2020;border-color:#6a3030;color:#ffb0b0;">🗑️ 清空</button>
+        </div>
+    </div>
+</div>
+
+<div id="game-container">
+    <canvas id="sandCanvas"></canvas>
+</div>
+
+<script>
+    const SCALE = 4;
+    
+    // --- 元素 ID ---
+    const T = {
+        AIR: 0, WALL: 1, SAND: 2, WATER: 3, STONE: 4, 
+        FIRE: 5, WOOD: 6, PLANT: 7, ACID: 8, SMOKE: 9, 
+        VAPOR: 10, OIL: 11, LAVA: 12, GUNPOWDER: 13, FUSE: 14,
+        GLASS: 15, ICE: 16, METHANE: 17, VIRUS: 18, NITRO: 19,
+        C4: 20, MITE: 21, CONCRETE: 22, SPARK: 23,
+        URANIUM: 24, TERMITE: 25, CLONE: 26, VOID: 27,
+        LASER: 28, DRY_ICE: 29, MERCURY: 30, FUNGUS: 31, BOMB_GEN: 32,
+        CO2: 33, GLOW_DUST: 34, ANTIMATTER: 35, ZERO: 36
+    };
+
+    // --- 元素属性 ---
+    const ELEM = {
+        [T.AIR]:       { name: '橡皮', col: 0xFF000000, type: 'air', transmit: 0.98 },
+        [T.WALL]:      { name: '基岩', col: 0xFF808080, type: 'static', transmit: 0 },
+        [T.CONCRETE]:  { name: '混凝土', col: 0xFF555555, type: 'static', transmit: 0 },
+        [T.SAND]:      { name: '沙子', col: 0xFF60A4F0, type: 'powder', weight: 10, transmit: 0.05 },
+        [T.TERMITE]:   { name: '铝热剂', col: 0xFF9090C0, type: 'powder', weight: 12, burn: 5, transmit: 0.1 },
+        [T.GLOW_DUST]: { name: '荧光粉', col: 0xFF60E060, type: 'powder', weight: 8, transmit: 0.8, light: 0.6 },
+        [T.ANTIMATTER]:{ name: '反物质', col: 0xFF100010, type: 'powder', weight: 20, transmit: 0 }, 
+        
+        [T.STONE]:     { name: '石头', col: 0xFF656565, type: 'static', transmit: 0 },
+        [T.WOOD]:      { name: '木头', col: 0xFF2A4B69, type: 'static', burn: 5, transmit: 0.05 },
+        [T.PLANT]:     { name: '植物', col: 0xFF30B030, type: 'static', burn: 20, transmit: 0.6 },
+        [T.GLASS]:     { name: '玻璃', col: 0xFF606060, type: 'static', transmit: 0.95 }, 
+        [T.ICE]:       { name: '冰块', col: 0xFFF0D0A0, type: 'static', transmit: 0.8 },
+        [T.DRY_ICE]:   { name: '干冰', col: 0xFFF0F0F0, type: 'static', transmit: 0.7 },
+        [T.CLONE]:     { name: '克隆', col: 0xFF00FFFF, type: 'static', transmit: 0.4 },
+        [T.VOID]:      { name: '黑洞', col: 0xFF050505, type: 'static', transmit: 0 },
+        [T.URANIUM]:   { name: '铀',   col: 0xFF40E040, type: 'static', transmit: 0.5, light: 0.6 },
+        [T.FUNGUS]:    { name: '真菌', col: 0xFFA060D0, type: 'static', transmit: 0.4, burn: 40 },
+        [T.BOMB_GEN]:  { name: '炸弹机', col: 0xFF000080, type: 'static', transmit: 0 },
+
+        [T.C4]:        { name: 'C4',   col: 0xFF80C080, type: 'static', burn: 1, transmit: 0.1 },
+        [T.MITE]:      { name: '白蚁', col: 0xFFA080F0, type: 'creature', burn: 60, transmit: 0.5 },
+
+        [T.WATER]:     { name: '水',   col: 0xFFFF9020, type: 'liquid', weight: 5, transmit: 0.90, viscosity: 0 },
+        [T.OIL]:       { name: '石油', col: 0xFF0B243B, type: 'liquid', weight: 2, burn: 60, transmit: 0.7, viscosity: 0.1 },
+        [T.MERCURY]:   { name: '水银', col: 0xFFC0C0C0, type: 'liquid', weight: 99, transmit: 0, viscosity: 0 },
+        [T.ACID]:      { name: '强酸', col: 0xFF20E020, type: 'liquid', weight: 5, transmit: 0.85, viscosity: 0.1 },
+        [T.LAVA]:      { name: '岩浆', col: 0xFF0045FF, type: 'liquid', weight: 50, light: 1.5, transmit: 0.2, viscosity: 0.7 },
+        [T.NITRO]:     { name: '硝基', col: 0xFF20FFFF, type: 'liquid', weight: 4, burn: 100, transmit: 0.9, viscosity: 0 },
+
+        [T.GUNPOWDER]: { name: '火药', col: 0xFF404040, type: 'powder', weight: 9, burn: 100, transmit: 0.1 },
+        [T.FUSE]:      { name: '引线', col: 0xFF5050B0, type: 'static', burn: 5, transmit: 0.5 },
+        
+        [T.FIRE]:      { name: '火',   col: 0xFF0000FF, type: 'gas', light: 1.3, transmit: 0.9 },
+        [T.LASER]:     { name: '激光', col: 0xFF0000FF, type: 'gas', light: 2.5, transmit: 1.0 },
+        [T.SPARK]:     { name: '电光', col: 0xFFFFFFFF, type: 'gas', light: 2.0, transmit: 1.0 },
+        [T.ZERO]:      { name: '零度', col: 0xFFFFE0A0, type: 'gas', weight: 3, transmit: 0.9 },
+        [T.METHANE]:   { name: '甲烷', col: 0xFF203020, type: 'gas', burn: 90, transmit: 0.95 }, 
+        [T.CO2]:       { name: 'CO2',  col: 0xFF505050, type: 'gas', weight: 2, transmit: 0.9 },
+        [T.SMOKE]:     { name: '烟',   col: 0xFF404040, type: 'gas', transmit: 0.6 },
+        [T.VAPOR]:     { name: '蒸汽', col: 0xFFD0D0D0, type: 'gas', transmit: 0.8 },
+        [T.VIRUS]:     { name: '病毒', col: 0xFFA020A0, type: 'static', burn: 40, transmit: 0.6 }
+    };
+
+    let canvas, ctx, w, h, grid, lightMap, imgData, buf32;
+    let brushType = T.SAND, brushSize = 4;
+    let isTouching = false;
+    let useLighting = true;
+
+    // --- 修复点：声明全局帧数变量 ---
+    let frames = 0;
+    let lastTime = 0;
+
+    function init() {
+        const container = document.getElementById('game-container');
+        w = Math.ceil(container.clientWidth / SCALE);
+        h = Math.ceil(container.clientHeight / SCALE);
+        canvas = document.getElementById('sandCanvas');
+        canvas.width = w; canvas.height = h;
+        ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
+        
+        grid = new Uint8Array(w * h).fill(T.AIR);
+        lightMap = new Float32Array(w * h).fill(0);
+        imgData = ctx.createImageData(w, h);
+        buf32 = new Uint32Array(imgData.data.buffer);
+    }
+
+    window.toggleLight = () => {
+        useLighting = !useLighting;
+        const btn = document.getElementById('btn-light');
+        btn.innerHTML = useLighting ? "💡 光影: 开" : "💡 光影: 关";
+        btn.classList.toggle('active');
+    };
+    window.clearMap = () => grid && grid.fill(T.AIR);
+
+    const elBox = document.getElementById('element-scroll');
+    Object.keys(ELEM).forEach(k => {
+        k = parseInt(k);
+        const e = ELEM[k];
+        const btn = document.createElement('div');
+        btn.className = 'btn' + (k === brushType ? ' active' : '');
+        const hex = '#' + (e.col & 0xFFFFFF).toString(16).padStart(6,'0').match(/.{2}/g).reverse().join('');
+        btn.innerHTML = `<div class="dot" style="background:${k===T.AIR?'#000':hex}; box-shadow: 0 0 5px ${hex}"></div>${e.name}`;
+        btn.onclick = () => {
+            document.querySelectorAll('#element-scroll .btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            brushType = k;
+            if(navigator.vibrate) navigator.vibrate(5);
+        };
+        elBox.appendChild(btn);
+    });
+    document.getElementById('brush-size').oninput = (e) => {
+        brushSize = parseInt(e.target.value);
+        document.getElementById('brush-val').innerText = brushSize;
+    };
+
+    function paint(cx, cy) {
+        if (!grid) return;
+        const r = brushSize;
+        const rSq = r*r;
+        for (let y = -r; y <= r; y++) {
+            for (let x = -r; x <= r; x++) {
+                if (x*x + y*y <= rSq) {
+                    const nx = cx + x, ny = cy + y;
+                    if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                        const idx = ny * w + nx;
+                        const t = grid[idx];
+                        if (brushType === T.AIR || brushType === T.LASER || 
+                            t === T.AIR || (ELEM[t] && (ELEM[t].type === 'liquid' || ELEM[t].type === 'gas')) || brushType === T.WALL) {
+                            grid[idx] = brushType;
+                            lightMap[idx] = 1.0; 
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    function input(e) {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const t = e.touches ? e.touches[0] : e;
+        paint(Math.floor((t.clientX-rect.left)/SCALE), Math.floor((t.clientY-rect.top)/SCALE));
+    }
+
+    setTimeout(() => {
+        init();
+        const c = document.getElementById('sandCanvas');
+        ['mousedown','touchstart'].forEach(ev=>c.addEventListener(ev,e=>{isTouching=true;input(e)},{passive:false}));
+        ['mousemove','touchmove'].forEach(ev=>c.addEventListener(ev,e=>{if(isTouching)input(e)},{passive:false}));
+        ['mouseup','touchend'].forEach(ev=>window.addEventListener(ev,()=>isTouching=false));
+        window.addEventListener('resize', () => setTimeout(init, 200));
+        // 使用 requestAnimationFrame 启动，避免初始 time 为 undefined
+        requestAnimationFrame(loop);
+    }, 100);
+
+    function updatePhysics() {
+        for (let y = h - 1; y >= 0; y--) {
+            const dir = Math.random() < 0.5 ? 1 : -1;
+            const startX = dir === 1 ? 0 : w - 1;
+            
+            for (let i = 0; i < w; i++) {
+                const x = startX + (i * dir);
+                const idx = y * w + x;
+                const type = grid[idx];
+                
+                if (!ELEM[type]) { grid[idx] = T.AIR; continue; }
+                if (type === T.AIR || type === T.WALL || type === T.CONCRETE || type === T.STONE || type === T.GLASS) continue;
+
+                const props = ELEM[type];
+                const below = idx + w;
+
+                // --- 物理逻辑 ---
+                if (type === T.ANTIMATTER) {
+                    const nbs = [idx-1, idx+1, idx+w, idx-w];
+                    let boom = false;
+                    for (let n of nbs) {
+                        if (n>=0 && n<grid.length && grid[n]!==T.AIR && grid[n]!==T.ANTIMATTER && grid[n]!==T.VOID) {
+                            grid[n] = T.SPARK; grid[idx] = T.SPARK; boom = true; break;
+                        }
+                    }
+                    if (boom) continue;
+                }
+                
+                if (type === T.ZERO) { 
+                    if(Math.random()<0.05) grid[idx] = T.AIR; 
+                    const nbs = [idx-1, idx+1, idx+w, idx-w];
+                    for (let n of nbs) {
+                        if (n>=0 && n<grid.length) {
+                            if(grid[n]===T.WATER) grid[n]=T.ICE;
+                            else if(grid[n]===T.FIRE || grid[n]===T.LAVA) grid[n]=T.STONE;
+                        }
+                    }
+                     if (grid[below] === T.AIR) { grid[below] = type; grid[idx] = T.AIR; }
+                     else if(Math.random()<0.5) {
+                         const s = idx + (Math.random()<0.5?1:-1);
+                         if(s>=0 && s<grid.length && grid[s]===T.AIR) { grid[s]=type; grid[idx]=T.AIR; }
+                     }
+                    continue;
+                }
+
+                if (type === T.LASER) {
+                    if (Math.random() < 0.1) { grid[idx] = T.AIR; continue; }
+                    const nbs = [idx+1, idx-1, idx+w, idx-w];
+                    let moved = false;
+                    for(let n of nbs) {
+                        if(n>=0 && n<grid.length && grid[n]!==T.AIR && grid[n]!==T.LASER && grid[n]!==T.GLASS) {
+                            grid[n] = T.FIRE; grid[idx] = T.SPARK; moved=true; break;
+                        }
+                    }
+                    if(!moved) {
+                        let jump = idx + (Math.random()<0.5 ? w : -w); 
+                        if(jump>=0 && jump<grid.length && (grid[jump]===T.AIR || grid[jump]===T.GLASS)) {
+                            grid[jump] = T.LASER; grid[idx] = T.AIR;
+                        } else grid[idx] = T.AIR;
+                    }
+                    continue;
+                }
+                
+                if (type === T.BOMB_GEN) {
+                    if (Math.random() < 0.01) {
+                        let n = idx + w;
+                        if (n < grid.length && grid[n] === T.AIR) grid[n] = T.C4;
+                    }
+                    continue;
+                }
+
+                if (type === T.DRY_ICE) {
+                    if (Math.random() < 0.02) {
+                        grid[idx] = T.CO2;
+                    } else {
+                        const nbs = [idx-1, idx+1, idx+w, idx-w];
+                        for(let n of nbs) {
+                            if(n>=0 && n<grid.length && grid[n]===T.WATER) grid[n] = T.ICE;
+                        }
+                    }
+                    continue;
+                }
+
+                if (type === T.FUNGUS) {
+                    const nbs = [idx-1, idx+1, idx-w, idx+w];
+                    let grow = false;
+                    for(let n of nbs) {
+                         if(n>=0 && n<grid.length) {
+                             if(grid[n]===T.WOOD || grid[n]===T.PLANT) { grid[n]=T.FUNGUS; grow=true; }
+                             else if(grid[n]===T.AIR && Math.random()<0.02) { grid[n]=T.FUNGUS; grow=true; }
+                         }
+                    }
+                    if(Math.random()<0.01 && !grow) grid[idx] = T.AIR;
+                }
+
+                if (type === T.VOID) {
+                    [idx-1, idx+1, idx-w, idx+w].forEach(n=>{
+                         if(n>=0 && n<grid.length && grid[n]!==T.VOID && grid[n]!==T.WALL) grid[n] = T.AIR;
+                    });
+                    continue;
+                }
+                if (type === T.CLONE) {
+                    let src = T.AIR;
+                    [idx-1, idx+1, idx-w, idx+w].forEach(n => {
+                        if(n>=0 && n<grid.length && grid[n]!==T.CLONE && grid[n]!==T.AIR && grid[n]!==T.WALL && grid[n]!==T.VOID) src = grid[n];
+                    });
+                    if(src !== T.AIR) {
+                        let target = [idx-1, idx+1, idx-w, idx+w][Math.floor(Math.random()*4)];
+                        if(target>=0 && target<grid.length && grid[target]===T.AIR) grid[target] = src;
+                    }
+                    continue;
+                }
+                if (type === T.URANIUM) {
+                    if(Math.random()<0.005) { 
+                        let n = idx + Math.floor(Math.random()*20-10);
+                        if(n>=0 && n<grid.length && grid[n]===T.AIR) grid[n] = T.FIRE;
+                    }
+                }
+
+                if (type === T.FIRE || (type === T.TERMITE && Math.random()<0.1)) {
+                    let isTermite = (type === T.TERMITE);
+                    if (!isTermite && Math.random() < 0.1) grid[idx] = T.AIR;
+                    else if (!isTermite && Math.random() < 0.05) grid[idx] = T.SMOKE;
+                    
+                    const neighbors = [idx-1, idx+1, idx-w, idx+w];
+                    for (let n of neighbors) {
+                        if (n>=0 && n<grid.length) {
+                            const nt = grid[n];
+                            if (isTermite) {
+                                if (nt !== T.AIR && nt !== T.FIRE && nt !== T.TERMITE) grid[n] = T.FIRE;
+                                if (Math.random()<0.05) grid[idx] = T.FIRE;
+                            } 
+                            else if ((nt === T.C4 && Math.random()<0.1) || nt === T.NITRO || nt === T.METHANE || (nt===T.GUNPOWDER && Math.random()<0.5)) {
+                                grid[n] = T.FIRE;
+                                const r = (nt === T.C4 || nt === T.NITRO) ? 6 : 2; 
+                                for(let by=-r; by<=r; by++){
+                                    for(let bx=-r; bx<=r; bx++){
+                                        if(bx*bx+by*by <= r*r && Math.random()>0.3) {
+                                            let ti = n + by*w + bx;
+                                            if(ti>=0 && ti<grid.length && grid[ti]!==T.WALL) grid[ti] = Math.random()<0.5?T.FIRE:T.AIR;
+                                        }
+                                    }
+                                }
+                            } else if (ELEM[nt] && ELEM[nt].burn && Math.random()*100 < ELEM[nt].burn) {
+                                grid[n] = T.FIRE;
+                            } else if (nt === T.WATER) {
+                                grid[idx] = T.AIR; grid[n] = T.VAPOR;
+                            } else if (nt === T.ICE || nt === T.DRY_ICE) {
+                                grid[n] = (nt===T.ICE) ? T.WATER : T.CO2;
+                            }
+                        }
+                    }
+                    if (!isTermite && y>0 && grid[idx-w]===T.AIR) { grid[idx]=T.AIR; grid[idx-w]=T.FIRE; }
+                    continue;
+                }
+
+                if (props.type === 'gas') {
+                    if (props.weight && props.weight > 1) {
+                         if (grid[below] === T.AIR) { grid[below] = type; grid[idx] = T.AIR; }
+                         else {
+                             const s = idx + (Math.random()<0.5?1:-1);
+                             if(s>=0 && s<grid.length && grid[s]===T.AIR) { grid[s]=type; grid[idx]=T.AIR; }
+                         }
+                    } else {
+                        if (y > 0) {
+                            const up = idx - w;
+                            const drift = up + (Math.random()>0.5?1:-1);
+                            if (grid[up] === T.AIR) { grid[idx] = T.AIR; grid[up] = type; }
+                            else if (drift>=0 && drift<grid.length && grid[drift]===T.AIR) { grid[idx]=T.AIR; grid[drift]=type; }
+                        }
+                    }
+                    if (type === T.SPARK) { if(Math.random()<0.2) grid[idx]=T.AIR; }
+                    else if (Math.random()<0.01) grid[idx] = T.AIR;
+                    continue;
+                }
+
+                if (y === h - 1) continue;
+
+                if (props.type === 'liquid') {
+                    if (grid[below] === T.AIR) {
+                        grid[below] = type; grid[idx] = T.AIR; continue;
+                    }
+                    const target = grid[below];
+                    if (ELEM[target] && ELEM[target].type === 'liquid' && props.weight > ELEM[target].weight) {
+                        grid[below] = type; grid[idx] = target; continue;
+                    }
+                    
+                    if (props.viscosity && Math.random() < props.viscosity) continue;
+
+                    let flowDir = Math.random() < 0.5 ? -1 : 1;
+                    let sideIdx = idx + flowDir;
+                    let canMove = (flowDir === -1 && x > 0) || (flowDir === 1 && x < w - 1);
+                    
+                    if (canMove) {
+                        if (grid[sideIdx] === T.AIR) {
+                            grid[sideIdx] = type; grid[idx] = T.AIR;
+                        } else if (grid[sideIdx] === T.FIRE) {
+                             grid[sideIdx] = T.VAPOR; grid[idx] = T.AIR;
+                        }
+                    }
+                    if (type === T.LAVA) {
+                        [idx-1, idx+1, below, idx-w].forEach(n => {
+                            if (n>=0 && n<grid.length) {
+                                if (grid[n]===T.WATER) { grid[idx]=T.STONE; grid[n]=T.VAPOR; }
+                                else if (grid[n]===T.ICE) grid[n]=T.WATER;
+                            }
+                        });
+                    }
+                    continue;
+                }
+
+                if (props.type === 'powder') {
+                    if (grid[below] === T.AIR || (ELEM[grid[below]] && ELEM[grid[below]].type === 'liquid')) {
+                        let t = grid[below]; grid[below]=type; grid[idx]=t;
+                    } else {
+                        const side = (Math.random()<0.5) ? -1 : 1;
+                        let canSlide = (side===-1 && x>0) || (side===1 && x<w-1);
+                        if (canSlide) {
+                            let slideIdx = idx + w + side;
+                            if (grid[slideIdx] === T.AIR || (ELEM[grid[slideIdx]] && ELEM[grid[slideIdx]].type === 'liquid')) {
+                                let t = grid[slideIdx]; grid[slideIdx]=type; grid[idx]=t;
+                            }
+                        }
+                    }
+                }
+                
+                if (type === T.MITE) {
+                    const moves = [idx-1, idx+1, idx-w, idx+w];
+                    const move = moves[Math.floor(Math.random()*4)];
+                    if (move >= 0 && move < grid.length) {
+                        const t = grid[move];
+                        if (t === T.WOOD || t === T.PLANT || t === T.FUNGUS) { grid[move] = T.MITE; grid[idx] = T.AIR; }
+                        else if (t === T.AIR && Math.random()<0.5) { grid[move] = T.MITE; grid[idx] = T.AIR; }
+                        else if (t === T.FIRE || t === T.LAVA || t === T.ACID) grid[idx] = T.FIRE;
+                    }
+                }
+            }
+        }
+    }
+
+    function updateLights() {
+        if (!useLighting) return;
+        
+        for (let i = 0; i < grid.length; i++) {
+            const def = ELEM[grid[i]];
+            if (!def) { lightMap[i] = 0; continue; } 
+
+            if (def.light) {
+                let flicker = (Math.random() * 0.1) - 0.05; 
+                lightMap[i] = def.light + flicker;
+            } else {
+                lightMap[i] = 0;
+            }
+        }
+
+        for (let i = 0; i < grid.length; i++) {
+            const x = i % w;
+            const y = (i / w) | 0;
+            const def = ELEM[grid[i]];
+            const transmit = (def && def.transmit !== undefined) ? def.transmit : 0.0;
+            
+            let maxL = lightMap[i];
+            if (y > 0) { 
+                let l = lightMap[i-w] * transmit; 
+                if (l > maxL) maxL = l; 
+            }
+            if (x > 0) { 
+                let l = lightMap[i-1] * transmit; 
+                if (l > maxL) maxL = l; 
+            }
+            lightMap[i] = maxL;
+        }
+
+        for (let i = grid.length - 1; i >= 0; i--) {
+            const x = i % w;
+            const y = (i / w) | 0;
+            const def = ELEM[grid[i]];
+            const transmit = (def && def.transmit !== undefined) ? def.transmit : 0.0;
+            
+            let maxL = lightMap[i];
+            if (y < h-1) { 
+                let l = lightMap[i+w] * transmit; 
+                if (l > maxL) maxL = l; 
+            }
+            if (x < w-1) { 
+                let l = lightMap[i+1] * transmit; 
+                if (l > maxL) maxL = l; 
+            }
+            lightMap[i] = maxL;
+        }
+    }
+
+    function loop(time) {
+        if(!grid) return;
+        updatePhysics();
+        updateLights();
+
+        for (let i = 0; i < grid.length; i++) {
+            const type = grid[i];
+            const def = ELEM[type];
+            if (!def) { buf32[i] = 0xFF000000; continue; }
+
+            let col = def.col;
+            let r = col & 0xFF;
+            let g = (col >> 8) & 0xFF;
+            let b = (col >> 16) & 0xFF;
+
+            if (type !== T.AIR && type !== T.GLASS && type !== T.VOID && type !== T.LASER) {
+                const noise = ((i * 13 + (i>>5)*7) % 25) - 12;
+                r += noise; g += noise; b += noise;
+            }
+
+            if (useLighting) {
+                const light = lightMap[i];
+                // 环境光基础亮度 0.5
+                let intensity = 0.5 + light;
+                
+                r *= intensity; g *= intensity; b *= intensity;
+                if (light > 1.0) {
+                    const bloom = (light - 1.0) * 80;
+                    r += bloom; g += bloom; b += bloom;
+                }
+            }
+
+            buf32[i] = 0xFF000000 | 
+                ((b>255?255:b<0?0:b) << 16) | 
+                ((g>255?255:g<0?0:g) << 8) | 
+                ((r>255?255:r<0?0:r));
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+
+        frames++;
+        if (time - lastTime >= 1000) {
+            document.getElementById('fps').innerText = `FPS:${frames}`;
+            frames = 0; lastTime = time;
+        }
+        requestAnimationFrame(loop);
+    }
+</script>
+</body>
+</html>
