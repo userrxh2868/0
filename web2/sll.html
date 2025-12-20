@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Cyber Minesweeper</title>
+    <style>
+        :root {
+            /* 赛博配色 */
+            --bg-deep: #050505;
+            --bg-surface: #141414;
+            --primary: #00f2ea;
+            --accent: #ff0050;
+            --gold: #ffd700;
+            --text-main: #ffffff;
+            --text-dim: #666666;
+            
+            /* 物理系统 */
+            --spring: linear(0, 0.009, 0.035 2.1%, 0.141 4.4%, 0.723 12.9%, 0.938 16.7%, 1.017 20.5%, 1.043 24.3%, 1.035 28.1%, 1.01 32.1%, 0.991 36%, 0.982 39.9%, 0.98 43.9%, 0.982 48%, 0.988 52.2%, 0.995 56.6%, 1 61.1%, 1);
+            --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+            
+            /* 尺寸 */
+            --gap: 5px;
+            --radius: 6px;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'SF Pro Display', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* 顶部仪表盘 */
+        .hud {
+            width: 92vw;
+            max-width: 400px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: rgba(20, 20, 20, 0.6);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        .hud-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .hud-label { font-size: 10px; letter-spacing: 1px; color: var(--text-dim); text-transform: uppercase; font-weight: 700; margin-bottom: 2px; }
+        .hud-val { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -1px; }
+
+        .btn-status {
+            width: 56px; height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 28px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.1);
+            transition: transform 0.3s var(--spring);
+        }
+        .btn-status:active { transform: scale(0.85); }
+
+        /* 游戏区域 */
+        .board-wrapper {
+            position: relative;
+            padding: 12px;
+            background: #0a0a0a;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 30px 80px -20px rgba(0,0,0,0.7);
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: var(--gap);
+            width: 90vw;
+            max-width: 380px;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            background: #1f1f1f;
+            border-radius: var(--radius);
+            position: relative;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(14px, 4.5vw, 20px);
+            font-weight: 800;
+            overflow: hidden;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        /* 3D 悬浮质感 */
+        .cell::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), inset 0 -2px 0 rgba(0,0,0,0.3);
+            opacity: 1;
+            transition: opacity 0.2s;
+        }
+
+        .cell:active:not(.revealed) {
+            transform: scale(0.92);
+            background: #252525;
+        }
+
+        /* 翻开动画 (Spring) */
+        .cell.revealed {
+            background: #0f0f0f;
+            transform: scale(1);
+            cursor: default;
+        }
+        .cell.revealed::after { opacity: 0; }
+
+        .cell.anim-enter {
+            animation: springIn 0.6s var(--spring) backwards;
+        }
+
+        @keyframes springIn {
+            0% { transform: scale(0) translateY(20px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        /* 数字颜色 */
+        .val-1 { color: #4facfe; text-shadow: 0 0 10px rgba(79, 172, 254, 0.4); }
+        .val-2 { color: #00f2ea; text-shadow: 0 0 10px rgba(0, 242, 234, 0.4); }
+        .val-3 { color: #ff0050; text-shadow: 0 0 10px rgba(255, 0, 80, 0.4); }
+        .val-4 { color: #a855f7; }
+        .val-5 { color: #fbbf24; }
+        
+        .flag-icon { filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); animation: pop 0.3s var(--spring); }
+        .mine-icon { animation: shake 0.5s ease-in-out infinite; }
+
+        @keyframes pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+        @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:rotate(-10deg)} 75%{transform:rotate(10deg)} }
+
+        /* 作弊悬浮球 */
+        .cheat-fab {
+            position: fixed;
+            bottom: 30px; right: 30px;
+            width: 50px; height: 50px;
+            background: rgba(30,30,30,0.8);
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            color: var(--text-dim);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 50;
+            transition: all 0.3s var(--ease-out);
+        }
+        .cheat-fab.active { background: var(--text-main); color: #000; transform: rotate(90deg) scale(1.1); }
+
+        /* 抽屉式作弊菜单 */
+        .cheat-drawer {
+            position: fixed;
+            bottom: 0; left: 0; width: 100%;
+            background: #1a1a1a;
+            border-radius: 30px 30px 0 0;
+            padding: 30px 20px 40px 20px;
+            transform: translateY(110%);
+            transition: transform 0.4s var(--ease-out);
+            z-index: 100;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.6);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .cheat-drawer.open { transform: translateY(0); }
+        
+        /* 遮罩 */
+        .backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.4s;
+            z-index: 90;
+            backdrop-filter: blur(3px);
+        }
+        .backdrop.open { opacity: 1; pointer-events: all; }
+
+        .drawer-handle {
+            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+            width: 40px; height: 4px; background: #333; border-radius: 2px;
+        }
+
+        /* 菜单项 */
+        .cheat-card {
+            background: #252525;
+            padding: 15px;
+            border-radius: 16px;
+            display: flex; flex-direction: column; gap: 5px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+        .cheat-card span { font-size: 12px; color: #888; }
+        .cheat-card strong { font-size: 15px; color: #fff; }
+        
+        .cheat-card.active {
+            background: rgba(0, 242, 234, 0.15);
+            border-color: var(--primary);
+        }
+        .cheat-card.active strong { color: var(--primary); }
+        .cheat-card:active { transform: scale(0.96); }
+
+        /* 特殊：核弹模式 */
+        .cheat-card.nuke-mode.active {
+            background: rgba(255, 0, 80, 0.15);
+            border-color: var(--accent);
+        }
+        .cheat-card.nuke-mode.active strong { color: var(--accent); }
+        
+        /* 状态覆盖层 */
+        .nuke-overlay {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            pointer-events: none;
+            box-shadow: inset 0 0 50px var(--accent);
+            opacity: 0; transition: opacity 0.3s;
+            z-index: 5;
+            mix-blend-mode: overlay;
+        }
+        body.nuke-active .nuke-overlay { opacity: 1; }
+
+        /* 透视模式视觉 */
+        body.xray-active .cell[data-mine="true"]:not(.revealed) {
+            background: rgba(255, 0, 80, 0.15) !important;
+            border: 1px solid var(--accent);
+            box-shadow: 0 0 15px var(--accent);
+            z-index: 1;
+        }
+
+        /* 胜利波浪动画 */
+        .cell.victory-wave {
+            animation: wave 0.6s ease-in-out infinite alternate;
+        }
+        @keyframes wave { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+
+    </style>
+</head>
+<body class="">
+
+    <div class="nuke-overlay"></div>
+
+    <div class="hud">
+        <div class="hud-stat">
+            <span class="hud-label">MINES</span>
+            <span class="hud-val" id="disp-flags">10</span>
+        </div>
+        <div class="btn-status" id="btn-reset">⚡</div>
+        <div class="hud-stat">
+            <span class="hud-label">TIME</span>
+            <span class="hud-val" id="disp-timer">000</span>
+        </div>
+    </div>
+
+    <div class="board-wrapper">
+        <div class="board" id="board"></div>
+    </div>
+    
+    <div style="margin-top:20px; opacity:0.3; font-size:12px;">LONG PRESS TO FLAG</div>
+
+    <!-- Controls -->
+    <div class="cheat-fab" id="fab">⚙️</div>
+    
+    <div class="backdrop" id="backdrop"></div>
+    <div class="cheat-drawer" id="drawer">
+        <div class="drawer-handle"></div>
+        
+        <div class="cheat-card" id="opt-god">
+            <strong>🛡️ 上帝模式</strong>
+            <span>踩雷不爆炸</span>
+        </div>
+        
+        <div class="cheat-card" id="opt-xray">
+            <strong>👁️ 透视终端</strong>
+            <span>高亮所有地雷</span>
+        </div>
+
+        <div class="cheat-card nuke-mode" id="opt-nuke">
+            <strong>☢️ 战术核弹</strong>
+            <span>点击轰炸 3x3 区域</span>
+        </div>
+
+        <div class="cheat-card" id="opt-time">
+            <strong>⏳ 时间冻结</strong>
+            <span>停止计时器</span>
+        </div>
+        
+        <div class="cheat-card" onclick="game.instantWin()" style="grid-column: span 2; background: #333; text-align:center;">
+            <strong>🚀 立即胜利</strong>
+        </div>
+    </div>
+
+    <script>
+        class Game {
+            constructor() {
+                this.rows = 10;
+                this.cols = 10;
+                this.mines = 15;
+                this.board = [];
+                this.state = 'ready'; // ready, playing, over
+                this.flags = 0;
+                this.time = 0;
+                this.timerId = null;
+                
+                // 作弊状态
+                this.cheats = {
+                    god: false,
+                    xray: false,
+                    nuke: false,
+                    freeze: false
+                };
+
+                // DOM
+                this.elBoard = document.getElementById('board');
+                this.elFlags = document.getElementById('disp-flags');
+                this.elTimer = document.getElementById('disp-timer');
+                this.elReset = document.getElementById('btn-reset');
+                
+                this.init();
+            }
+
+            init() {
+                this.clearInterval();
+                this.time = 0;
+                this.elTimer.innerText = '000';
+                this.flags = this.mines;
+                this.elFlags.innerText = this.flags;
+                this.state = 'ready';
+                this.elReset.innerText = '⚡';
+                this.elBoard.innerHTML = '';
+                this.board = [];
+                
+                // 每次开始时关闭核弹模式，避免误操作
+                if(this.cheats.nuke) this.toggleNuke(false);
+
+                // 生成网格
+                for(let r=0; r<this.rows; r++) {
+                    const row = [];
+                    for(let c=0; c<this.cols; c++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        // 存储坐标
+                        cell.dataset.r = r;
+                        cell.dataset.c = c;
+                        
+                        this.bindInput(cell, r, c);
+                        this.elBoard.appendChild(cell);
+                        
+                        row.push({
+                            el: cell,
+                            r, c,
+                            isMine: false,
+                            revealed: false,
+                            flagged: false,
+                            val: 0
+                        });
+                    }
+                    this.board.push(row);
+                }
+                
+                // 重新应用视觉作弊
+                this.updateCheatVisuals();
+            }
+
+            bindInput(cell, r, c) {
+                let timer = null;
+                let moved = false;
+
+                const start = () => {
+                    if(this.state === 'over') return;
+                    moved = false;
+                    timer = setTimeout(() => {
+                        this.toggleFlag(r, c);
+                        if(navigator.vibrate) navigator.vibrate(40);
+                        timer = null;
+                    }, 350);
+                };
+                
+                const move = () => { moved = true; clearTimeout(timer); };
+                
+                const end = (e) => {
+                    if(e.cancelable) e.preventDefault();
+                    if(moved) return;
+                    
+                    if(timer) {
+                        clearTimeout(timer);
+                        // 如果开启核弹模式，走核弹逻辑
+                        if(this.cheats.nuke && !this.board[r][c].revealed) {
+                            this.triggerNuke(r, c);
+                        } else {
+                            this.reveal(r, c);
+                        }
+                    }
+                };
+
+                cell.addEventListener('touchstart', start, {passive:true});
+                cell.addEventListener('touchmove', move, {passive:true});
+                cell.addEventListener('touchend', end);
+                cell.addEventListener('mousedown', (e) => { if(e.button===0) start(); });
+                cell.addEventListener('mouseup', (e) => { if(e.button===0 && timer) { clearTimeout(timer); this.cheats.nuke ? this.triggerNuke(r,c) : this.reveal(r,c); } });
+                cell.addEventListener('contextmenu', (e) => { e.preventDefault(); this.toggleFlag(r,c); });
+            }
+
+            startTimer() {
+                if(this.state === 'playing') return;
+                this.state = 'playing';
+                this.timerId = setInterval(() => {
+                    if(!this.cheats.freeze) {
+                        this.time++;
+                        this.elTimer.innerText = this.time.toString().padStart(3,'0');
+                    }
+                }, 1000);
+            }
+
+            clearInterval() {
+                if(this.timerId) clearInterval(this.timerId);
+            }
+
+            // 核心雷生成算法
+            placeMines(safeR, safeC) {
+                let placed = 0;
+                while(placed < this.mines) {
+                    const r = Math.floor(Math.random() * this.rows);
+                    const c = Math.floor(Math.random() * this.cols);
+                    // 保护首点及周边
+                    if(!this.board[r][c].isMine && Math.abs(r-safeR)<=1 && Math.abs(c-safeC)<=1) continue;
+                    
+                    if(!this.board[r][c].isMine) {
+                        this.board[r][c].isMine = true;
+                        this.board[r][c].el.dataset.mine = 'true';
+                        placed++;
+                    }
+                }
+                
+                // 计算数值
+                for(let r=0; r<this.rows; r++) {
+                    for(let c=0; c<this.cols; c++) {
+                        if(!this.board[r][c].isMine) {
+                            let count = 0;
+                            for(let i=-1; i<=1; i++) 
+                                for(let j=-1; j<=1; j++) 
+                                    if(this.board[r+i]?.[c+j]?.isMine) count++;
+                            this.board[r][c].val = count;
+                        }
+                    }
+                }
+                this.startTimer();
+                this.updateCheatVisuals();
+            }
+
+            reveal(r, c, originR = r, originC = c) {
+                const cell = this.board[r][c];
+                if(cell.revealed || cell.flagged) return;
+                
+                if(this.state === 'ready') this.placeMines(r, c);
+
+                if(cell.isMine) {
+                    if(this.cheats.god) {
+                        this.toggleFlag(r, c);
+                        if(navigator.vibrate) navigator.vibrate([50,50,50]);
+                        return; // 救了一命
+                    }
+                    this.gameOver(false);
+                    return;
+                }
+
+                // 揭开动画逻辑
+                cell.revealed = true;
+                cell.el.classList.add('revealed', 'anim-enter');
+                
+                // 计算物理延迟 (Ripple Effect 2.0)
+                const dist = Math.sqrt((r-originR)**2 + (c-originC)**2);
+                cell.el.style.animationDelay = `${dist * 0.05}s`;
+
+                if(cell.val > 0) {
+                    cell.el.innerText = cell.val;
+                    cell.el.classList.add(`val-${cell.val}`);
+                } else {
+                    // 扩散
+                    for(let i=-1; i<=1; i++) {
+                        for(let j=-1; j<=1; j++) {
+                            if(this.board[r+i]?.[c+j]) this.reveal(r+i, c+j, originR, originC);
+                        }
+                    }
+                }
+                this.checkWin();
+            }
+
+            toggleFlag(r, c) {
+                const cell = this.board[r][c];
+                if(cell.revealed) return;
+                cell.flagged = !cell.flagged;
+                if(cell.flagged) {
+                    cell.el.innerHTML = '<div class="flag-icon">🚩</div>';
+                    this.flags--;
+                } else {
+                    cell.el.innerHTML = '';
+                    this.flags++;
+                }
+                this.elFlags.innerText = this.flags;
+            }
+
+            // --- 新增功能：战术核弹 ---
+            triggerNuke(centerR, centerC) {
+                if(this.state === 'ready') this.placeMines(centerR, centerC);
+                
+                if(navigator.vibrate) navigator.vibrate(100);
+                
+                // 遍历 3x3
+                for(let i=-1; i<=1; i++) {
+                    for(let j=-1; j<=1; j++) {
+                        const target = this.board[centerR+i]?.[centerC+j];
+                        if(target && !target.revealed) {
+                            if(target.isMine) {
+                                // 核弹自动标雷
+                                if(!target.flagged) this.toggleFlag(target.r, target.c);
+                            } else {
+                                // 强制揭开，无视距离延迟
+                                target.revealed = true;
+                                target.el.classList.add('revealed', 'anim-enter');
+                                target.el.style.animationDelay = `${Math.random()*0.1}s`; // 随机爆炸感
+                                if(target.val > 0) {
+                                    target.el.innerText = target.val;
+                                    target.el.classList.add(`val-${target.val}`);
+                                } else {
+                                    // 如果是0，还需要触发连锁，否则会断层
+                                    this.reveal(target.r, target.c); 
+                                }
+                            }
+                        }
+                    }
+                }
+                this.checkWin();
+                // 轰炸完自动关闭核弹模式，体验更好
+                this.toggleNuke(false);
+            }
+
+            gameOver(win) {
+                this.state = 'over';
+                this.clearInterval();
+                
+                if(win) {
+                    this.elReset.innerText = '😎';
+                    // 胜利波浪动画
+                    this.board.forEach(row => row.forEach(cell => {
+                        const delay = (cell.r + cell.c) * 0.1;
+                        cell.el.style.animation = `wave 1s ease-in-out ${delay}s infinite alternate`;
+                    }));
+                } else {
+                    this.elReset.innerText = '💀';
+                    this.board.forEach(row => row.forEach(cell => {
+                        if(cell.isMine) {
+                            cell.el.classList.add('mine');
+                            cell.el.innerHTML = '<div class="mine-icon">💣</div>';
+                            cell.el.style.background = '#ff0050';
+                        }
+                    }));
+                    if(navigator.vibrate) navigator.vibrate(500);
+                }
+            }
+
+            checkWin() {
+                let revealed = 0;
+                this.board.forEach(r => r.forEach(c => { if(c.revealed) revealed++; }));
+                if(revealed === (this.rows * this.cols - this.mines)) this.gameOver(true);
+            }
+
+            instantWin() {
+                if(this.state === 'over') return;
+                // 翻开所有非雷
+                this.board.forEach(r => r.forEach(c => {
+                    if(!c.isMine && !c.revealed) {
+                        c.revealed = true;
+                        c.el.classList.add('revealed');
+                        if(c.val>0) {
+                            c.el.innerText = c.val;
+                            c.el.classList.add(`val-${c.val}`);
+                        }
+                    }
+                }));
+                this.gameOver(true);
+                toggleMenu(false);
+            }
+
+            // --- Cheats Logic ---
+            updateCheatVisuals() {
+                document.body.classList.toggle('xray-active', this.cheats.xray);
+                document.body.classList.toggle('nuke-active', this.cheats.nuke);
+            }
+            
+            toggleNuke(forceState) {
+                this.cheats.nuke = forceState !== undefined ? forceState : !this.cheats.nuke;
+                const btn = document.getElementById('opt-nuke');
+                if(this.cheats.nuke) btn.classList.add('active');
+                else btn.classList.remove('active');
+                this.updateCheatVisuals();
+            }
+        }
+
+        const game = new Game();
+
+        document.getElementById('btn-reset').onclick = () => game.init();
+
+        // UI Logic for Drawer
+        const fab = document.getElementById('fab');
+        const drawer = document.getElementById('drawer');
+        const backdrop = document.getElementById('backdrop');
+
+        function toggleMenu(show) {
+            if(show) {
+                drawer.classList.add('open');
+                backdrop.classList.add('open');
+                fab.classList.add('active');
+            } else {
+                drawer.classList.remove('open');
+                backdrop.classList.remove('open');
+                fab.classList.remove('active');
+            }
+        }
+
+        fab.onclick = () => toggleMenu(!drawer.classList.contains('open'));
+        backdrop.onclick = () => toggleMenu(false);
+
+        // Cheat Buttons
+        document.getElementById('opt-god').onclick = function() {
+            game.cheats.god = !game.cheats.god;
+            this.classList.toggle('active');
+        };
+        
+        document.getElementById('opt-xray').onclick = function() {
+            game.cheats.xray = !game.cheats.xray;
+            this.classList.toggle('active');
+            game.updateCheatVisuals();
+        };
+
+        document.getElementById('opt-nuke').onclick = function() {
+            game.toggleNuke();
+            // 如果开启核弹，自动关闭菜单以便操作
+            if(game.cheats.nuke) toggleMenu(false);
+        };
+
+        document.getElementById('opt-time').onclick = function() {
+            game.cheats.freeze = !game.cheats.freeze;
+            this.classList.toggle('active');
+        };
+
+    </script>
+</body>
+</html>

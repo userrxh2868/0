@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>水果消消乐 - 畅爽版</title>
+    <!-- 使用圆润可爱的字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* 配色：更柔和的糖果色 */
+            --primary: #FF6B6B;
+            --primary-dark: #EE5253;
+            --bg-gradient: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%);
+            
+            /* 动画曲线：Q弹果冻感 */
+            --ease-elastic: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            --ease-out: cubic-bezier(0.34, 1.56, 0.64, 1);
+            
+            --tile-size: clamp(40px, 11vw, 55px);
+            --gap: 5px;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'ZCOOL KuaiLe', 'Heiti SC', sans-serif; /* 中文可爱字体优先 */
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            background: var(--bg-gradient);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* --- 顶部数据栏 --- */
+        .hud-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            width: 90%;
+            max-width: 450px;
+        }
+
+        .hud-card {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 10px;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 2px solid #FFF;
+        }
+
+        .hud-label {
+            font-size: 1rem;
+            color: #888;
+            margin-bottom: 2px;
+        }
+
+        .hud-value {
+            font-size: 1.8rem;
+            color: var(--primary);
+            text-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+        }
+
+        /* --- 棋盘 --- */
+        .board-bg {
+            background: rgba(255, 255, 255, 0.4);
+            padding: 10px;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            border: 2px solid rgba(255,255,255,0.6);
+        }
+
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: var(--gap);
+        }
+
+        .tile {
+            width: var(--tile-size);
+            height: var(--tile-size);
+            background: #FFF;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: calc(var(--tile-size) * 0.65);
+            cursor: pointer;
+            position: relative;
+            z-index: 10;
+            /* 3D 按钮效果 */
+            box-shadow: 0 4px 0 #E0E0E0, 0 5px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        /* 选中状态 */
+        .tile.selected {
+            background: #FFEAA7;
+            transform: translateY(4px); /* 按下效果 */
+            box-shadow: 0 0 0 #E0E0E0, inset 0 2px 5px rgba(0,0,0,0.1);
+            border: 2px solid #FDcB6E;
+        }
+
+        /* 动画类 */
+        .tile.moving {
+            transition: transform 0.25s var(--ease-out);
+            z-index: 100;
+        }
+
+        .tile.popping {
+            animation: pop 0.3s ease-in forwards;
+        }
+
+        .tile.dropping {
+            animation: drop 0.5s var(--ease-elastic);
+        }
+
+        .tile.shake {
+            animation: no-no 0.4s ease-in-out;
+            background: #FFD3D3;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        @keyframes drop {
+            0% { transform: translateY(-50px) scale(0); opacity: 0; }
+            60% { transform: translateY(5px) scale(1.1); opacity: 1; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+        @keyframes no-no {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px) rotate(-5deg); }
+            75% { transform: translateX(5px) rotate(5deg); }
+        }
+
+        /* --- 悬浮按钮 --- */
+        .fab-menu {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 8px 20px rgba(255, 107, 107, 0.4);
+            cursor: pointer;
+            z-index: 200;
+            transition: transform 0.2s var(--ease-elastic);
+        }
+
+        .fab-menu:active { transform: scale(0.9); }
+
+        /* --- 弹窗 --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            z-index: 300;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-box {
+            background: #FFF;
+            width: 85%;
+            max-width: 320px;
+            border-radius: 24px;
+            padding: 25px;
+            text-align: center;
+            animation: slideUp 0.3s var(--ease-out);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-title { font-size: 1.5rem; color: #333; margin: 0 0 20px 0; }
+
+        .cheat-btn {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 15px;
+            background: #F0F2F5;
+            color: #555;
+            font-size: 1.1rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding-left: 20px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        
+        .cheat-btn span { margin-right: 15px; font-size: 1.4rem; }
+        .cheat-btn:active { background: #E1E1E1; transform: scale(0.98); }
+        .cheat-btn.highlight { background: #FFF0F0; color: var(--primary); }
+
+        .close-btn {
+            margin-top: 15px;
+            background: transparent;
+            color: #888;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        /* --- 提示条 --- */
+        .toast {
+            position: fixed;
+            top: 15%;
+            left: 50%;
+            transform: translate(-50%, -20px);
+            background: rgba(50, 50, 50, 0.9);
+            color: #FFF;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 1rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: 0.3s var(--ease-out);
+            z-index: 400;
+            white-space: nowrap;
+        }
+        .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    </style>
+</head>
+<body>
+
+    <div class="hud-container">
+        <div class="hud-card">
+            <span class="hud-label">剩余步数</span>
+            <span class="hud-value" id="moves">25</span>
+        </div>
+        <div class="hud-card">
+            <span class="hud-label">当前得分</span>
+            <span class="hud-value" id="score">0</span>
+        </div>
+    </div>
+
+    <div class="board-bg">
+        <div id="grid"></div>
+    </div>
+
+    <!-- 作弊菜单按钮 -->
+    <div class="fab-menu" onclick="toggleMenu()">⚡</div>
+
+    <!-- 弹窗菜单 -->
+    <div class="modal-overlay" id="menuModal" onclick="if(event.target===this) toggleMenu()">
+        <div class="modal-box">
+            <h3 class="modal-title">神秘力量 (作弊)</h3>
+            <button class="cheat-btn" onclick="execCheat('moves')"><span>🔋</span> 步数 +10</button>
+            <button class="cheat-btn" onclick="execCheat('score')"><span>💎</span> 分数 +5000</button>
+            <button class="cheat-btn" onclick="execCheat('shuffle')"><span>🎲</span> 强制洗牌</button>
+            <button class="cheat-btn highlight" onclick="execCheat('win')"><span>🏆</span> 直接胜利</button>
+            <button class="close-btn" onclick="toggleMenu()">关闭菜单</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">提示信息</div>
+
+    <script>
+        const width = 8;
+        const grid = document.getElementById('grid');
+        const scoreEl = document.getElementById('score');
+        const movesEl = document.getElementById('moves');
+        
+        // 降低难度：减少种类到5种，颜色区分度高
+        const emojis = ['🍓', '🍌', '🍇', '🥥', '🍊']; 
+        
+        let squares = [];
+        let score = 0;
+        let moves = 25; // 稍微多给几步
+        let selectedIndex = null;
+        let isProcessing = false;
+
+        // --- 初始化游戏 ---
+        function initGame() {
+            createBoard();
+            // 确保开局既没有自动消除，但又必须有“活路”
+            ensurePlayableStart();
+        }
+
+        function createBoard() {
+            grid.innerHTML = '';
+            squares = [];
+            for (let i = 0; i < width * width; i++) {
+                const tile = document.createElement('div');
+                tile.classList.add('tile');
+                tile.setAttribute('data-id', i);
+                tile.innerHTML = randomEmoji();
+                tile.addEventListener('click', () => handleTap(i));
+                grid.appendChild(tile);
+                squares.push({ dom: tile, val: tile.innerHTML });
+            }
+        }
+
+        function randomEmoji() {
+            return emojis[Math.floor(Math.random() * emojis.length)];
+        }
+
+        // --- 核心算法：确保有解 ---
+        function ensurePlayableStart() {
+            let limit = 0;
+            // 1. 先消除初始的连击
+            cleanInitialMatches();
+            // 2. 检查是否有解，如果无解则重新生成
+            while (!hasPossibleMoves() && limit < 100) {
+                // 暴力重置，直到随机出一个有解的盘面
+                squares.forEach(sq => {
+                    sq.dom.innerHTML = randomEmoji();
+                    sq.val = sq.dom.innerHTML;
+                });
+                cleanInitialMatches();
+                limit++;
+            }
+            if(limit >= 100) console.log("Warning: Board generation timed out");
+        }
+
+        function cleanInitialMatches() {
+            // 反复检查并替换，直到没有开局三连
+            while (checkMatchesSimple()) {
+                squares.forEach(sq => {
+                    if (sq.match) {
+                        sq.dom.innerHTML = randomEmoji();
+                        sq.val = sq.dom.innerHTML;
+                        sq.match = false;
+                    }
+                });
+            }
+        }
+
+        // 智能检测：当前盘面是否有任意一步可以消除
+        function hasPossibleMoves() {
+            // 模拟每一个格子的右换和下换
+            for (let i = 0; i < 64; i++) {
+                // 尝试向右交换
+                if (i % width < width - 1) {
+                    if (tryVirtualSwap(i, i + 1)) return true;
+                }
+                // 尝试向下交换
+                if (i < 56) {
+                    if (tryVirtualSwap(i, i + width)) return true;
+                }
+            }
+            return false;
+        }
+
+        function tryVirtualSwap(idx1, idx2) {
+            // 虚拟交换数据
+            let temp = squares[idx1].val;
+            squares[idx1].val = squares[idx2].val;
+            squares[idx2].val = temp;
+
+            // 检查是否有连击
+            let hasMatch = checkMatchesVirtual();
+
+            // 换回来
+            temp = squares[idx1].val;
+            squares[idx1].val = squares[idx2].val;
+            squares[idx2].val = temp;
+
+            return hasMatch;
+        }
+
+        // 纯数据层面的匹配检查（不操作DOM）
+        function checkMatchesVirtual() {
+            // 行
+            for (let i = 0; i < 64; i++) {
+                if (i % width > width - 3) continue;
+                if (squares[i].val && squares[i].val === squares[i+1].val && squares[i].val === squares[i+2].val) return true;
+            }
+            // 列
+            for (let i = 0; i < 47; i++) {
+                if (squares[i].val && squares[i].val === squares[i+width].val && squares[i].val === squares[i+width*2].val) return true;
+            }
+            return false;
+        }
+
+        // --- 交互逻辑 ---
+        function handleTap(index) {
+            if (isProcessing || moves <= 0) return;
+            
+            const currentTile = squares[index].dom;
+
+            if (selectedIndex === null) {
+                // 第一次点击
+                selectedIndex = index;
+                currentTile.classList.add('selected');
+                vibrate(10);
+            } else if (selectedIndex === index) {
+                // 取消
+                currentTile.classList.remove('selected');
+                selectedIndex = null;
+            } else {
+                // 第二次点击，判断相邻
+                const prevIndex = selectedIndex;
+                squares[prevIndex].dom.classList.remove('selected');
+                selectedIndex = null;
+
+                if (isAdjacent(prevIndex, index)) {
+                    performSwap(prevIndex, index);
+                } else {
+                    // 点远了，切换目标
+                    currentTile.classList.add('selected');
+                    selectedIndex = index;
+                    vibrate(10);
+                }
+            }
+        }
+
+        function isAdjacent(i1, i2) {
+            const c1 = i1 % width, r1 = Math.floor(i1 / width);
+            const c2 = i2 % width, r2 = Math.floor(i2 / width);
+            return Math.abs(c1 - c2) + Math.abs(r1 - r2) === 1;
+        }
+
+        // --- 动画与执行 ---
+        async function performSwap(idx1, idx2) {
+            isProcessing = true;
+            const tile1 = squares[idx1].dom;
+            const tile2 = squares[idx2].dom;
+
+            // 视觉位置交换动画
+            const dx = (idx2 % width - idx1 % width) * 100; // 简单位移，假设格内对齐
+            const dy = (Math.floor(idx2/width) - Math.floor(idx1/width)) * 100;
+            
+            // 使用 getBoundingClientRect 计算精确位移，适配响应式
+            const rect1 = tile1.getBoundingClientRect();
+            const rect2 = tile2.getBoundingClientRect();
+            const moveX = rect2.left - rect1.left;
+            const moveY = rect2.top - rect1.top;
+
+            tile1.classList.add('moving');
+            tile2.classList.add('moving');
+            tile1.style.transform = `translate(${moveX}px, ${moveY}px)`;
+            tile2.style.transform = `translate(${-moveX}px, ${-moveY}px)`;
+
+            await wait(250);
+
+            // 逻辑数据交换
+            // 同步 dom 和 内部 val
+            const tempVal = squares[idx1].val;
+            squares[idx1].val = squares[idx2].val;
+            squares[idx2].val = tempVal;
+            
+            tile1.innerHTML = squares[idx1].val;
+            tile2.innerHTML = squares[idx2].val;
+
+            // 重置样式
+            tile1.style.transform = '';
+            tile2.style.transform = '';
+            tile1.classList.remove('moving');
+            tile2.classList.remove('moving');
+
+            // 检查消除
+            if (checkMatchesSimple()) {
+                moves--;
+                updateHud();
+                await processMatches();
+            } else {
+                // 失败回滚 - 视觉摇头
+                tile1.classList.add('shake');
+                tile2.classList.add('shake');
+                vibrate(30);
+
+                // 数据回滚
+                const tempBack = squares[idx1].val;
+                squares[idx1].val = squares[idx2].val;
+                squares[idx2].val = tempBack;
+                // DOM 延迟回滚以配合动画
+                await wait(400);
+                tile1.innerHTML = squares[idx1].val;
+                tile2.innerHTML = squares[idx2].val;
+                
+                tile1.classList.remove('shake');
+                tile2.classList.remove('shake');
+                isProcessing = false;
+            }
+        }
+
+        // 实际消除逻辑（标记 DOM）
+        function checkMatchesSimple() {
+            let found = false;
+            squares.forEach(s => s.match = false);
+            // 简单行检查
+            for(let i=0; i<64; i++){
+                if(i%width > width-3) continue;
+                if(squares[i].val === squares[i+1].val && squares[i].val === squares[i+2].val){
+                    squares[i].match = squares[i+1].match = squares[i+2].match = true;
+                    found = true;
+                }
+            }
+            // 简单列检查
+            for(let i=0; i<47; i++){
+                if(squares[i].val === squares[i+width].val && squares[i].val === squares[i+width*2].val){
+                    squares[i].match = squares[i+width].match = squares[i+width*2].match = true;
+                    found = true;
+                }
+            }
+            return found;
+        }
+
+        async function processMatches() {
+            const matched = squares.filter(s => s.match);
+            score += matched.length * 20; // 提高分数
+            updateHud();
+            vibrate(50);
+
+            // 播放消除动画
+            matched.forEach(s => s.dom.classList.add('popping'));
+            await wait(300);
+
+            // 移除内容
+            matched.forEach(s => {
+                s.val = '';
+                s.dom.innerHTML = '';
+                s.dom.classList.remove('popping');
+                s.match = false;
+            });
+
+            // 下落逻辑
+            await dropTiles();
+
+            // 递归检查
+            if (checkMatchesSimple()) {
+                await wait(200);
+                await processMatches();
+            } else {
+                // 掉落稳定后，检查是否死局
+                checkDeadlock();
+                
+                isProcessing = false;
+                if(moves <= 0) showToast(`游戏结束！得分: ${score}`);
+            }
+        }
+
+        async function dropTiles() {
+            // 从下往上
+            for (let c = 0; c < width; c++) {
+                for (let r = width - 1; r >= 0; r--) {
+                    let idx = r * width + c;
+                    if (squares[idx].val === '') {
+                        for (let k = r - 1; k >= 0; k--) {
+                            let kIdx = k * width + c;
+                            if (squares[kIdx].val !== '') {
+                                // 交换数据
+                                squares[idx].val = squares[kIdx].val;
+                                squares[kIdx].val = '';
+                                // 更新 DOM
+                                squares[idx].dom.innerHTML = squares[idx].val;
+                                squares[kIdx].dom.innerHTML = '';
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            // 填充顶部
+            squares.forEach(s => {
+                if(s.val === '') {
+                    s.val = randomEmoji();
+                    s.dom.innerHTML = s.val;
+                    s.dom.classList.add('dropping');
+                    setTimeout(() => s.dom.classList.remove('dropping'), 500);
+                }
+            });
+            await wait(250);
+        }
+
+        // --- 核心优化：死局自动洗牌 ---
+        function checkDeadlock() {
+            if (moves > 0 && !hasPossibleMoves()) {
+                showToast("无路可走，正在洗牌...");
+                setTimeout(() => {
+                    shuffleBoard(true); // 传入true代表这是系统自动洗牌，确保有解
+                }, 1000);
+            }
+        }
+
+        function shuffleBoard(ensureSolvable = false) {
+            squares.forEach(s => {
+                s.dom.style.transform = 'scale(0)';
+            });
+            
+            setTimeout(() => {
+                let limit = 0;
+                do {
+                    squares.forEach(s => {
+                        s.val = randomEmoji();
+                        s.dom.innerHTML = s.val;
+                    });
+                    // 防止洗牌后直接炸
+                    while(checkMatchesSimple()) {
+                         squares.forEach(s => { 
+                             if(s.match) { s.val = randomEmoji(); s.dom.innerHTML=s.val; s.match=false; }
+                         });
+                    }
+                    limit++;
+                } while (ensureSolvable && !hasPossibleMoves() && limit < 50);
+
+                squares.forEach(s => {
+                    s.dom.style.transform = 'scale(1)';
+                });
+            }, 300);
+        }
+
+        function updateHud() {
+            scoreEl.innerText = score;
+            movesEl.innerText = moves;
+        }
+
+        function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+        function vibrate(ms) { if(navigator.vibrate) navigator.vibrate(ms); }
+
+        // --- 菜单逻辑 ---
+        function toggleMenu() {
+            const modal = document.getElementById('menuModal');
+            modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+
+        function execCheat(type) {
+            toggleMenu();
+            switch(type) {
+                case 'moves': 
+                    moves += 10; 
+                    showToast("步数 +10"); 
+                    break;
+                case 'score': 
+                    score += 5000; 
+                    showToast("分数爆涨 +5000"); 
+                    break;
+                case 'shuffle': 
+                    shuffleBoard(true); 
+                    showToast("已强制重置"); 
+                    break;
+                case 'win': 
+                    score = 88888; 
+                    moves = 0; 
+                    showToast("恭喜发财，直接通关！"); 
+                    break;
+            }
+            updateHud();
+        }
+
+        initGame();
+
+    </script>
+</body>
+</html>

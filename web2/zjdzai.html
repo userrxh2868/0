@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Hunter: Full Gear</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+
+        :root {
+            --p: #D0BCFF; --on-p: #381E72;
+            --bg: #141218; --surf: #1D1B20; --surf-v: #49454F;
+            --gold: #FFD700; --err: #F2B8B5; --blue: #AECBFA;
+            --anim: 250ms cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        body {
+            margin: 0; background: var(--bg); color: #E6E1E5;
+            font-family: 'Roboto', sans-serif; overflow: hidden;
+            touch-action: none; user-select: none; -webkit-user-select: none;
+        }
+
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* UI Overlay */
+        .ui-layer { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; }
+        
+        .hud-top {
+            padding: 16px; display: flex; justify-content: space-between; align-items: flex-start;
+            pointer-events: none;
+        }
+
+        .stats-box { display: flex; flex-direction: column; gap: 4px; pointer-events: auto; }
+        .score-txt { font-size: 1rem; color: var(--p); font-weight: bold; }
+        .coin-txt { font-size: 1rem; color: var(--gold); font-weight: bold; display: flex; align-items: center; gap: 5px; }
+        .hp-txt { font-size: 1rem; color: var(--blue); font-weight: bold; display: flex; align-items: center; gap: 5px; margin-top: 4px;}
+
+        .btn-icon {
+            pointer-events: auto; width: 44px; height: 44px; border-radius: 12px;
+            background: rgba(73, 69, 79, 0.8); border: 1px solid rgba(255,255,255,0.1);
+            display: grid; place-items: center; font-size: 20px; cursor: pointer;
+            backdrop-filter: blur(4px); margin-left: 8px; transition: transform 0.1s;
+        }
+        .btn-icon:active { transform: scale(0.9); }
+
+        /* Boss Bar */
+        #boss-hud {
+            position: absolute; top: 90px; left: 10%; width: 80%;
+            display: flex; flex-direction: column; align-items: center;
+            opacity: 0; transition: opacity 0.5s;
+        }
+        #boss-hud.active { opacity: 1; }
+        .boss-name { font-size: 1.2rem; font-weight: 900; color: var(--err); text-shadow: 0 0 10px var(--err); }
+        .hp-bar { width: 100%; height: 8px; background: #333; border-radius: 4px; margin-top: 4px; overflow: hidden; border: 1px solid #555; }
+        .hp-fill { width: 100%; height: 100%; background: var(--err); transition: width 0.1s; }
+
+        /* Cheat Menu */
+        #cheat-menu {
+            pointer-events: auto; position: absolute; top: 70px; right: 16px;
+            background: rgba(30, 30, 35, 0.98); backdrop-filter: blur(10px);
+            padding: 16px; border-radius: 16px; width: 230px;
+            transform-origin: top right; transform: scale(0); opacity: 0;
+            transition: var(--anim); border: 1px solid var(--surf-v); z-index: 999;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            display: flex; flex-direction: column; gap: 10px; max-height: 80vh; overflow-y: auto;
+        }
+        #cheat-menu.open { transform: scale(1); opacity: 1; }
+        
+        .cm-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .cm-title { font-weight: bold; color: var(--p); }
+        .cm-close { font-size: 20px; cursor: pointer; padding: 0 5px; }
+
+        .row { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; }
+        .c-btn {
+            border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer;
+            width: 100%; margin-top: 5px; font-size: 0.8rem; transition: filter 0.2s;
+        }
+        .c-btn:active { filter: brightness(0.8); }
+
+        /* Switch */
+        .sw { position: relative; width: 36px; height: 20px; }
+        .sw input { opacity: 0; width: 0; height: 0; }
+        .sl { position: absolute; cursor: pointer; inset: 0; background: #555; border-radius: 20px; transition: .3s; }
+        .sl:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .3s; }
+        input:checked + .sl { background: var(--p); }
+        input:checked + .sl:before { transform: translateX(16px); }
+
+        /* Shop & Overlays */
+        .overlay {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.92); backdrop-filter: blur(8px);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; transition: opacity 0.3s; pointer-events: auto;
+        }
+        .hidden { opacity: 0; pointer-events: none; }
+
+        .shop-container { width: 95%; max-width: 600px; max-height: 70vh; overflow-y: auto; padding: 10px; }
+        .shop-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+        
+        .shop-item {
+            background: var(--surf-v); padding: 12px; border-radius: 12px;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            border: 1px solid rgba(255,255,255,0.1); cursor: pointer; position: relative;
+        }
+        .shop-item:active { background: #555; }
+        .shop-icon { font-size: 1.8rem; margin-bottom: 2px; }
+        .shop-name { font-size: 0.8rem; font-weight: bold; text-align: center; }
+        .shop-cost { color: var(--gold); font-weight: bold; font-size: 0.9rem; }
+        .shop-lvl { font-size: 0.75rem; opacity: 0.7; }
+
+        .btn-main {
+            background: var(--p); color: var(--on-p); border: none; padding: 12px 40px;
+            font-size: 1.2rem; font-weight: 900; border-radius: 30px; cursor: pointer;
+            box-shadow: 0 0 15px rgba(208, 188, 255, 0.4); margin-top: 10px;
+        }
+        
+        .diff-select { display: flex; gap: 10px; margin-bottom: 20px; }
+        .diff-btn {
+            background: transparent; border: 1px solid #777; color: #aaa;
+            padding: 8px 16px; border-radius: 20px; cursor: pointer;
+        }
+        .diff-btn.active { background: var(--p); color: var(--on-p); border-color: var(--p); }
+
+        #toast {
+            position: absolute; top: 20%; width: 100%; text-align: center; font-size: 2rem;
+            font-weight: 900; color: #fff; text-shadow: 0 0 20px var(--p);
+            opacity: 0; transform: scale(0.5); transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none; z-index: 200;
+        }
+        #toast.show { opacity: 1; transform: scale(1); }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="cvs"></canvas>
+
+    <!-- HUD -->
+    <div class="ui-layer">
+        <div class="hud-top">
+            <div class="stats-box">
+                <div class="score-txt">得分: <span id="hud-score">0</span></div>
+                <div class="coin-txt">🪙 <span id="hud-coin">0</span></div>
+                <div class="hp-txt">🛡️ <span id="hud-hp">1</span></div>
+            </div>
+            <div style="display:flex">
+                <div class="btn-icon" id="btn-pause">⏸️</div>
+                <div class="btn-icon" id="btn-cheat">⚙️</div>
+            </div>
+        </div>
+        
+        <div id="boss-hud">
+            <div class="boss-name" id="boss-name">BOSS</div>
+            <div class="hp-bar"><div class="hp-fill" id="boss-hp"></div></div>
+        </div>
+
+        <!-- Cheat Menu -->
+        <div id="cheat-menu">
+            <div class="cm-head">
+                <span class="cm-title">GOD MODE PANEL</span>
+                <span class="cm-close" id="close-cheat">✕</span>
+            </div>
+            <div class="row"><span>无敌模式</span><label class="sw"><input type="checkbox" id="c-god"><span class="sl"></span></label></div>
+            <div class="row"><span>无限火力</span><label class="sw"><input type="checkbox" id="c-rapid"><span class="sl"></span></label></div>
+            <div class="row"><span>定住敌人</span><label class="sw"><input type="checkbox" id="c-freeze"><span class="sl"></span></label></div>
+            <div class="row"><span>显示判定点</span><label class="sw"><input type="checkbox" id="c-hit"><span class="sl"></span></label></div>
+            <hr style="width:100%; border:0; border-top:1px solid #444; margin:5px 0;">
+            <button class="c-btn" style="background:linear-gradient(90deg, #FFD700, #FFA500); color:#000" id="btn-max">⚡ 一键满级 (免费)</button>
+            <button class="c-btn" style="background:var(--blue); color:#000" id="btn-heal">🚑 治愈/恢复护盾</button>
+            <button class="c-btn" style="background:#444; color:#fff" id="btn-clr">🧹 清除屏幕弹幕</button>
+            <button class="c-btn" style="background:var(--err); color:#000" id="btn-kill">💀 斩杀 BOSS</button>
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="screen-start" class="overlay">
+        <h1 style="font-size:2.2rem; color:var(--p); margin-bottom:5px;">AI Hunter: Full Gear</h1>
+        <p style="opacity:0.8; margin-bottom:20px; font-size:0.9rem">滑动控制 · 护盾系统 · 全新模型</p>
+        
+        <div class="diff-select">
+            <button class="diff-btn" onclick="setDiff(0, this)">简单</button>
+            <button class="diff-btn active" onclick="setDiff(1, this)">普通</button>
+            <button class="diff-btn" onclick="setDiff(2, this)">困难</button>
+        </div>
+
+        <button class="btn-main" onclick="startGame()">出击</button>
+    </div>
+
+    <!-- Shop Screen -->
+    <div id="screen-shop" class="overlay hidden">
+        <h2 style="color:var(--gold); margin-top:0">补给站 (暂停)</h2>
+        <div class="coin-txt" style="font-size:1.5rem; margin-bottom:15px;">🪙 <span id="shop-coin">0</span></div>
+        
+        <div class="shop-container">
+            <div class="shop-grid">
+                <!-- Grid filled by JS -->
+            </div>
+        </div>
+
+        <button class="btn-main" onclick="resumeGame()">继续</button>
+        <button class="c-btn" style="background:transparent; border:1px solid #555; color:#aaa; margin-top:10px; width:auto; padding:8px 30px;" onclick="quitGame()">退出</button>
+    </div>
+
+    <!-- Game Over -->
+    <div id="screen-over" class="overlay hidden">
+        <h1 style="color:var(--err)">任务失败</h1>
+        <p>得分: <span id="final-score">0</span> | 关卡: <span id="final-level">1</span></p>
+        <button class="btn-main" onclick="resetUI()">重新开始</button>
+    </div>
+
+    <div id="toast">LEVEL UP</div>
+
+    <script>
+        const canvas = document.getElementById('cvs');
+        const ctx = canvas.getContext('2d');
+        let W, H;
+
+        // --- Config ---
+        const DIFF = [
+            { hp: 0.7, spd: 0.8, score: 0.8 },
+            { hp: 1.0, spd: 1.0, score: 1.0 },
+            { hp: 1.6, spd: 1.3, score: 1.5 }
+        ];
+        let curDiff = 1;
+
+        // Expanded Models List
+        const MODELS = [
+            "文心 4.0", "Qwen 2.5", "Kimi", "豆包", "GLM-4",
+            "GPT-4o", "Claude 3.5", "Gemini 1.5", "Llama 3", "DeepSeek V2",
+            "Phi-3", "Gemma 2", "Grok 1.5", "Mistral", "Apple Intel",
+            "WizardLM", "Yi-Large", "Hunyuan", "GPT-5 Alpha", "AGI Zero"
+        ];
+
+        const BOSSES = [
+            { name: "文心·幻影", hp: 100, color: "#4F378B", type: "spiral" },
+            { name: "Qwen 核心", hp: 180, color: "#303F9F", type: "ring" },
+            { name: "Claude 逻辑锁", hp: 300, color: "#d97757", type: "spread" },
+            { name: "DeepSeek 深渊", hp: 500, color: "#1e40af", type: "aim" },
+            { name: "AGI 奇点", hp: 800, color: "#F2B8B5", type: "chaos" }
+        ];
+
+        // Expanded Upgrades
+        const UPGRADES = {
+            rate: { name: "攻击速度", icon: "⚡", val: [24, 20, 16, 12, 8, 5], cost: [200, 500, 1000, 2000, 4000, "MAX"] },
+            multi: { name: "齐射数量", icon: "🚀", val: [1, 2, 3, 4, 5], cost: [600, 1800, 3600, 7200, "MAX"] },
+            power: { name: "火力核心", icon: "🔥", val: [1, 1.5, 2, 2.5, 3], cost: [800, 1600, 3200, 6400, "MAX"] }, // Damage mult
+            shield: { name: "能量护盾", icon: "🛡️", val: [0, 1, 2, 3], cost: [1000, 3000, 6000, "MAX"] }, // Extra HP
+            speed: { name: "机动引擎", icon: "💨", val: [0.15, 0.20, 0.25, 0.30], cost: [300, 800, 1500, "MAX"] }
+        };
+
+        // State
+        let state = {
+            running: false, paused: false,
+            score: 0, coins: 0,
+            frames: 0, level: 0, kills: 0,
+            bossMode: false, infinite: false,
+            // Stats
+            stats: { lv_rate:0, lv_multi:0, lv_power:0, lv_shield:0, lv_speed:0 },
+            // Player dynamic
+            p: { x:0, y:0, tx:0, ty:0, curHp:1, iFrame:0 }
+        };
+
+        const cheats = { god: false, rapid: false, freeze: false, hit: false };
+        let bullets=[], enemies=[], eBullets=[], particles=[], boss=null;
+
+        function resize() { W=window.innerWidth; H=window.innerHeight; canvas.width=W; canvas.height=H; }
+        window.addEventListener('resize', resize); resize();
+        function setDiff(i, b) { curDiff=i; document.querySelectorAll('.diff-btn').forEach(x=>x.classList.remove('active')); b.classList.add('active'); }
+
+        // --- Logic ---
+
+        class PlayerEntity {
+            update() {
+                // Move
+                let s = UPGRADES.speed.val[state.stats.lv_speed];
+                state.p.x += (state.p.tx - state.p.x) * s;
+                state.p.y += (state.p.ty - state.p.y) * s;
+                state.p.x = Math.max(20, Math.min(W-20, state.p.x));
+                state.p.y = Math.max(50, Math.min(H-50, state.p.y));
+
+                if (state.p.iFrame > 0) state.p.iFrame--;
+            }
+            draw() {
+                const {x, y, iFrame} = state.p;
+                if (iFrame > 0 && Math.floor(state.frames/4)%2===0) return; // Blink
+
+                ctx.translate(x, y);
+                
+                // Shield Visual
+                let shieldLvl = state.stats.lv_shield; // 0 to 3
+                let curShield = state.p.curHp - 1; // 1 HP is base, >1 is shield
+                
+                if (curShield > 0) {
+                    ctx.beginPath(); ctx.arc(0,0, 26 + Math.sin(state.frames*0.1)*2, 0, 6.28);
+                    ctx.strokeStyle = `rgba(174, 203, 250, ${0.3 + curShield*0.2})`;
+                    ctx.lineWidth = 2 + curShield; ctx.stroke();
+                }
+
+                // Ship
+                ctx.fillStyle = "#D0BCFF";
+                ctx.beginPath(); ctx.moveTo(0, -22); ctx.lineTo(16, 14); ctx.lineTo(0, 6); ctx.lineTo(-16, 14); ctx.fill();
+                
+                // Glow
+                ctx.shadowBlur = 10; ctx.shadowColor = "#D0BCFF";
+                ctx.strokeStyle = "#FFF"; ctx.lineWidth = 2; ctx.stroke();
+                ctx.shadowBlur = 0;
+
+                if (cheats.hit) { ctx.fillStyle="red"; ctx.beginPath(); ctx.arc(0,0,4,0,6.28); ctx.fill(); }
+                ctx.translate(-x, -y);
+            }
+            takeHit() {
+                if (cheats.god || state.p.iFrame > 0) return;
+                state.p.curHp--;
+                updateHUD();
+                
+                if (state.p.curHp <= 0) {
+                    createParticles(state.p.x, state.p.y, "#D0BCFF", 20);
+                    gameOver();
+                } else {
+                    // Shield Break
+                    createParticles(state.p.x, state.p.y, "#AECBFA", 10);
+                    state.p.iFrame = 60; // 1 sec invul
+                    // Screen shake?
+                }
+            }
+        }
+
+        function spawnEnemy() {
+            if (state.bossMode || state.paused || cheats.freeze) return;
+            let rate = Math.max(15, 60 - (state.level*6));
+            if (state.infinite) rate = 12;
+
+            if (state.frames % rate === 0) {
+                let lvl = state.level;
+                let poolIdx = Math.min(MODELS.length, lvl * 4 + 4); 
+                let name = MODELS[Math.floor(Math.random() * poolIdx)];
+                let isHard = /GPT|Claude|Deep|AGI/.test(name);
+                
+                enemies.push({
+                    x: Math.random()*(W-40)+20, y: -40,
+                    w: ctx.measureText(name).width+24, h: 32,
+                    name: name,
+                    maxHp: (3 + lvl*1.5) * DIFF[curDiff].hp,
+                    hp: (3 + lvl*1.5) * DIFF[curDiff].hp,
+                    spd: (Math.random()*1.5 + 1.5) * DIFF[curDiff].spd,
+                    color: isHard ? "#AECBFA" : "#EFB8C8"
+                });
+            }
+            let req = 20 + state.level*10;
+            if(!state.infinite && state.kills >= req) spawnBoss();
+        }
+
+        function spawnBoss() {
+            state.bossMode = true;
+            let conf = BOSSES[Math.min(state.level, BOSSES.length-1)];
+            let scale = state.infinite ? (1 + (state.level-4)*0.5) : 1;
+            boss = {
+                ...conf, x:W/2, y:-100, w:160, h:60,
+                maxHp: conf.hp * DIFF[curDiff].hp * scale,
+                hp: conf.hp * DIFF[curDiff].hp * scale,
+                tick: 0, phase: 0
+            };
+            document.getElementById('boss-hud').classList.add('active');
+            document.getElementById('boss-name').innerText = boss.name;
+            document.getElementById('boss-name').style.color = boss.color;
+        }
+
+        function updateBossLogic() {
+            if (!boss || cheats.freeze) return;
+            boss.tick++;
+            if (boss.phase === 0) {
+                boss.y += (100 - boss.y)*0.05;
+                if(Math.abs(boss.y-100)<1) boss.phase=1;
+            } else {
+                boss.x = W/2 + Math.sin(boss.tick*0.025)*(W/2-70);
+                boss.y = 100 + Math.cos(boss.tick*0.04)*25;
+                
+                // Shoot
+                let fr = Math.max(20, 50 - state.level*4);
+                if (boss.tick % fr === 0) {
+                    const bx=boss.x, by=boss.y+30;
+                    if (boss.type === "spiral") {
+                        let a = boss.tick*0.2;
+                        for(let i=0;i<2;i++) eBullets.push({x:bx,y:by,vx:Math.cos(a+i*3.14)*5,vy:Math.sin(a+i*3.14)*5,c:boss.color});
+                    } else if (boss.type === "ring") {
+                        for(let i=0;i<12;i++) { let a=i*(Math.PI/6); eBullets.push({x:bx,y:by,vx:Math.cos(a)*4,vy:Math.sin(a)*4,c:boss.color}); }
+                    } else if (boss.type === "spread") {
+                         for(let i=-2;i<=2;i++) eBullets.push({x:bx,y:by,vx:Math.sin(i*0.3)*4,vy:6,c:boss.color});
+                    } else if (boss.type === "aim") {
+                        let a=Math.atan2(state.p.y-by, state.p.x-bx);
+                        for(let i=-1;i<=1;i++) eBullets.push({x:bx,y:by,vx:Math.cos(a+i*0.2)*6,vy:Math.sin(a+i*0.2)*6,c:boss.color});
+                    } else { // Chaos
+                        for(let i=0;i<4;i++) { let a=Math.random()*6.28; let s=3+Math.random()*3; eBullets.push({x:bx,y:by,vx:Math.cos(a)*s,vy:Math.sin(a)*s,c:boss.color}); }
+                    }
+                }
+            }
+            // Draw
+            ctx.save(); ctx.translate(boss.x, boss.y);
+            ctx.fillStyle = boss.color; ctx.shadowBlur=15; ctx.shadowColor=boss.color;
+            ctx.beginPath(); ctx.roundRect(-80, -30, 160, 60, 12); ctx.fill();
+            ctx.shadowBlur=0;
+            ctx.fillStyle="#111"; ctx.font="bold 16px Roboto"; ctx.textAlign="center"; ctx.fillText("WARNING", 0, 6);
+            ctx.restore();
+            document.getElementById('boss-hp').style.width = (boss.hp/boss.maxHp*100)+"%";
+        }
+
+        function loop() {
+            if (!state.running) return;
+            requestAnimationFrame(loop);
+            if (state.paused) return;
+            state.frames++;
+            ctx.fillStyle = "#141218"; ctx.fillRect(0,0,W,H);
+
+            const P = new PlayerEntity(); P.update(); P.draw();
+
+            // Player Shoot
+            let rate = cheats.rapid ? 3 : UPGRADES.rate.val[state.stats.lv_rate];
+            if (state.frames % rate === 0) {
+                let cnt = cheats.rapid ? 5 : UPGRADES.multi.val[state.stats.lv_multi];
+                let dmg = UPGRADES.power.val[state.stats.lv_power];
+                let spread = 0.15;
+                let startA = -Math.PI/2 - ((cnt-1)*spread/2);
+                for(let i=0; i<cnt; i++) {
+                    bullets.push({x:state.p.x, y:state.p.y-20, vx:Math.cos(startA+i*spread)*16, vy:Math.sin(startA+i*spread)*16, dmg:dmg});
+                }
+            }
+
+            spawnEnemy();
+
+            // Bullets Logic
+            ctx.fillStyle="#FFF";
+            for(let i=bullets.length-1; i>=0; i--) {
+                let b=bullets[i]; b.x+=b.vx; b.y+=b.vy;
+                // Draw based on dmg
+                let r = 3 + b.dmg; 
+                ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, 6.28); ctx.fill();
+                if(b.y<-50||b.x<0||b.x>W) bullets.splice(i,1);
+            }
+
+            // Enemy Logic
+            for(let i=enemies.length-1; i>=0; i--) {
+                let e=enemies[i];
+                if(!cheats.freeze) e.y += e.spd;
+                
+                ctx.fillStyle=e.color; ctx.beginPath(); ctx.roundRect(e.x-e.w/2, e.y-e.h/2, e.w, e.h, 8); ctx.fill();
+                ctx.fillStyle="#000"; ctx.font="bold 12px Roboto"; ctx.textAlign="center"; ctx.fillText(e.name, e.x, e.y+4);
+
+                // Hit by player bullet
+                let hit=false;
+                for(let j=bullets.length-1; j>=0; j--) {
+                    let b=bullets[j];
+                    if(Math.abs(b.x-e.x)<e.w/2+5 && Math.abs(b.y-e.y)<e.h/2+5) {
+                        e.hp -= b.dmg;
+                        bullets.splice(j,1); createParticles(b.x, b.y, "#FFF", 2);
+                        if(e.hp<=0) { hit=true; break; }
+                    }
+                }
+                if(hit) {
+                    enemies.splice(i,1); createParticles(e.x, e.y, e.color, 8);
+                    state.score+=100*DIFF[curDiff].score; state.coins+=20; state.kills++;
+                    updateHUD(); continue;
+                }
+                // Hit Player
+                if(Math.abs(state.p.x-e.x)<30 && Math.abs(state.p.y-e.y)<20) {
+                    P.takeHit();
+                }
+                if(e.y>H+50) enemies.splice(i,1);
+            }
+
+            // Boss Logic
+            if(boss) {
+                updateBossLogic();
+                for(let j=bullets.length-1; j>=0; j--) {
+                    let b=bullets[j];
+                    if(Math.abs(b.x-boss.x)<80 && Math.abs(b.y-boss.y)<30) {
+                        boss.hp-=b.dmg; bullets.splice(j,1); createParticles(b.x,b.y,"#FFF",1);
+                        if(boss.hp<=0) {
+                            createParticles(boss.x, boss.y, boss.color, 40); eBullets=[];
+                            state.score+=3000; state.coins+=800; state.bossMode=false; boss=null;
+                            document.getElementById('boss-hud').classList.remove('active');
+                            state.level++; state.kills=0;
+                            showToast(state.level>=BOSSES.length?"∞ 无尽模式":"LEVEL "+(state.level+1));
+                            state.infinite=(state.level>=BOSSES.length); updateHUD();
+                        }
+                    }
+                }
+            }
+
+            // E-Bullets
+            for(let i=eBullets.length-1; i>=0; i--) {
+                let b=eBullets[i];
+                if(!cheats.freeze) { b.x+=b.vx; b.y+=b.vy; }
+                ctx.fillStyle=b.c; ctx.beginPath(); ctx.arc(b.x, b.y, 6, 0, 6.28); ctx.fill();
+                ctx.fillStyle="#FFF"; ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, 6.28); ctx.fill();
+                
+                if(b.y>H+20||b.x<-20||b.x>W+20) { eBullets.splice(i,1); continue; }
+                
+                // Player Hitbox (Small center point)
+                let dx=b.x-state.p.x, dy=b.y-state.p.y;
+                if(dx*dx+dy*dy < 49) { // 7px radius
+                    P.takeHit();
+                    if(state.p.iFrame>0) eBullets.splice(i,1); // Destroy bullet if hit (and alive)
+                }
+            }
+
+            // Particles
+            for(let i=particles.length-1; i>=0; i--) {
+                let p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.l-=0.05;
+                ctx.globalAlpha=p.l; ctx.fillStyle=p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.28); ctx.fill();
+                ctx.globalAlpha=1; if(p.l<=0) particles.splice(i,1);
+            }
+        }
+
+        function createParticles(x, y, c, n) {
+            for(let i=0;i<n;i++) particles.push({x:x,y:y,c:c,vx:(Math.random()-0.5)*8,vy:(Math.random()-0.5)*8,l:1,r:Math.random()*3+2});
+        }
+
+        // --- UI & Interaction ---
+        function updateHUD() {
+            document.getElementById('hud-score').innerText = Math.floor(state.score);
+            document.getElementById('hud-coin').innerText = state.coins;
+            document.getElementById('hud-hp').innerText = state.p.curHp;
+            document.getElementById('hud-hp').style.color = state.p.curHp > 1 ? "#AECBFA" : "#F2B8B5";
+        }
+        function showToast(m) { let t=document.getElementById('toast'); t.innerText=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2000); }
+
+        function setPos(x, y) { state.p.tx=x; state.p.ty=y-50; }
+        ['touchstart','touchmove'].forEach(e=>canvas.addEventListener(e, ev=>{ ev.preventDefault(); setPos(ev.touches[0].clientX, ev.touches[0].clientY); }, {passive:false}));
+        canvas.addEventListener('mousemove', e=>{ if(state.running) setPos(e.clientX, e.clientY); });
+
+        function startGame() {
+            document.querySelectorAll('.overlay').forEach(o=>o.classList.add('hidden'));
+            state.running=true; state.paused=false; state.score=0; state.frames=0; state.level=0; state.kills=0;
+            state.bossMode=false; state.infinite=false;
+            bullets=[]; enemies=[]; eBullets=[]; particles=[]; boss=null;
+            state.p.x=W/2; state.p.tx=W/2; state.p.y=H-100; state.p.ty=H-100; state.p.iFrame=0;
+            
+            // Apply Shield Upgrade to HP
+            let bonusHp = UPGRADES.shield.val[state.stats.lv_shield];
+            state.p.curHp = 1 + bonusHp;
+
+            updateHUD(); showToast("LEVEL 1"); loop();
+        }
+        function gameOver() {
+            state.running=false;
+            document.getElementById('final-score').innerText=Math.floor(state.score);
+            document.getElementById('final-level').innerText=state.level+1;
+            document.getElementById('screen-over').classList.remove('hidden');
+        }
+        function resetUI() { document.getElementById('screen-over').classList.add('hidden'); document.getElementById('screen-start').classList.remove('hidden'); }
+
+        // --- Shop System ---
+        function initShop() {
+            const grid = document.querySelector('.shop-grid');
+            grid.innerHTML = "";
+            Object.keys(UPGRADES).forEach(key => {
+                let div = document.createElement('div');
+                div.className = 'shop-item';
+                div.onclick = () => buy(key);
+                div.innerHTML = `
+                    <div class="shop-icon">${UPGRADES[key].icon}</div>
+                    <div class="shop-name">${UPGRADES[key].name}</div>
+                    <div class="shop-lvl" id="lvl-${key}">Lv.1</div>
+                    <div class="shop-cost" id="cost-${key}">0</div>
+                `;
+                grid.appendChild(div);
+            });
+        }
+        initShop();
+
+        function updateShopUI() {
+            document.getElementById('shop-coin').innerText = state.coins;
+            Object.keys(UPGRADES).forEach(key => {
+                let lvl = state.stats['lv_'+key];
+                let cost = UPGRADES[key].cost[lvl];
+                document.getElementById('lvl-'+key).innerText = (lvl+1);
+                let cEl = document.getElementById('cost-'+key);
+                cEl.innerText = cost;
+                let item = cEl.parentElement;
+                
+                if(cost==="MAX") { item.style.opacity="0.5"; }
+                else if(state.coins < cost) { item.style.opacity="0.7"; }
+                else { item.style.opacity="1"; }
+            });
+        }
+
+        window.buy = function(key) {
+            let k = 'lv_'+key; let lvl = state.stats[k]; let cost = UPGRADES[key].cost[lvl];
+            if(cost==="MAX" || state.coins < cost) return;
+            state.coins -= cost; state.stats[k]++;
+            
+            // Immediate HP update if shield bought
+            if(key === 'shield') state.p.curHp++;
+            
+            updateShopUI(); updateHUD();
+        };
+
+        // --- Pause / Cheat ---
+        document.getElementById('btn-pause').onclick = (e) => { e.stopPropagation(); if(!state.running) return; state.paused=true; document.getElementById('screen-shop').classList.remove('hidden'); updateShopUI(); };
+        window.resumeGame = () => { document.getElementById('screen-shop').classList.add('hidden'); state.paused=false; };
+        window.quitGame = () => { document.getElementById('screen-shop').classList.add('hidden'); gameOver(); };
+
+        const cm = document.getElementById('cheat-menu');
+        const toggleCM = (s) => { if(s) cm.classList.add('open'); else cm.classList.remove('open'); };
+        document.getElementById('btn-cheat').onclick=(e)=>{e.stopPropagation(); toggleCM(!cm.classList.contains('open'));};
+        document.getElementById('close-cheat').onclick=(e)=>{e.stopPropagation(); toggleCM(false);};
+        cm.onclick=(e)=>e.stopPropagation();
+
+        ['god','rapid','freeze','hit'].forEach(k=>document.getElementById('c-'+k).onchange=e=>cheats[k]=e.target.checked);
+        document.getElementById('btn-clr').onclick=()=>{eBullets=[]};
+        document.getElementById('btn-kill').onclick=()=>{if(boss)boss.hp=0;else state.kills=999;};
+        
+        document.getElementById('btn-max').onclick=()=>{
+            Object.keys(UPGRADES).forEach(k=>{
+                state.stats['lv_'+k] = UPGRADES[k].cost.length-1; // Set to MAX level index
+            });
+            let hpBonus = UPGRADES.shield.val[state.stats.lv_shield];
+            state.p.curHp = Math.max(state.p.curHp, 1+hpBonus);
+            updateHUD();
+            showToast("DEV UPGRADE");
+        };
+
+        document.getElementById('btn-heal').onclick=()=>{
+            let max = 1 + UPGRADES.shield.val[state.stats.lv_shield];
+            state.p.curHp = max;
+            updateHUD();
+        };
+
+    </script>
+</body>
+</html>
