@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MD3 智能深空模拟器</title>
+    <style>
+        :root {
+            /* MD3 Dark Theme */
+            --md-sys-color-background: #000000;
+            --md-sys-color-primary: #d0bcff;
+            --md-sys-color-on-primary: #381e72;
+            --md-sys-color-primary-container: #4f378b;
+            --md-sys-color-surface: #1c1b1f;
+            --md-sys-color-surface-variant: #49454f;
+            --md-sys-color-on-surface: #e6e1e5;
+            --md-sys-color-error: #f2b8b5;
+            --md-sys-color-success: #b8f2c8;
+            --md-sys-color-tertiary: #efb8c8;
+            
+            --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--md-sys-color-background);
+            font-family: 'Roboto', sans-serif;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* UI Overlay */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            display: flex;
+            gap: 12px;
+            pointer-events: auto;
+        }
+
+        .icon-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+            background: var(--md-sys-color-surface-variant);
+            color: var(--md-sys-color-on-surface);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: transform 0.2s var(--ease-spring), background 0.2s;
+        }
+        .icon-btn:active { transform: scale(0.9); }
+
+        /* Auto Pilot Button Special Style */
+        #btn-auto {
+            font-weight: bold;
+            font-family: monospace;
+            border: 2px solid transparent;
+        }
+        #btn-auto.active {
+            background: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            box-shadow: 0 0 15px var(--md-sys-color-primary);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 10px var(--md-sys-color-primary); }
+            50% { box-shadow: 0 0 20px var(--md-sys-color-primary); }
+            100% { box-shadow: 0 0 10px var(--md-sys-color-primary); }
+        }
+
+        /* HUD Info */
+        .hud-panel {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(28, 27, 31, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 12px 16px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-family: monospace;
+            border: 1px solid var(--md-sys-color-surface-variant);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            text-align: right;
+        }
+
+        .ai-status {
+            color: var(--md-sys-color-tertiary);
+            font-weight: bold;
+            margin-bottom: 4px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Controls */
+        #joystick-zone {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            pointer-events: auto;
+        }
+        #joystick-knob {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 50px; height: 50px;
+            transform: translate(-50%, -50%);
+            background: var(--md-sys-color-primary);
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: transform 0.05s linear;
+        }
+
+        #btn-thrust {
+            position: absolute;
+            bottom: 40px; right: 40px;
+            width: 80px; height: 80px;
+            border-radius: 24px;
+            background: var(--md-sys-color-error);
+            color: #3f0000;
+            font-weight: 800;
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: auto; border: none;
+            box-shadow: 0 4px 12px rgba(242, 184, 181, 0.3);
+            transition: all 0.1s;
+            text-transform: uppercase;
+        }
+        #btn-thrust.active { transform: scale(0.92); filter: brightness(1.2); }
+
+        /* Messages & Radar */
+        #overlay-message {
+            position: absolute; top: 20%; width: 100%;
+            text-align: center; font-size: 24px; font-weight: bold;
+            pointer-events: none; opacity: 0; transition: opacity 0.5s;
+            text-shadow: 0 2px 10px rgba(0,0,0,1);
+        }
+        #radar {
+            position: absolute; width: 0; height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 16px solid var(--md-sys-color-primary);
+            opacity: 0; pointer-events: none; transition: opacity 0.5s;
+        }
+
+        /* Modals */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
+            z-index: 100; display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .modal.open { opacity: 1; pointer-events: auto; }
+        .modal-content {
+            background: var(--md-sys-color-surface);
+            width: 85%; max-width: 500px;
+            border-radius: 28px; padding: 24px;
+            border: 1px solid var(--md-sys-color-surface-variant);
+            display: flex; flex-direction: column;
+        }
+        #code-viewer {
+            width: 100%; height: 250px; background: #111; color: #0f0;
+            padding: 10px; border-radius: 8px; border: none; font-family: monospace;
+            font-size: 11px; margin: 10px 0; resize: none;
+        }
+        .btn {
+            padding: 10px 20px; border-radius: 20px; border: none;
+            font-weight: bold; cursor: pointer; margin-top: 10px;
+        }
+        .btn-primary { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+        <div class="top-bar">
+            <!-- Settings -->
+            <button class="icon-btn" onclick="openSettings()">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
+            </button>
+            <!-- Auto Pilot Toggle -->
+            <button id="btn-auto" class="icon-btn" onclick="toggleAuto()">A</button>
+        </div>
+
+        <div class="hud-panel">
+            <div id="ai-log" class="ai-status">MANUAL</div>
+            <div>燃料: <span id="hud-fuel">100</span>%</div>
+            <div>速度: <span id="hud-speed">0.0</span></div>
+            <div>距离: <span id="hud-dist">--</span></div>
+        </div>
+
+        <div id="overlay-message"></div>
+        <div id="radar"></div>
+
+        <div id="joystick-zone"><div id="joystick-knob"></div></div>
+        <button id="btn-thrust">PUSH</button>
+    </div>
+
+    <!-- Modals -->
+    <div id="gameover-modal" class="modal">
+        <div class="modal-content" style="text-align:center;">
+            <h2 style="color:var(--md-sys-color-error)">❌ 信号丢失</h2>
+            <p id="death-reason">飞船已损毁</p>
+            <button class="btn btn-primary" onclick="resetGame()">重启系统</button>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <h3>源码控制台</h3>
+            <textarea id="code-viewer" readonly></textarea>
+            <div style="display:flex; justify-content:flex-end; gap:10px">
+                <button class="btn" onclick="closeSettings()" style="background:transparent; color:inherit;">关闭</button>
+                <button class="btn btn-primary" onclick="copySource()">复制</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * MD3 Space Sim Pro
+ * Features: Auto-Pilot AI, Lighting Engine, Endless World
+ */
+
+// --- Configuration ---
+const CFG = {
+    GRAVITY: 0.05,
+    THRUST: 0.18,      // 稍微增加推力以便AI修正
+    ROTATION: 0.08,
+    SAFE_SPEED: 2.5,
+    FUEL_BURN: 0.2,
+    RENDER_DIST: 5000,
+    AI_SAFE_ALT: 800,  // AI 开始减速的高度
+    LIGHT_DIR: { x: -0.5, y: -0.8 } // 光照方向 (Normalized)
+};
+
+// --- Globals ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let width, height;
+
+let ship = {
+    x: 0, y: 0,
+    vx: 0, vy: 0,
+    angle: -Math.PI/2,
+    radius: 16,
+    fuel: 100,
+    active: true,
+    auto: false,          // AI 开关
+    targetPlanet: null,   // AI 目标
+    aiState: 'IDLE',      // AI 状态机
+    landedPlanet: null
+};
+
+let camera = { x: 0, y: 0, scale: 1 };
+let planets = [];
+let stars = [];
+let particles = [];
+let input = { thrust: false, joyAngle: null, joyActive: false };
+
+// --- Initialization ---
+function init() {
+    resize();
+    generateStars();
+    resetGame();
+    window.addEventListener('resize', resize);
+    setupControls();
+    requestAnimationFrame(loop);
+}
+
+function resize() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+}
+
+function resetGame() {
+    ship.x = 0; ship.y = -600;
+    ship.vx = 0.5; ship.vy = 0;
+    ship.angle = -Math.PI/2;
+    ship.fuel = 100;
+    ship.active = true;
+    ship.landedPlanet = null;
+    ship.targetPlanet = null;
+    ship.aiState = 'IDLE';
+
+    planets = [];
+    // 初始星球
+    spawnPlanet(0, 0, 400); 
+    
+    gameState('PLAYING');
+    camera.x = ship.x - width/2;
+    camera.y = ship.y - height/2;
+}
+
+// --- World Generation ---
+function spawnPlanet(x, y, fixedR = null) {
+    const r = fixedR || (150 + Math.random() * 350);
+    // 生成漂亮的颜色
+    const hue = Math.floor(Math.random() * 360);
+    planets.push({
+        x: x, y: y, r: r,
+        color: `hsl(${hue}, 60%, 40%)`,
+        lightColor: `hsl(${hue}, 80%, 70%)`, // 受光面颜色
+        shadowColor: `hsl(${hue}, 60%, 15%)`, // 背光面颜色
+        atmosphere: `hsla(${hue}, 60%, 50%, 0.15)`,
+        gravity: 0.05 + (r/1000)
+    });
+}
+
+function checkWorldGen() {
+    // 简单逻辑：如果周围没有星球，就生成一个
+    let nearest = getNearestPlanet();
+    if (!nearest.planet || nearest.dist > CFG.RENDER_DIST * 0.6) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = CFG.RENDER_DIST * 0.7;
+        spawnPlanet(ship.x + Math.cos(angle)*dist, ship.y + Math.sin(angle)*dist);
+    }
+    // 清理过远的
+    planets = planets.filter(p => Math.hypot(p.x - ship.x, p.y - ship.y) < CFG.RENDER_DIST * 1.5);
+}
+
+// --- Auto Pilot AI Core ---
+function updateAI() {
+    if (!ship.auto || !ship.active) return;
+    
+    // 0. 状态：已着陆
+    if (ship.landedPlanet) {
+        ship.aiState = "补给中";
+        if (ship.fuel < 100) {
+            ship.fuel += 0.8; // 快充
+            return;
+        }
+        // 燃料满了，起飞寻找新目标
+        ship.aiState = "起飞";
+        ship.landedPlanet = null; // 解除锁定
+        ship.y -= 5; // 物理弹射
+        ship.targetPlanet = null; // 忘记旧目标
+        input.thrust = true; // 强制推力
+        // 持续推一会直到离开重力圈
+        setTimeout(() => { if(ship.auto) input.thrust = false; }, 2000);
+        return;
+    }
+
+    // 1. 寻找目标
+    if (!ship.targetPlanet) {
+        ship.aiState = "寻找目标";
+        // 找一个不是刚刚离开的星球
+        let candidates = planets.filter(p => {
+             const d = Math.hypot(p.x - ship.x, p.y - ship.y);
+             return d > 1000; // 离得够远
+        });
+        if (candidates.length > 0) {
+            // 选最近的
+            ship.targetPlanet = candidates.sort((a,b) => 
+                Math.hypot(a.x-ship.x, a.y-ship.y) - Math.hypot(b.x-ship.x, b.y-ship.y)
+            )[0];
+        } else {
+            // 如果没目标，就生成一个
+            checkWorldGen(); 
+        }
+        return;
+    }
+
+    const p = ship.targetPlanet;
+    const dx = p.x - ship.x;
+    const dy = p.y - ship.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const alt = dist - p.r; // 高度
+    
+    // 速度矢量
+    const speed = Math.sqrt(ship.vx*ship.vx + ship.vy*ship.vy);
+    const speedAngle = Math.atan2(ship.vy, ship.vx);
+    const angleToPlanet = Math.atan2(dy, dx); // 指向星球中心的角度
+
+    // 2. 导航逻辑
+    input.thrust = false; // 默认关闭
+
+    if (alt > 2000) {
+        // --- 巡航阶段 ---
+        ship.aiState = "巡航";
+        // 既然远，就加速冲向星球
+        rotateTo(angleToPlanet);
+        if (Math.abs(angleDiff(ship.angle, angleToPlanet)) < 0.2 && speed < 15) {
+            input.thrust = true;
+        }
+    } else {
+        // --- 进近着陆阶段 ---
+        
+        // 计算“逆行”角度 (Retrograde)：速度方向的反方向
+        // 这是真实航天器减速的方式
+        let retroAngle = speedAngle + Math.PI; 
+        
+        // 如果速度很小，逆行方向不稳定，改用背对星球中心的方向（屁股对着星球）
+        if (speed < 1.0) {
+            retroAngle = angleToPlanet + Math.PI; 
+        }
+
+        rotateTo(retroAngle);
+
+        ship.aiState = alt < 500 ? "精准着陆" : "减速进近";
+
+        // PID 简单控制推力
+        // 目标速度：高度越低，速度要求越低
+        let targetSpeed = (alt / 300) * 5; 
+        if (targetSpeed < 1.5) targetSpeed = 1.0; // 最小着陆速度
+        if (targetSpeed > 20) targetSpeed = 20;
+
+        // 如果当前速度大于目标速度，且角度对准了逆行方向，就点火
+        if (speed > targetSpeed && Math.abs(angleDiff(ship.angle, retroAngle)) < 0.5) {
+            input.thrust = true;
+        }
+
+        // 横向速度修正：如果在着陆最后阶段，横向速度过大，需要侧向点火（简化为只做逆行点火通常足够）
+    }
+}
+
+// 辅助：平滑旋转 AI
+function rotateTo(targetRad) {
+    let diff = angleDiff(targetRad, ship.angle);
+    // AI 旋转稍微快一点
+    ship.angle += diff * 0.15; 
+}
+
+function angleDiff(a, b) {
+    let diff = a - b;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    return diff;
+}
+
+// --- Main Loop ---
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+function update() {
+    if (!ship.active) return;
+
+    checkWorldGen();
+    
+    // AI Logic
+    updateAI();
+
+    // Player/Physics Logic
+    if (!ship.auto) {
+        // Manual Rotation
+        if (input.joyActive && input.joyAngle !== null) {
+            ship.angle += angleDiff(input.joyAngle, ship.angle) * CFG.ROTATION;
+        }
+    }
+
+    // Thrust Physics
+    if (input.thrust && ship.fuel > 0) {
+        if (ship.landedPlanet) {
+             ship.landedPlanet = null; // Take off
+             ship.y -= 2;
+        }
+        ship.vx += Math.cos(ship.angle) * CFG.THRUST;
+        ship.vy += Math.sin(ship.angle) * CFG.THRUST;
+        ship.fuel -= CFG.FUEL_BURN;
+        createExhaust(3); // More particles
+    }
+
+    // Gravity & Collision
+    let nearest = { dist: Infinity, p: null };
+    planets.forEach(p => {
+        const dx = p.x - ship.x;
+        const dy = p.y - ship.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        
+        if(dist < nearest.dist) { nearest.dist = dist - p.r; nearest.p = p; }
+
+        // Gravity
+        if (dist < 2500 && !ship.landedPlanet) {
+            const force = p.gravity * 20;
+            const a = Math.atan2(dy, dx);
+            ship.vx += Math.cos(a) * (force/dist);
+            ship.vy += Math.sin(a) * (force/dist);
+        }
+
+        // Collision
+        if (!ship.landedPlanet && dist < p.r + ship.radius) {
+            const speed = Math.hypot(ship.vx, ship.vy);
+            // 修正位置
+            const ang = Math.atan2(dy, dx);
+            ship.x = p.x - Math.cos(ang)*(p.r+ship.radius);
+            ship.y = p.y - Math.sin(ang)*(p.r+ship.radius);
+
+            if (speed > CFG.SAFE_SPEED) {
+                crash(speed);
+            } else {
+                land(p);
+            }
+        }
+    });
+
+    if (!ship.landedPlanet) {
+        ship.x += ship.vx;
+        ship.y += ship.vy;
+    } else {
+        ship.vx = 0; ship.vy = 0;
+        if(ship.fuel < 100 && !ship.auto) ship.fuel += 0.3; // Manual refuel
+    }
+
+    // Camera follow
+    let tx = ship.x - width/2 + ship.vx*15;
+    let ty = ship.y - height/2 + ship.vy*15;
+    camera.x += (tx - camera.x) * 0.1;
+    camera.y += (ty - camera.y) * 0.1;
+
+    updateParticles();
+    updateUI(nearest);
+}
+
+// --- Enhanced Drawing (Lighting & Shadows) ---
+function draw() {
+    ctx.fillStyle = '#050505';
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.save();
+    ctx.translate(-camera.x, -camera.y);
+
+    // 1. Stars (with Glow)
+    ctx.shadowBlur = 4;
+    ctx.shadowColor = "#fff";
+    ctx.fillStyle = "#fff";
+    stars.forEach(s => {
+        let sx = (s.x - camera.x * s.p) % (width*2);
+        let sy = (s.y - camera.y * s.p) % (height*2);
+        if(sx<0) sx+=width*2; if(sy<0) sy+=height*2;
+        ctx.globalAlpha = s.a;
+        ctx.beginPath(); ctx.arc(sx, sy, s.s, 0, Math.PI*2); ctx.fill();
+    });
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+
+    // 2. Planets (Lighting)
+    planets.forEach(p => {
+        // Atmosphere Glow
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = p.color;
+        ctx.fillStyle = p.atmosphere;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r+15, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Planet Body (Base)
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+
+        // Lighting Shader (Fake 3D)
+        // 使用径向渐变模拟球体光照
+        // 假设光从左上角来
+        let grd = ctx.createRadialGradient(
+            p.x - p.r*0.3, p.y - p.r*0.3, p.r*0.1, // Highlight source
+            p.x, p.y, p.r // Edge
+        );
+        grd.addColorStop(0, "rgba(255,255,255,0.1)");
+        grd.addColorStop(0.5, "transparent");
+        grd.addColorStop(1, "rgba(0,0,0,0.6)"); // Shadow edge
+        
+        ctx.fillStyle = grd;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+
+        // Terminator Shadow (半月形阴影)
+        // 旋转坐标系到光照方向
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(Math.PI/4); // 45度阴影
+        ctx.beginPath();
+        ctx.arc(0, 0, p.r, Math.PI/2, Math.PI*1.5); // 半圆
+        ctx.fillStyle = "rgba(0,0,0,0.4)";
+        ctx.fill();
+        ctx.restore();
+    });
+
+    // 3. Particles (Additive Blending for fire)
+    ctx.globalCompositeOperation = 'lighter';
+    particles.forEach(p => {
+        ctx.fillStyle = p.c;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI*2); ctx.fill();
+    });
+    ctx.globalCompositeOperation = 'source-over';
+
+    // 4. Ship
+    if (ship.active) {
+        ctx.save();
+        ctx.translate(ship.x, ship.y);
+        ctx.rotate(ship.angle);
+
+        // Engine Glow
+        if (input.thrust) {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = "#4da6ff";
+            ctx.fillStyle = "#fff";
+            ctx.beginPath(); ctx.arc(-14, 0, 6, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        // Ship Body
+        ctx.fillStyle = '#ccc';
+        // Simple shape
+        ctx.beginPath();
+        ctx.moveTo(15, 0); ctx.lineTo(-10, 10); ctx.lineTo(-5, 0); ctx.lineTo(-10, -10);
+        ctx.fill();
+        
+        // Cockpit
+        ctx.fillStyle = ship.auto ? '#00ffaa' : '#381e72'; // AI On = Green Cockpit
+        ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill();
+
+        ctx.restore();
+    }
+
+    ctx.restore();
+}
+
+// --- Logic Helpers ---
+function createExhaust(count) {
+    const exX = ship.x - Math.cos(ship.angle) * 12;
+    const exY = ship.y - Math.sin(ship.angle) * 12;
+    for(let i=0; i<count; i++) {
+        particles.push({
+            x: exX, y: exY,
+            vx: -Math.cos(ship.angle)*6 + (Math.random()-0.5)*3,
+            vy: -Math.sin(ship.angle)*6 + (Math.random()-0.5)*3,
+            life: 10 + Math.random()*15,
+            c: `rgba(${150+Math.random()*100}, ${100+Math.random()*100}, 255, 0.8)`, // Blue/Purple fire
+            s: 2 + Math.random()*4
+        });
+    }
+}
+
+function crash(spd) {
+    ship.active = false;
+    // Boom
+    for(let i=0; i<80; i++) {
+        const a = Math.random()*6.28; const v = Math.random()*8;
+        particles.push({
+            x: ship.x, y: ship.y,
+            vx: Math.cos(a)*v, vy: Math.sin(a)*v, life: 50+Math.random()*40,
+            c: `rgba(255, ${Math.random()*100}, 50, 1)`, s: 4+Math.random()*6
+        });
+    }
+    document.getElementById('death-reason').innerText = `撞击速度: ${spd.toFixed(1)} m/s`;
+    gameState('GAMEOVER');
+}
+
+function land(p) {
+    ship.landedPlanet = p;
+    ship.vx = 0; ship.vy = 0;
+    showMessage(ship.auto ? "自动着陆成功" : "着陆成功 - 正在补给", "var(--md-sys-color-success)");
+}
+
+function getNearestPlanet() {
+    let nearest = { dist: Infinity, planet: null };
+    planets.forEach(p => {
+        const d = Math.hypot(p.x - ship.x, p.y - ship.y);
+        if(d < nearest.dist) { nearest.dist = d; nearest.planet = p; }
+    });
+    return nearest;
+}
+
+// --- UI & Controls ---
+function toggleAuto() {
+    ship.auto = !ship.auto;
+    const btn = document.getElementById('btn-auto');
+    if (ship.auto) {
+        btn.classList.add('active');
+        ship.aiState = "启动中";
+        ship.landedPlanet = null; // 如果在地上，允许起飞
+    } else {
+        btn.classList.remove('active');
+        ship.targetPlanet = null;
+        input.thrust = false;
+        ship.aiState = "MANUAL";
+    }
+}
+
+function updateUI(near) {
+    document.getElementById('hud-fuel').innerText = Math.floor(ship.fuel);
+    const spd = Math.hypot(ship.vx, ship.vy).toFixed(1);
+    document.getElementById('hud-speed').innerText = spd;
+    document.getElementById('hud-dist').innerText = near.p ? Math.floor(near.dist) : '--';
+    
+    // AI Status
+    const aiLog = document.getElementById('ai-log');
+    if (ship.auto) {
+        aiLog.innerText = "AI: " + ship.aiState;
+        aiLog.style.color = "var(--md-sys-color-primary)";
+    } else {
+        aiLog.innerText = "MANUAL";
+        aiLog.style.color = "var(--md-sys-color-tertiary)";
+    }
+
+    // Radar Arrow
+    const radar = document.getElementById('radar');
+    let target = ship.auto ? ship.targetPlanet : near.p;
+    
+    if (target && !ship.landedPlanet) {
+        const dx = target.x - ship.x;
+        const dy = target.y - ship.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist > 600) { // Only show if far
+            const angle = Math.atan2(dy, dx);
+            const cx = width/2; const cy = height/2;
+            const r = Math.min(width, height)/2 - 30;
+            radar.style.opacity = 0.8;
+            radar.style.transform = `translate(${cx+Math.cos(angle)*r}px, ${cy+Math.sin(angle)*r}px) rotate(${angle+1.57}rad)`;
+            radar.style.borderBottomColor = ship.auto ? '#00ffaa' : '#d0bcff'; // Green for AI target
+        } else {
+            radar.style.opacity = 0;
+        }
+    } else {
+        radar.style.opacity = 0;
+    }
+}
+
+function showMessage(txt, col) {
+    const el = document.getElementById('overlay-message');
+    el.innerText = txt; el.style.color = col; el.style.opacity = 1;
+    setTimeout(() => el.style.opacity = 0, 2000);
+}
+
+function gameState(st) {
+    if(st === 'GAMEOVER') document.getElementById('gameover-modal').classList.add('open');
+    else document.getElementById('gameover-modal').classList.remove('open');
+}
+
+// --- Inputs ---
+function setupControls() {
+    const tBtn = document.getElementById('btn-thrust');
+    const setThrust = (v) => { if(!ship.auto) { input.thrust = v; if(v) tBtn.classList.add('active'); else tBtn.classList.remove('active'); }};
+    tBtn.addEventListener('touchstart', (e)=>{e.preventDefault(); setThrust(true)});
+    tBtn.addEventListener('touchend', (e)=>{e.preventDefault(); setThrust(false)});
+    tBtn.addEventListener('mousedown', ()=>{setThrust(true)});
+    tBtn.addEventListener('mouseup', ()=>{setThrust(false)});
+
+    const jZone = document.getElementById('joystick-zone');
+    const jKnob = document.getElementById('joystick-knob');
+    let jData = { id: null, cx: 0, cy: 0 };
+    
+    jZone.addEventListener('touchstart', (e)=>{
+        e.preventDefault();
+        if(ship.auto) return; // Disable joy in auto
+        const t = e.changedTouches[0];
+        const r = jZone.getBoundingClientRect();
+        jData.id = t.identifier; jData.cx = r.left+r.width/2; jData.cy = r.top+r.height/2;
+        input.joyActive = true;
+        moveJoy(t.clientX, t.clientY);
+    });
+    jZone.addEventListener('touchmove', (e)=>{
+        e.preventDefault();
+        for(let t of e.changedTouches) if(t.identifier===jData.id) moveJoy(t.clientX, t.clientY);
+    });
+    const endJoy = (e) => {
+        e.preventDefault(); input.joyActive = false; input.joyAngle = null;
+        jKnob.style.transform = 'translate(-50%, -50%)';
+    };
+    jZone.addEventListener('touchend', endJoy);
+
+    function moveJoy(x, y) {
+        const dx = x - jData.cx; const dy = y - jData.cy;
+        const ang = Math.atan2(dy, dx);
+        const dist = Math.min(Math.hypot(dx, dy), 35);
+        jKnob.style.transform = `translate(calc(-50% + ${Math.cos(ang)*dist}px), calc(-50% + ${Math.sin(ang)*dist}px))`;
+        input.joyAngle = ang;
+    }
+}
+
+// --- Utils ---
+function generateStars() {
+    stars = [];
+    for(let i=0; i<100; i++) stars.push({
+        x: Math.random()*width*2, y: Math.random()*height*2,
+        s: Math.random()*2, a: Math.random(), p: Math.random()*0.2
+    });
+}
+function updateParticles() {
+    for(let i=particles.length-1; i>=0; i--) {
+        let p = particles[i]; p.x+=p.vx; p.y+=p.vy; p.life--; p.s*=0.95;
+        if(p.life<=0) particles.splice(i,1);
+    }
+}
+function setupSourceViewer() { document.getElementById('code-viewer').value = document.documentElement.outerHTML; }
+function openSettings() { setupSourceViewer(); document.getElementById('settings-modal').classList.add('open'); }
+function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+function copySource() { navigator.clipboard.writeText(document.getElementById('code-viewer').value); }
+
+// Start
+init();
+</script>
+</body>
+</html>
