@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MD3 Ultimate Merge</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" />
+
+    <style>
+        :root {
+            /* MD3 Theme Tokens */
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            --md-sys-color-secondary: #625B71;
+            --md-sys-color-secondary-container: #E8DEF8;
+            --md-sys-color-on-secondary-container: #1D192B;
+            --md-sys-color-surface: #FDF7FF;
+            --md-sys-color-surface-dim: #DED8E1;
+            --md-sys-color-outline: #79747E;
+            --md-sys-color-surface-container-high: #F7F2FA;
+            
+            /* Animations */
+            --ease-elastic: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; font-family: 'Roboto', sans-serif; }
+
+        body {
+            margin: 0; background-color: var(--md-sys-color-surface); color: #1C1B1F;
+            height: 100vh; overflow: hidden; display: flex; flex-direction: column;
+        }
+
+        /* HUD Header */
+        .hud-header {
+            padding: 12px 16px; display: grid; grid-template-columns: 48px 1fr 48px;
+            align-items: center; gap: 12px; z-index: 10;
+            background: rgba(253, 247, 255, 0.8); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .icon-btn {
+            width: 48px; height: 48px; border-radius: 16px; border: none;
+            background: var(--md-sys-color-surface-container-high);
+            color: var(--md-sys-color-primary);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: transform 0.2s var(--ease-out-expo), background 0.2s;
+        }
+        .icon-btn:active { transform: scale(0.92); background: var(--md-sys-color-surface-dim); }
+        .icon-btn span { font-size: 24px; }
+
+        .stats-card {
+            display: flex; justify-content: center; align-items: center; gap: 24px;
+            background: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+            height: 48px; border-radius: 24px;
+            box-shadow: 0 2px 8px rgba(103, 80, 164, 0.1);
+        }
+        .stat-group { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+        .stat-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; margin-bottom: 3px; }
+        .stat-value { font-size: 18px; font-weight: 900; font-variant-numeric: tabular-nums; transition: transform 0.3s var(--ease-elastic); }
+        .stat-value.pop { transform: scale(1.4); color: #B3261E; }
+
+        /* Game Stage */
+        #game-stage {
+            flex: 1; position: relative; background: var(--md-sys-color-surface-dim);
+            margin: 8px 12px 24px 12px; border-radius: 32px; overflow: hidden;
+            box-shadow: inset 0 4px 12px rgba(0,0,0,0.06); touch-action: none;
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        #aim-guide {
+            position: absolute; top: 0; bottom: 0; width: 2px;
+            background: repeating-linear-gradient(to bottom, var(--md-sys-color-outline) 0, var(--md-sys-color-outline) 6px, transparent 6px, transparent 14px);
+            left: 50%; opacity: 0; pointer-events: none; transition: opacity 0.2s; mix-blend-mode: multiply;
+        }
+
+        #preview-ball {
+            position: absolute; top: 24px; left: 50%; width: 40px; height: 40px; border-radius: 50%;
+            transform: translate(-50%, 0) scale(0); pointer-events: none;
+            transition: left 0.08s linear, transform 0.4s var(--ease-elastic);
+            z-index: 5; box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+            background-size: cover; border: 3px solid rgba(255,255,255,0.9);
+        }
+        #preview-ball.visible { transform: translate(-50%, 0) scale(1); }
+        #preview-ball.idle { animation: float 3s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { margin-top: 0; } 50% { margin-top: -6px; } }
+
+        /* Modals */
+        .modal-wrap {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s var(--ease-out-expo); z-index: 100;
+        }
+        .modal-wrap.active { opacity: 1; pointer-events: auto; }
+
+        .md3-card {
+            background: var(--md-sys-color-surface); width: 85%; max-width: 340px;
+            padding: 32px 24px; border-radius: 32px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+            transform: translateY(40px) scale(0.95); transition: transform 0.5s var(--ease-elastic);
+            text-align: center; display: flex; flex-direction: column; gap: 16px;
+        }
+        .modal-wrap.active .md3-card { transform: translateY(0) scale(1); }
+
+        /* Buttons */
+        .btn-primary {
+            background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary);
+            border: none; padding: 14px 32px; border-radius: 100px;
+            font-weight: 700; font-size: 16px; cursor: pointer; width: 100%;
+            transition: transform 0.1s;
+        }
+        .btn-primary:active { transform: scale(0.96); }
+
+        .btn-secondary {
+            background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container);
+            border: none; padding: 12px 24px; border-radius: 100px;
+            font-weight: 600; font-size: 14px; cursor: pointer; width: 100%;
+            transition: background 0.2s;
+        }
+        .btn-secondary:active { filter: brightness(0.95); }
+
+        /* Switch */
+        .switch-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+        .switch-label { font-size: 16px; font-weight: 500; color: #1C1B1F; }
+        .switch { position: relative; display: inline-block; width: 52px; height: 32px; flex-shrink: 0; }
+        .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--md-sys-color-surface-container-high);
+            border-radius: 32px; border: 2px solid var(--md-sys-color-outline); transition: .3s var(--ease-out-expo);
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 16px; width: 16px; left: 6px; bottom: 6px;
+            background-color: var(--md-sys-color-outline); border-radius: 50%; transition: .3s var(--ease-elastic);
+        }
+        input:checked + .slider { background-color: var(--md-sys-color-primary); border-color: var(--md-sys-color-primary); }
+        input:checked + .slider:before { transform: translateX(20px); background-color: #FFFFFF; width: 20px; height: 20px; bottom: 4px; left: 4px; }
+
+        /* Source Code Modal Specifics */
+        .code-preview {
+            width: 100%; height: 300px;
+            background: #F5F5F5; border-radius: 16px;
+            border: 1px solid #E0E0E0;
+            font-family: monospace; font-size: 11px;
+            padding: 12px; overflow: auto; text-align: left;
+            color: #333; resize: none; white-space: pre;
+        }
+        
+        /* Toast Notification */
+        #toast {
+            position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: #322F35; color: #F5EFF7; padding: 12px 24px; border-radius: 50px;
+            font-size: 14px; opacity: 0; pointer-events: none; transition: all 0.3s;
+            z-index: 200; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        #toast.visible { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    </style>
+</head>
+<body>
+
+<header class="hud-header">
+    <button class="icon-btn" onclick="UI.openModal('settings')">
+        <span class="material-symbols-rounded">settings</span>
+    </button>
+    <div class="stats-card">
+        <div class="stat-group">
+            <span class="stat-label">SCORE</span>
+            <span class="stat-value" id="ui-score">0</span>
+        </div>
+        <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.3);"></div>
+        <div class="stat-group">
+            <span class="stat-label">TIME</span>
+            <span class="stat-value" id="ui-timer" style="font-weight: 500;">00:00</span>
+        </div>
+    </div>
+    <button class="icon-btn" onclick="Game.confirmRestart()">
+        <span class="material-symbols-rounded">refresh</span>
+    </button>
+</header>
+
+<div id="game-stage">
+    <canvas id="world"></canvas>
+    <div id="aim-guide"></div>
+    <div id="preview-ball" class="idle"></div>
+</div>
+
+<!-- 设置模态框 -->
+<div id="modal-settings" class="modal-wrap">
+    <div class="md3-card">
+        <h2 style="margin: 0; font-size: 22px;">游戏设置</h2>
+        
+        <div class="switch-row">
+            <span class="switch-label">Emoji 模式</span>
+            <label class="switch">
+                <input type="checkbox" id="toggle-theme" onchange="Game.toggleTheme()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        
+        <div style="background: var(--md-sys-color-surface-container-high); padding: 12px; border-radius: 16px; margin: 4px 0;">
+            <p style="color: var(--md-sys-color-outline); font-size: 13px; margin: 0; line-height: 1.4;">
+                最高纪录: <span id="ui-best" style="font-weight: 900; color: var(--md-sys-color-primary);">0</span>
+            </p>
+        </div>
+
+        <button class="btn-secondary" onclick="UI.showSource()">
+            <span class="material-symbols-rounded" style="font-size: 16px; vertical-align: text-bottom;">code</span> 查看源代码
+        </button>
+
+        <button class="btn-primary" onclick="UI.closeModal('settings')">继续游戏</button>
+    </div>
+</div>
+
+<!-- 源代码模态框 -->
+<div id="modal-code" class="modal-wrap">
+    <div class="md3-card" style="max-width: 90%; height: 80vh;">
+        <h2 style="margin: 0; font-size: 20px;">当前源代码</h2>
+        <p style="font-size: 12px; color: var(--md-sys-color-outline); margin: 0;">您可以直接复制并在任何浏览器运行</p>
+        
+        <textarea id="source-text" class="code-preview" readonly></textarea>
+        
+        <div style="display: flex; gap: 12px; width: 100%; margin-top: auto;">
+            <button class="btn-secondary" onclick="UI.closeModal('code')">关闭</button>
+            <button class="btn-primary" onclick="UI.copySource()">复制全部</button>
+        </div>
+    </div>
+</div>
+
+<!-- 游戏结束模态框 -->
+<div id="modal-gameover" class="modal-wrap">
+    <div class="md3-card">
+        <span class="material-symbols-rounded" style="font-size: 64px; color: #FFB74D; display:block;">emoji_events</span>
+        <h2 style="margin: 0;">游戏结束</h2>
+        <p style="color: var(--md-sys-color-outline); margin: 8px 0 24px;">最终得分</p>
+        <div style="font-size: 64px; font-weight: 900; color: var(--md-sys-color-primary); line-height: 1;" id="final-score">0</div>
+        <button class="btn-primary" onclick="Game.restart()">再来一局</button>
+    </div>
+</div>
+
+<!-- Toast 提示 -->
+<div id="toast">已复制到剪贴板</div>
+
+<script>
+const CONFIG = {
+    levels: [
+        { r: 18,  c: '#FFCDD2', e: '🍇', s: 2 },
+        { r: 26,  c: '#F48FB1', e: '🍒', s: 4 },
+        { r: 34,  c: '#CE93D8', e: '🍊', s: 8 },
+        { r: 42,  c: '#B39DDB', e: '🍋', s: 16 },
+        { r: 52,  c: '#9FA8DA', e: '🥝', s: 32 },
+        { r: 64,  c: '#90CAF9', e: '🍅', s: 64 },
+        { r: 78,  c: '#81D4FA', e: '🍑', s: 128 },
+        { r: 94,  c: '#80DEEA', e: '🍍', s: 256 },
+        { r: 110, c: '#80CBC4', e: '🥥', s: 512 },
+        { r: 130, c: '#A5D6A7', e: '🍉', s: 1024 },
+        { r: 150, c: '#E6EE9C', e: '🌈', s: 2048 }
+    ],
+    wall: 60, deadLine: 120
+};
+
+const { Engine, Render, Runner, Bodies, Composite, Events } = Matter;
+
+const UI = {
+    el: (id) => document.getElementById(id),
+    
+    updateScore: (val) => {
+        const el = UI.el('ui-score');
+        el.innerText = val;
+        el.classList.remove('pop');
+        void el.offsetWidth;
+        el.classList.add('pop');
+    },
+
+    openModal: (id) => UI.el(`modal-${id}`).classList.add('active'),
+    closeModal: (id) => UI.el(`modal-${id}`).classList.remove('active'),
+
+    // --- 源代码功能 ---
+    showSource: () => {
+        // 获取当前文档的完整HTML
+        const html = document.documentElement.outerHTML;
+        UI.el('source-text').value = html;
+        UI.closeModal('settings'); // 关闭设置层
+        UI.openModal('code');      // 打开代码层
+    },
+
+    copySource: () => {
+        const textArea = UI.el('source-text');
+        textArea.select();
+        textArea.setSelectionRange(0, 99999); // 兼容移动端
+        
+        navigator.clipboard.writeText(textArea.value).then(() => {
+            UI.showToast("已复制全部代码");
+        }).catch(err => {
+            // 降级处理
+            document.execCommand('copy');
+            UI.showToast("已复制");
+        });
+    },
+
+    showToast: (msg) => {
+        const t = UI.el('toast');
+        t.innerText = msg;
+        t.classList.add('visible');
+        setTimeout(() => t.classList.remove('visible'), 2000);
+    },
+    // ----------------
+
+    showPreview: (level, useEmoji, xPos, containerW) => {
+        const data = CONFIG.levels[level];
+        const preview = UI.el('preview-ball');
+        let x = xPos || containerW / 2;
+        x = Math.max(data.r, Math.min(containerW - data.r, x));
+
+        preview.style.width = (data.r * 2) + 'px';
+        preview.style.height = (data.r * 2) + 'px';
+        preview.style.left = x + 'px';
+        
+        if (useEmoji) {
+            preview.style.backgroundColor = '#FFF';
+            preview.innerText = data.e;
+            preview.style.display = 'flex';
+            preview.style.alignItems = 'center';
+            preview.style.justifyContent = 'center';
+            preview.style.fontSize = (data.r * 1.3) + 'px';
+        } else {
+            preview.innerText = '';
+            preview.style.backgroundColor = data.c;
+        }
+        preview.classList.add('visible');
+        UI.el('aim-guide').style.left = x + 'px';
+    },
+
+    hidePreview: () => {
+        UI.el('preview-ball').classList.remove('visible');
+        UI.el('aim-guide').style.opacity = 0;
+    }
+};
+
+const Game = {
+    engine: null, render: null, runner: null,
+    score: 0,
+    bestScore: localStorage.getItem('md3_best') || 0,
+    currentLevel: 0, isDropping: false, isGameOver: false,
+    useEmoji: localStorage.getItem('md3_theme') === 'emoji',
+    textures: {}, particles: [],
+    timerInterval: null, startTime: 0,
+
+    init: () => {
+        UI.el('ui-best').innerText = Game.bestScore;
+        UI.el('toggle-theme').checked = Game.useEmoji;
+        Game.prepareTextures();
+        Game.initPhysics();
+        Game.bindInput();
+        Game.startGame();
+    },
+
+    prepareTextures: () => {
+        CONFIG.levels.forEach((lv, idx) => {
+            const cvs = document.createElement('canvas');
+            const size = lv.r * 2 + 8;
+            cvs.width = size; cvs.height = size;
+            const ctx = cvs.getContext('2d');
+            ctx.translate(size/2, size/2);
+            ctx.beginPath();
+            ctx.arc(0, 0, lv.r, 0, Math.PI * 2);
+            if (Game.useEmoji) {
+                ctx.fillStyle = '#FFFFFF'; ctx.shadowBlur = 6; ctx.shadowColor = "rgba(0,0,0,0.15)";
+                ctx.fill(); ctx.shadowBlur = 0;
+                ctx.font = `${lv.r * 1.35}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(lv.e, 0, lv.r * 0.14);
+            } else {
+                ctx.fillStyle = lv.c; ctx.fill();
+                ctx.beginPath(); ctx.arc(-lv.r*0.3, -lv.r*0.3, lv.r*0.25, 0, Math.PI*2);
+                ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fill();
+            }
+            Game.textures[idx] = cvs;
+        });
+    },
+
+    initPhysics: () => {
+        const stage = UI.el('game-stage');
+        const w = stage.clientWidth, h = stage.clientHeight;
+        Game.engine = Engine.create({ positionIterations: 8, velocityIterations: 8 });
+        Game.render = Render.create({
+            element: stage, engine: Game.engine, canvas: UI.el('world'),
+            options: { width: w, height: h, background: 'transparent', wireframes: false, pixelRatio: window.devicePixelRatio }
+        });
+
+        Events.on(Game.render, 'afterRender', () => {
+            const ctx = Game.render.context;
+            Composite.allBodies(Game.engine.world).forEach(b => {
+                if (b.label === 'Ball' && Game.textures[b.level]) {
+                    const img = Game.textures[b.level];
+                    ctx.save(); ctx.translate(b.position.x, b.position.y); ctx.rotate(b.angle);
+                    ctx.drawImage(img, -img.width/2, -img.height/2); ctx.restore();
+                }
+            });
+            for (let i = Game.particles.length - 1; i >= 0; i--) {
+                const p = Game.particles[i];
+                p.x += p.vx; p.y += p.vy; p.life -= 0.04;
+                if (p.life <= 0) Game.particles.splice(i, 1);
+                else {
+                    ctx.globalAlpha = p.life; ctx.fillStyle = p.c;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+                }
+            }
+        });
+
+        Events.on(Game.engine, 'collisionStart', (evt) => {
+            if (Game.isGameOver) return;
+            const pairs = evt.pairs;
+            const toRemove = new Set(); const toAdd = [];
+            pairs.forEach(pair => {
+                const a = pair.bodyA, b = pair.bodyB;
+                if (a.label === 'Ball' && b.label === 'Ball' && a.level === b.level) {
+                    if (toRemove.has(a) || toRemove.has(b)) return;
+                    const next = a.level + 1;
+                    if (next < CONFIG.levels.length) {
+                        toRemove.add(a); toRemove.add(b);
+                        const mx = (a.position.x + b.position.x) / 2, my = (a.position.y + b.position.y) / 2;
+                        toAdd.push(Bodies.circle(mx, my, CONFIG.levels[next].r, {
+                            restitution: 0.25, label: 'Ball', level: next, render: { visible: false }
+                        }));
+                        Game.addScore(CONFIG.levels[a.level].s);
+                        Game.createParticles(mx, my, CONFIG.levels[a.level].c);
+                        if(navigator.vibrate) navigator.vibrate(40);
+                    }
+                }
+            });
+            if (toRemove.size > 0) {
+                Composite.remove(Game.engine.world, Array.from(toRemove));
+                Composite.add(Game.engine.world, toAdd);
+            }
+        });
+
+        let danger = 0;
+        Events.on(Game.engine, 'afterUpdate', () => {
+            if(Game.isGameOver) return;
+            const balls = Composite.allBodies(Game.engine.world).filter(b => b.label === 'Ball');
+            let safe = true;
+            for(let b of balls) if (b.position.y < CONFIG.deadLine && Math.abs(b.velocity.y) < 0.2) { safe = false; break; }
+            if(!safe && !Game.isDropping) { if (++danger > 100) Game.triggerGameOver(); } else danger = 0;
+        });
+
+        Game.runner = Runner.create();
+        Runner.run(Game.runner, Game.engine);
+        Render.run(Game.render);
+    },
+
+    bindInput: () => {
+        const stage = UI.el('game-stage');
+        const move = (e) => {
+            if(Game.isDropping || Game.isGameOver) return;
+            e.preventDefault();
+            const rect = stage.getBoundingClientRect();
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            UI.showPreview(Game.currentLevel, Game.useEmoji, cx - rect.left, rect.width);
+            UI.el('aim-guide').style.opacity = 0.6;
+        };
+        const end = (e) => {
+            if(Game.isDropping || Game.isGameOver) return;
+            if(e.target.closest('.icon-btn') || e.target.closest('.modal-wrap')) return;
+            e.preventDefault();
+            const rect = stage.getBoundingClientRect();
+            const cx = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+            Game.dropBall(cx - rect.left, rect.width);
+        };
+        stage.addEventListener('mousemove', move); stage.addEventListener('touchmove', move, {passive:false});
+        stage.addEventListener('mouseup', end); stage.addEventListener('touchend', end, {passive:false});
+        stage.addEventListener('mouseleave', UI.hidePreview);
+    },
+
+    startGame: () => {
+        const W = Game.render.options.width, H = Game.render.options.height;
+        const walls = [
+            Bodies.rectangle(W/2, H+30, W, 60, { isStatic: true, render: { fillStyle: '#79747E'} }),
+            Bodies.rectangle(-30, H/2, 60, H*2, { isStatic: true }),
+            Bodies.rectangle(W+30, H/2, 60, H*2, { isStatic: true })
+        ];
+        Composite.add(Game.engine.world, walls);
+        Game.score = 0; Game.isGameOver = false; Game.isDropping = false;
+        UI.updateScore(0); UI.el('ui-timer').innerText = "00:00";
+        Game.startTimer(); Game.nextBall();
+    },
+
+    restart: () => {
+        UI.closeModal('gameover'); Composite.clear(Game.engine.world); Engine.clear(Game.engine);
+        Game.particles = []; Game.startGame();
+    },
+
+    confirmRestart: () => { if(confirm('重新开始？当前进度将丢失。')) Game.restart(); },
+    
+    nextBall: () => {
+        if(Game.isGameOver) return;
+        Game.currentLevel = Math.floor(Math.random() * 4);
+        const rect = UI.el('game-stage').getBoundingClientRect();
+        UI.showPreview(Game.currentLevel, Game.useEmoji, null, rect.width);
+    },
+
+    dropBall: (xInput, w) => {
+        Game.isDropping = true; UI.hidePreview();
+        const data = CONFIG.levels[Game.currentLevel];
+        let x = Math.max(data.r, Math.min(w - data.r, xInput));
+        const ball = Bodies.circle(x, 50, data.r, { restitution: 0.25, friction: 0.005, label: 'Ball', level: Game.currentLevel, render: { visible: false } });
+        Composite.add(Game.engine.world, ball);
+        setTimeout(() => { Game.isDropping = false; if(!Game.isGameOver) Game.nextBall(); }, 500);
+    },
+
+    addScore: (s) => {
+        Game.score += s; UI.updateScore(Game.score);
+        if(Game.score > Game.bestScore) { Game.bestScore = Game.score; UI.el('ui-best').innerText = Game.score; localStorage.setItem('md3_best', Game.score); }
+    },
+
+    createParticles: (x, y, c) => {
+        for(let i=0; i<8; i++) Game.particles.push({ x, y, vx: (Math.random()-0.5)*12, vy: (Math.random()-0.5)*12, life: 1, c, s: Math.random()*5+2 });
+    },
+
+    startTimer: () => {
+        clearInterval(Game.timerInterval); Game.startTime = Date.now();
+        Game.timerInterval = setInterval(() => {
+            if(Game.isGameOver) return;
+            const diff = Math.floor((Date.now() - Game.startTime) / 1000);
+            const m = Math.floor(diff/60).toString().padStart(2,'0');
+            const s = (diff%60).toString().padStart(2,'0');
+            UI.el('ui-timer').innerText = `${m}:${s}`;
+        }, 1000);
+    },
+
+    triggerGameOver: () => {
+        Game.isGameOver = true; clearInterval(Game.timerInterval);
+        UI.el('final-score').innerText = Game.score; UI.openModal('gameover');
+        if(navigator.vibrate) navigator.vibrate(300);
+    },
+
+    toggleTheme: () => {
+        Game.useEmoji = UI.el('toggle-theme').checked;
+        localStorage.setItem('md3_theme', Game.useEmoji ? 'emoji' : 'color');
+        Game.prepareTextures();
+    }
+};
+
+window.addEventListener('resize', () => location.reload());
+Game.init();
+</script>
+</body>
+</html>
