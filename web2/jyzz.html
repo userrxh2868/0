@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>记忆矩阵 Ultimate</title>
+    <style>
+        :root {
+            /* MD3 Dark Theme Palette */
+            --md-bg: #141218;
+            --md-surface: #1D1B20;
+            --md-surface-container: #2B2930;
+            --md-primary: #D0BCFF;
+            --md-on-primary: #381E72;
+            --md-secondary-container: #4A4458;
+            --md-on-secondary-container: #E8DEF8;
+            --md-outline: #938F99;
+            --md-outline-variant: #49454F;
+            
+            /* Game Colors (Neon Pastel) */
+            --c-1: #FFB4AB; /* Red */
+            --c-2: #B6C4FF; /* Blue */
+            --c-3: #FFF176; /* Yellow */
+            --c-4: #B7F397; /* Green */
+
+            /* Typography */
+            --font-code: 'Menlo', 'Consolas', monospace;
+
+            /* Animation */
+            --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--md-bg);
+            color: #E6E1E5;
+            font-family: system-ui, -apple-system, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- 顶部信息区 --- */
+        header {
+            flex: 0 0 auto;
+            padding: 32px 24px 16px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 400;
+            margin: 0 0 12px 0;
+            letter-spacing: -1px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 20px;
+            background: var(--md-secondary-container);
+            color: var(--md-on-secondary-container);
+            border-radius: 100px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            transition: transform 0.3s var(--ease-spring);
+        }
+
+        /* --- 游戏主区域 --- */
+        main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .game-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            width: 100%;
+            max-width: 380px;
+            aspect-ratio: 1;
+        }
+
+        .tile {
+            position: relative;
+            border: none;
+            border-radius: 28px;
+            background: var(--md-surface-container);
+            cursor: pointer;
+            transition: transform 0.1s;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
+        }
+
+        /* 色块颜色层 */
+        .tile::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            opacity: 0.3;
+            transition: opacity 0.2s;
+        }
+
+        .t0::after { background: var(--c-1); }
+        .t1::after { background: var(--c-2); }
+        .t2::after { background: var(--c-3); }
+        .t3::after { background: var(--c-4); }
+
+        /* 激活状态 */
+        .tile:active { transform: scale(0.92); }
+        
+        .tile.active {
+            transform: scale(0.96);
+            box-shadow: 0 0 40px currentColor;
+            z-index: 10;
+        }
+        .tile.active::after { opacity: 1; }
+
+        /* --- 底部控制面板 (Bottom Sheet 风格) --- */
+        footer {
+            flex: 0 0 auto;
+            background: var(--md-surface);
+            padding: 24px 24px 32px 24px;
+            border-radius: 32px 32px 0 0;
+            box-shadow: 0 -8px 20px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .action-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            height: 56px;
+            border-radius: 28px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: transform 0.1s var(--ease-standard), box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:active { transform: scale(0.96); }
+
+        .btn-fill {
+            background: var(--md-primary);
+            color: var(--md-on-primary);
+            flex: 2;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .btn-tonal {
+            background: var(--md-secondary-container);
+            color: var(--md-on-secondary-container);
+            flex: 1;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--md-outline);
+            color: var(--md-primary);
+            width: 100%;
+        }
+
+        /* --- 弹窗样式 (Dialog) --- */
+        dialog {
+            background: var(--md-surface-container);
+            color: #E6E1E5;
+            border: 1px solid var(--md-outline-variant);
+            border-radius: 28px;
+            padding: 0;
+            width: 92%;
+            max-width: 600px;
+            height: 85vh;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.6);
+            margin: auto;
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 0.3s, transform 0.3s var(--ease-spring);
+        }
+
+        dialog[open] {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        dialog::backdrop {
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+        }
+
+        /* 弹窗头部 */
+        .dialog-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: #111;
+            border-bottom: 1px solid #333;
+        }
+
+        .dialog-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .dialog-controls {
+            display: flex;
+            gap: 12px;
+        }
+
+        /* 复制按钮 */
+        .icon-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.2s;
+        }
+        .icon-btn:hover { background: rgba(255,255,255,0.2); }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0 8px;
+        }
+
+        /* 代码区域 */
+        .code-area {
+            padding: 20px;
+            overflow: auto;
+            height: calc(100% - 70px);
+            font-family: var(--font-code);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            color: #a9b7c6;
+            tab-size: 4;
+        }
+
+        /* 简单的语法高亮颜色 */
+        .h-tag { color: var(--c-1); }
+        .h-attr { color: var(--c-2); }
+        .h-str { color: var(--c-4); }
+        .h-comment { color: #6272a4; font-style: italic; }
+
+        /* 动画 */
+        .shake { animation: shake 0.5s ease-in-out; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-10px); }
+            40% { transform: translateX(10px); }
+            60% { transform: translateX(-10px); }
+            80% { transform: translateX(10px); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>记忆矩阵</h1>
+        <div class="status-badge" id="statusBadge">点击下方开始游戏</div>
+    </header>
+
+    <main>
+        <div class="game-grid">
+            <button class="tile t0" data-i="0"></button>
+            <button class="tile t1" data-i="1"></button>
+            <button class="tile t2" data-i="2"></button>
+            <button class="tile t3" data-i="3"></button>
+        </div>
+    </main>
+
+    <footer>
+        <div class="action-row">
+            <button class="btn btn-fill" id="startBtn">
+                <span id="startLabel">开始游戏</span>
+            </button>
+            <button class="btn btn-tonal" id="helpBtn">
+                教程
+            </button>
+        </div>
+        
+        <!-- 源代码按钮 -->
+        <button class="btn btn-outline" id="sourceBtn">
+            <span>&lt;/&gt;</span> 查看与复制代码
+        </button>
+    </footer>
+
+    <!-- 教程弹窗 -->
+    <dialog id="helpDialog" style="height: auto; max-height: 50vh;">
+        <div class="dialog-header">
+            <span class="dialog-title">如何玩？</span>
+            <button class="close-btn" onclick="this.closest('dialog').close()">×</button>
+        </div>
+        <div style="padding: 24px; line-height: 1.8; color: #ccc;">
+            <p>1. 观察方块亮起的<b>顺序</b>。</p>
+            <p>2. 凭借记忆，<b>按顺序点击</b>方块。</p>
+            <p>3. 每次成功，难度会增加一步。</p>
+            <p>4. 挑战自己，看能记住多少步！</p>
+        </div>
+    </dialog>
+
+    <!-- 源代码弹窗 -->
+    <dialog id="sourceDialog">
+        <div class="dialog-header">
+            <span class="dialog-title">index.html</span>
+            <div class="dialog-controls">
+                <button class="icon-btn" id="copyCodeBtn">
+                    <span>📋</span> <span id="copyText">复制</span>
+                </button>
+                <button class="close-btn" onclick="this.closest('dialog').close()">×</button>
+            </div>
+        </div>
+        <div class="code-area" id="codeContent"></div>
+    </dialog>
+
+    <script>
+        // --- 游戏引擎 ---
+        const Game = {
+            level: 0,
+            seq: [],
+            playerSeq: [],
+            isPlaying: false,
+            locked: false,
+            
+            // Web Audio API 振荡器
+            ctx: new (window.AudioContext || window.webkitAudioContext)(),
+            freqs: [261.63, 329.63, 392.00, 523.25], // C大调
+
+            init() {
+                this.bindEvents();
+            },
+
+            bindEvents() {
+                const tiles = document.querySelectorAll('.tile');
+                tiles.forEach(t => {
+                    const idx = parseInt(t.dataset.i);
+                    // 触摸和鼠标点击处理，防止移动端延迟
+                    t.addEventListener('touchstart', (e) => { e.preventDefault(); this.input(idx); });
+                    t.addEventListener('mousedown', () => this.input(idx));
+                });
+
+                document.getElementById('startBtn').onclick = () => this.start();
+            },
+
+            playTone(idx) {
+                if(this.ctx.state === 'suspended') this.ctx.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.frequency.value = this.freqs[idx];
+                osc.type = 'sine';
+                
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.4);
+            },
+
+            playFail() {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.value = 100;
+                gain.gain.value = 0.2;
+                gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.5);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.5);
+            },
+
+            visualize(idx) {
+                const tile = document.querySelector(`.tile[data-i="${idx}"]`);
+                tile.classList.add('active');
+                setTimeout(() => tile.classList.remove('active'), 250);
+            },
+
+            start() {
+                this.level = 0;
+                this.seq = [];
+                this.isPlaying = true;
+                document.getElementById('startLabel').textContent = "重新开始";
+                this.nextRound();
+            },
+
+            nextRound() {
+                this.level++;
+                this.playerSeq = [];
+                this.locked = true;
+                this.updateStatus(`第 ${this.level} 关`, false);
+                
+                this.seq.push(Math.floor(Math.random() * 4));
+                
+                setTimeout(() => this.playSequence(), 800);
+            },
+
+            async playSequence() {
+                for (let i of this.seq) {
+                    this.visualize(i);
+                    this.playTone(i);
+                    await new Promise(r => setTimeout(r, 400));
+                }
+                this.locked = false;
+                this.updateStatus(`轮到你了`, false);
+            },
+
+            input(idx) {
+                if (!this.isPlaying || this.locked) return;
+
+                // 立即反馈
+                this.visualize(idx);
+                this.playTone(idx);
+                if(navigator.vibrate) navigator.vibrate(10);
+
+                // 逻辑检查
+                if (this.seq[this.playerSeq.length] === idx) {
+                    this.playerSeq.push(idx);
+                    if (this.playerSeq.length === this.seq.length) {
+                        this.locked = true;
+                        this.updateStatus("很好！", false);
+                        setTimeout(() => this.nextRound(), 800);
+                    }
+                } else {
+                    this.gameOver();
+                }
+            },
+
+            gameOver() {
+                this.isPlaying = false;
+                this.locked = true;
+                this.playFail();
+                if(navigator.vibrate) navigator.vibrate([100,50,100]);
+                
+                const badge = document.getElementById('statusBadge');
+                this.updateStatus("失败！点击重新开始", true);
+                badge.classList.add('shake');
+                setTimeout(() => badge.classList.remove('shake'), 500);
+            },
+
+            updateStatus(text, isError) {
+                const el = document.getElementById('statusBadge');
+                el.textContent = text;
+                el.style.background = isError ? 'var(--c-1)' : 'var(--md-secondary-container)';
+                el.style.color = isError ? '#000' : 'var(--md-on-secondary-container)';
+            }
+        };
+
+        // --- 初始化游戏 ---
+        Game.init();
+
+        // --- UI 逻辑 (弹窗与复制) ---
+        const helpDialog = document.getElementById('helpDialog');
+        const sourceDialog = document.getElementById('sourceDialog');
+        
+        document.getElementById('helpBtn').onclick = () => helpDialog.showModal();
+        
+        // 查看源代码与高亮
+        document.getElementById('sourceBtn').onclick = () => {
+            let html = document.documentElement.outerHTML;
+            
+            // 简单的正则语法高亮
+            const escaped = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const highlighted = escaped
+                .replace(/(&lt;\/?)([\w-]+)(.*?)(&gt;)/g, '<span class="h-tag">$1$2</span><span class="h-attr">$3</span><span class="h-tag">$4</span>')
+                .replace(/(".*?")/g, '<span class="h-str">$1</span>')
+                .replace(/(&lt;!--.*?--&gt;)/g, '<span class="h-comment">$1</span>');
+
+            document.getElementById('codeContent').innerHTML = highlighted;
+            sourceDialog.showModal();
+        };
+
+        // 复制功能
+        document.getElementById('copyCodeBtn').onclick = async () => {
+            const code = document.documentElement.outerHTML;
+            try {
+                await navigator.clipboard.writeText(code);
+                const btnText = document.getElementById('copyText');
+                const originalText = btnText.textContent;
+                
+                btnText.textContent = "已复制!";
+                document.getElementById('copyCodeBtn').style.background = "#4caf50";
+                
+                setTimeout(() => {
+                    btnText.textContent = originalText;
+                    document.getElementById('copyCodeBtn').style.background = "";
+                }, 2000);
+            } catch (err) {
+                alert('复制失败，请手动复制');
+            }
+        };
+
+        // 点击外部关闭
+        [helpDialog, sourceDialog].forEach(d => {
+            d.onclick = (e) => { if (e.target === d) d.close(); }
+        });
+
+    </script>
+</body>
+</html>
