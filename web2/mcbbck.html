@@ -1,58 +1,56 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minecraft 版本信息 (MD3)</title>
-    <!-- 图标与字体 -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Minecraft 版本库</title>
+    <!-- Material Symbols (Rounded & Filled) -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
     
     <style>
-        /* --- Material Design 3 Token 系统 --- */
+        /* --- Material Design 3 Design Tokens --- */
         :root {
-            /* 基础色相: Indigo / Pink */
-            --md-sys-color-primary: #3F51B5;
+            /* 核心色板 (M3 Purple Theme) */
+            --md-sys-color-primary: #6750A4;
             --md-sys-color-on-primary: #FFFFFF;
-            --md-sys-color-primary-container: #DEE0FF;
-            --md-sys-color-on-primary-container: #00105C;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
 
-            --md-sys-color-secondary: #E91E63;
-            --md-sys-color-on-secondary: #FFFFFF;
-            --md-sys-color-secondary-container: #FFD8E4;
-            --md-sys-color-on-secondary-container: #3B071A;
+            --md-sys-color-secondary: #625B71;
+            --md-sys-color-secondary-container: #E8DEF8;
+            --md-sys-color-on-secondary-container: #1D192B;
 
-            --md-sys-color-background: #FEF7FF;
-            --md-sys-color-on-background: #1D1B20;
+            --md-sys-color-tertiary: #7D5260;
+            --md-sys-color-tertiary-container: #FFD8E4;
+            --md-sys-color-on-tertiary-container: #31111D;
 
-            /* Surface 表面色阶 (MD3 核心) */
-            --md-sys-color-surface: #FEF7FF; /* 纯白/底色 */
-            --md-sys-color-surface-container-low: #F7F2FA; /* 浅灰底 */
-            --md-sys-color-surface-container: #F3EDF7; /* 默认容器 */
-            --md-sys-color-surface-container-high: #ECE6F0; /* 强调容器 */
+            /* Surface 色调 (营造层次感) */
+            --md-sys-color-surface: #FEF7FF;            /* 页面背景 */
+            --md-sys-color-surface-container-low: #F7F2FA; /* 低层级容器 */
+            --md-sys-color-surface-container: #F3EDF7;     /* 标准容器 */
+            --md-sys-color-surface-container-high: #ECE6F0; /* 弹窗/高层级 */
             
             --md-sys-color-on-surface: #1D1B20;
             --md-sys-color-on-surface-variant: #49454F;
             --md-sys-color-outline: #79747E;
             --md-sys-color-outline-variant: #CAC4D0;
 
-            /* 阴影 */
-            --md-sys-elevation-1: 0 1px 2px rgba(0,0,0,0.3), 0 1px 3px 1px rgba(0,0,0,0.15);
-            --md-sys-elevation-2: 0 1px 2px rgba(0,0,0,0.3), 0 2px 6px 2px rgba(0,0,0,0.15);
-            --md-sys-elevation-3: 0 1px 3px rgba(0,0,0,0.3), 0 4px 8px 3px rgba(0,0,0,0.15);
-
-            /* 动画曲线 */
-            /* Standard: 用于标准 UI 变化 */
-            --ease-standard: cubic-bezier(0.2, 0.0, 0, 1.0);
-            /* Spring: 带有物理回弹，用于进入/强调 */
-            --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            /* 物理动画曲线 */
+            /* Spring: 强力回弹，用于进入动画 */
+            --motion-spring-force: cubic-bezier(0.3, 1.35, 0.15, 1);
+            /* Smooth: 平滑过渡，用于颜色/透明度 */
+            --motion-smooth: cubic-bezier(0.4, 0, 0.2, 1);
             
-            /* 形状圆角 */
-            --shape-corner-small: 8px;
-            --shape-corner-medium: 12px;
-            --shape-corner-large: 16px;
-            --shape-corner-extra-large: 28px;
-            --shape-corner-full: 999px;
+            /* 形状系统 */
+            --shape-large: 16px;
+            --shape-extra-large: 28px;
+            --shape-full: 999px;
+
+            /* 阴影层级 */
+            --elevation-1: 0 1px 2px rgba(0,0,0,0.3), 0 1px 3px 1px rgba(0,0,0,0.15);
+            --elevation-3: 0 4px 8px 3px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.3);
         }
 
         * {
@@ -61,76 +59,73 @@
             padding: 0;
             -webkit-tap-highlight-color: transparent;
             user-select: none;
+            outline: none;
         }
 
         body {
             font-family: 'Roboto', sans-serif;
-            background-color: var(--md-sys-color-surface-container-low); /* MD3 常用底色 */
-            color: var(--md-sys-color-on-background);
+            background-color: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
             display: flex;
             flex-direction: column;
             height: 100vh;
             overflow: hidden;
         }
 
-        /* --- 顶部应用栏 (Center Aligned Top App Bar) --- */
+        /* --- 顶部栏 (Center Aligned) --- */
         .top-app-bar {
-            background-color: var(--md-sys-color-surface);
             height: 64px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0 16px;
-            /* 默认无阴影，滚动时通过JS添加 */
-            transition: background-color 0.2s, box-shadow 0.2s;
+            background-color: var(--md-sys-color-surface);
+            transition: background-color 0.3s var(--motion-smooth), box-shadow 0.3s;
             z-index: 10;
         }
-        
+
+        /* 滚动时变为 Container 色并添加轻微阴影 */
         .top-app-bar.scrolled {
             background-color: var(--md-sys-color-surface-container);
-            /* Elevation 2 for scrolled state */
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
         }
 
         .top-app-bar h1 {
             font-size: 22px;
-            font-weight: 400; /* MD3 标题通常不加粗 */
+            font-weight: 400;
             color: var(--md-sys-color-on-surface);
             text-align: center;
             flex: 1;
         }
 
-        /* --- 按钮通用样式 --- */
         .icon-btn {
             width: 48px;
             height: 48px;
-            border-radius: var(--shape-corner-full);
             border: none;
             background: transparent;
             color: var(--md-sys-color-on-surface-variant);
+            border-radius: var(--shape-full);
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            position: relative; /* 必须：给波纹定位 */
-            overflow: hidden;   /* 必须：限制波纹溢出 */
-            transition: background-color 0.2s;
-        }
-        
-        .icon-btn:hover {
-            background-color: rgba(29, 27, 32, 0.08); /* on-surface @ 8% */
-        }
-        
-        .icon-btn:active {
-            color: var(--md-sys-color-on-surface);
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
         }
 
-        /* --- 导航栏 (Tabs) --- */
-        .tab-bar {
+        /* --- 选项卡 (Primary Tabs) --- */
+        .tabs-wrapper {
             background-color: var(--md-sys-color-surface);
+            transition: background-color 0.3s var(--motion-smooth);
+        }
+        .top-app-bar.scrolled ~ .tabs-wrapper {
+            background-color: var(--md-sys-color-surface-container);
+        }
+
+        .tabs {
             display: flex;
             position: relative;
-            /* MD3 中 Tabs 通常与背景融为一体或有极细分割线 */
             border-bottom: 1px solid var(--md-sys-color-outline-variant);
         }
 
@@ -145,236 +140,228 @@
             color: var(--md-sys-color-on-surface-variant);
             cursor: pointer;
             position: relative;
-            overflow: hidden; /* Fix ripple */
+            overflow: hidden;
+            z-index: 1;
+            transition: color 0.3s;
         }
-        
+
         .tab.active {
             color: var(--md-sys-color-primary);
         }
-        
-        /* 胶囊型指示器 (MD3 风格) */
-        .tab-indicator-track {
+
+        /* 胶囊指示器 (Pill Indicator) */
+        .tab-indicator-container {
             position: absolute;
             bottom: 0;
             left: 0;
-            width: 100%;
-            height: 3px;
+            width: 33.33%;
+            height: 100%;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
             pointer-events: none;
+            transition: transform 0.5s var(--motion-spring-force);
         }
-
+        
         .tab-indicator {
-            position: absolute;
-            bottom: 0;
-            height: 3px;
+            width: 50%;
+            height: 4px; /* 这里用粗线条模拟 M3，也可以做全包裹胶囊 */
             background-color: var(--md-sys-color-primary);
-            border-radius: 3px 3px 0 0;
-            width: 33.33%; /* 3 tabs */
-            transition: transform 0.4s var(--ease-spring);
+            border-radius: 4px 4px 0 0;
+            margin-bottom: 0;
         }
 
-        /* --- 主内容区域 --- */
+        /* --- 列表区域 --- */
         main {
             flex: 1;
             overflow-y: auto;
             padding: 16px;
-            scroll-behavior: smooth;
+            /* 隐藏滚动条但保留功能 */
+            scrollbar-width: none; 
+            -ms-overflow-style: none;
         }
+        main::-webkit-scrollbar { display: none; }
 
         .list-container {
             max-width: 600px;
             margin: 0 auto;
             display: flex;
             flex-direction: column;
-            gap: 12px; /* 间距 */
-            padding-bottom: 88px; /* FAB 避让 */
+            gap: 12px;
+            padding-bottom: 88px;
         }
 
-        /* --- 列表卡片 (Elevated Card) --- */
+        /* --- MD3 卡片 (Elevated Card) --- */
         .card {
-            background-color: var(--md-sys-color-surface-container-high); /* 这里的颜色比背景稍亮 */
-            border-radius: var(--shape-corner-medium); /* 12px */
-            padding: 12px 16px;
+            background-color: var(--md-sys-color-surface-container-low);
+            border-radius: var(--shape-large); /* 16px */
+            padding: 12px 16px 12px 12px;
             display: flex;
             align-items: center;
             position: relative;
-            overflow: hidden; /* Fix ripple */
+            overflow: hidden;
             cursor: pointer;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* Very subtle shadow */
+            box-shadow: 0 0 0 0 transparent;
+            transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
             
-            /* 初始动画状态 */
+            /* 初始隐藏，等待 JS 触发动画 */
             opacity: 0;
-            transform: scale(0.95) translateY(20px);
-            
-            transition: transform 0.2s var(--ease-standard), 
-                        background-color 0.2s,
-                        box-shadow 0.2s;
-        }
-        
-        /* JS 注入进入动画 */
-        .card.animate-enter {
-            animation: card-spring-enter 0.6s var(--ease-spring) forwards;
+            transform: translateY(30px) scale(0.92);
         }
 
-        @keyframes card-spring-enter {
-            to { opacity: 1; transform: scale(1) translateY(0); }
+        /* 强力弹簧进入动画 */
+        .card.enter {
+            animation: spring-up 0.7s var(--motion-spring-force) forwards;
         }
 
-        .card:hover {
-            box-shadow: var(--md-sys-elevation-1);
-            background-color: #EFEDF5; /* 稍微变暗/变色 */
-            z-index: 1;
+        @keyframes spring-up {
+            0% { opacity: 0; transform: translateY(30px) scale(0.92); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
         }
-        
+
         .card:active {
-            transform: scale(0.98);
+            transform: scale(0.96) !important; /* 点击时的反馈 */
+            background-color: var(--md-sys-color-surface-container-high);
         }
 
         .card-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px; /* MD3 小图标圆角 */
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
             background-color: #E0E0E0;
             background-image: url('https://assets.mojang.com/block_header_template/grass_block_header.png');
             background-size: cover;
             margin-right: 16px;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
             flex-shrink: 0;
         }
 
         .card-content {
             flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
             min-width: 0;
         }
 
         .card-title {
             font-size: 16px;
+            font-weight: 500; /* M3 Title Medium */
             color: var(--md-sys-color-on-surface);
             margin-bottom: 2px;
-            font-weight: 500;
+            letter-spacing: 0.15px;
         }
 
-        .card-subtitle {
-            font-size: 12px;
-            color: var(--md-sys-color-on-surface-variant);
+        .card-meta {
             display: flex;
             align-items: center;
             gap: 8px;
+            font-size: 12px;
+            color: var(--md-sys-color-on-surface-variant);
         }
 
+        /* 状态胶囊 */
         .badge {
-            padding: 2px 8px;
-            border-radius: 6px;
+            padding: 4px 10px;
+            border-radius: 8px;
             font-size: 11px;
-            font-weight: 500;
+            font-weight: 600;
+            line-height: 1;
         }
-        /* Tonal Badges */
-        .badge.release { 
-            background-color: #C3EED0; /* Green Container */
-            color: #074E23; /* On Green Container */
+        .badge.release {
+            background-color: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
         }
-        .badge.snapshot { 
-            background-color: #FFECB3; /* Yellow/Amber Container */
-            color: #5C4400; 
+        .badge.snapshot {
+            background-color: var(--md-sys-color-tertiary-container);
+            color: var(--md-sys-color-on-tertiary-container);
         }
 
-        /* --- FAB (Floating Action Button) --- */
+        /* --- FAB --- */
         .fab {
             position: fixed;
             bottom: 24px;
             right: 24px;
             width: 56px;
             height: 56px;
-            /* MD3 FAB 通常是 16px 圆角 */
-            border-radius: var(--shape-corner-large); 
-            background-color: var(--md-sys-color-secondary-container);
-            color: var(--md-sys-color-on-secondary-container);
+            border-radius: 16px; /* M3 FAB Shape */
+            background-color: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: var(--md-sys-elevation-3);
+            box-shadow: var(--elevation-3);
             cursor: pointer;
             z-index: 20;
-            overflow: hidden; /* Fix ripple */
-            transition: transform 0.3s var(--ease-spring), box-shadow 0.2s;
+            overflow: hidden;
+            transition: transform 0.4s var(--motion-spring-force), box-shadow 0.2s;
         }
 
-        .fab:hover {
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.1); /* Elevation 4 */
-        }
-        
-        .fab:active {
-            transform: scale(0.92);
-        }
+        .fab:active { transform: scale(0.9); }
+        .fab:hover { box-shadow: 0 6px 10px rgba(0,0,0,0.2); transform: scale(1.05); }
 
-        .fab span { font-size: 24px; }
-
-        /* --- 弹窗 (Dialog - MD3 Full Spec) --- */
+        /* --- Dialog (Full M3 Spec) --- */
         dialog {
             border: none;
             background-color: var(--md-sys-color-surface-container-high);
-            border-radius: var(--shape-corner-extra-large); /* 28px */
+            border-radius: var(--shape-extra-large); /* 28px */
             padding: 24px;
-            width: 90%;
-            max-width: 400px; /* MD3 standard width for mobile dialogs */
-            box-shadow: var(--md-sys-elevation-3);
+            width: 85%;
+            max-width: 360px; /* Mobile standard */
+            box-shadow: var(--elevation-3);
             margin: auto;
             color: var(--md-sys-color-on-surface);
             
             opacity: 0;
-            transform: scale(0.9);
-            transition: opacity 0.2s linear, transform 0.3s var(--ease-spring);
-            
-            overflow: hidden; /* 如果内容溢出，保持圆角 */
+            transform: scale(0.8);
+            transition: opacity 0.2s, transform 0.4s var(--motion-spring-force), display 0.4s allow-discrete;
         }
 
-        dialog[open] {
-            opacity: 1;
-            transform: scale(1);
-        }
-
+        dialog[open] { opacity: 1; transform: scale(1); }
+        
         dialog::backdrop {
-            background-color: rgba(0, 0, 0, 0.32); /* Standard scrim opacity */
-            backdrop-filter: blur(2px);
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(2px); /* 磨砂玻璃效果 */
             opacity: 0;
             transition: opacity 0.3s;
         }
-        
         dialog[open]::backdrop { opacity: 1; }
 
+        .dialog-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
         .dialog-icon {
+            font-size: 24px;
             color: var(--md-sys-color-secondary);
             margin-bottom: 16px;
-            display: block;
-            text-align: center;
         }
 
         .dialog-title {
             font-size: 24px;
-            text-align: center;
-            margin-bottom: 16px;
-            font-weight: 400;
+            font-weight: 400; /* Headline Small */
+            color: var(--md-sys-color-on-surface);
         }
 
-        .dialog-content-area {
+        .dialog-body {
+            font-size: 14px; /* Body Medium */
             color: var(--md-sys-color-on-surface-variant);
-            font-size: 14px;
             line-height: 1.5;
             margin-bottom: 24px;
         }
 
-        .code-block {
-            background: #1e1e1e;
-            color: #dcdcdc;
+        .code-snippet {
+            display: block;
+            background: #1E1F22;
+            color: #BCBEC4;
             padding: 12px;
-            border-radius: 8px;
+            border-radius: 12px;
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
-            overflow: auto;
-            max-height: 200px;
-            white-space: pre-wrap;
+            overflow-x: auto;
             margin-top: 8px;
+            max-height: 200px;
         }
 
         .dialog-actions {
@@ -384,65 +371,38 @@
         }
 
         .btn-text {
-            background: none;
+            background: transparent;
             border: none;
             color: var(--md-sys-color-primary);
-            font-weight: 500;
-            padding: 10px 12px; /* 触控目标 */
-            border-radius: 999px;
-            cursor: pointer;
             font-size: 14px;
+            font-weight: 500;
+            padding: 10px 16px;
+            border-radius: 20px;
+            cursor: pointer;
             position: relative;
             overflow: hidden;
             min-width: 64px;
         }
-        
-        .btn-text:hover {
-            background-color: rgba(63, 81, 181, 0.08); /* Primary alpha */
-        }
+        .btn-text:hover { background-color: rgba(103, 80, 164, 0.08); }
 
-        /* --- 运行日志样式 --- */
-        #log-list {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            max-height: 250px;
-            overflow-y: auto;
-        }
-        .log-item {
-            display: flex;
-            gap: 8px;
-            font-size: 12px;
-            border-bottom: 1px solid #333;
-            padding-bottom: 4px;
-        }
-        .log-ts { color: #888; flex-shrink: 0; }
-        .log-msg { word-break: break-all; }
-        .log-msg.info { color: #81C784; }
-        .log-msg.error { color: #E57373; }
-        .log-msg.action { color: #64B5F6; }
-
-        /* --- 核心修复：波纹效果 (Ripple) --- */
-        .ripple-effect {
+        /* --- 核心交互：波纹 (Ripple) --- */
+        .ripple {
             position: absolute;
             border-radius: 50%;
+            background-color: currentColor; /* 继承当前文字颜色 */
+            opacity: 0.1;
             transform: scale(0);
-            animation: ripple-anim 0.5s linear;
-            background-color: currentColor; /* 使用当前文字颜色作为波纹色 */
-            opacity: 0.12; /* MD3 standard opacity for state layer */
-            pointer-events: none; /* 关键：防止遮挡点击 */
-        }
-
-        @keyframes ripple-anim {
-            to {
-                transform: scale(2.5); /* 扩散范围 */
-                opacity: 0;
-            }
+            animation: ripple-spread 0.6s linear;
+            pointer-events: none;
         }
         
+        @keyframes ripple-spread {
+            to { transform: scale(2.5); opacity: 0; }
+        }
+
         /* 旋转动画 */
-        .rotate-anim { animation: spin 1s linear infinite; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .spin { animation: rotate 1s linear infinite; }
+        @keyframes rotate { 100% { transform: rotate(360deg); } }
 
     </style>
 </head>
@@ -450,301 +410,281 @@
 
     <!-- 顶部 -->
     <header class="top-app-bar" id="app-bar">
-        <button class="icon-btn ripple-wrapper" id="btn-source" title="查看源码">
+        <button class="icon-btn ripple-trigger" id="btn-source">
             <span class="material-symbols-rounded">code</span>
         </button>
         <h1>Minecraft 版本库</h1>
-        <button class="icon-btn ripple-wrapper" id="btn-logs" title="系统日志">
-            <span class="material-symbols-rounded">terminal</span>
+        <button class="icon-btn ripple-trigger" id="btn-logs">
+            <span class="material-symbols-rounded">history</span>
         </button>
     </header>
 
     <!-- 选项卡 -->
-    <nav class="tab-bar">
-        <div class="tab active ripple-wrapper" onclick="App.switchTab('all', 0)">全部</div>
-        <div class="tab ripple-wrapper" onclick="App.switchTab('release', 1)">正式版</div>
-        <div class="tab ripple-wrapper" onclick="App.switchTab('snapshot', 2)">快照版</div>
-        <!-- 轨道与指示器 -->
-        <div class="tab-indicator-track">
-            <div class="tab-indicator" id="tab-indicator"></div>
-        </div>
-    </nav>
+    <div class="tabs-wrapper">
+        <nav class="tabs">
+            <div class="tab active ripple-trigger" onclick="App.switchTab('all', 0)">全部</div>
+            <div class="tab ripple-trigger" onclick="App.switchTab('release', 1)">正式版</div>
+            <div class="tab ripple-trigger" onclick="App.switchTab('snapshot', 2)">快照版</div>
+            <!-- 胶囊指示器 -->
+            <div class="tab-indicator-container" id="indicator-container">
+                <div class="tab-indicator"></div>
+            </div>
+        </nav>
+    </div>
 
-    <!-- 列表内容 -->
+    <!-- 列表 -->
     <main id="main-scroll">
         <div class="list-container" id="list-root">
-            <!-- JS 填充 -->
+            <!-- 动态生成 -->
         </div>
     </main>
 
     <!-- FAB -->
-    <div class="fab ripple-wrapper" onclick="App.fetchData()">
+    <div class="fab ripple-trigger" onclick="App.fetchData()">
         <span class="material-symbols-rounded" id="fab-icon">refresh</span>
     </div>
 
-    <!-- 详情 Dialog -->
+    <!-- 详情弹窗 -->
     <dialog id="detail-dialog">
-        <span class="material-symbols-rounded dialog-icon" style="font-size: 32px;">info</span>
-        <h2 class="dialog-title">版本详情</h2>
-        <div class="dialog-content-area" id="detail-content">
-            <!-- JS 填充 -->
+        <div class="dialog-header">
+            <span class="material-symbols-rounded dialog-icon">info</span>
+            <div class="dialog-title" id="d-title"></div>
+        </div>
+        <div class="dialog-body">
+            <div style="margin-bottom:4px;"><strong>发布类型:</strong> <span id="d-type"></span></div>
+            <div style="margin-bottom:12px;"><strong>发布时间:</strong> <span id="d-time"></span></div>
+            <div><strong>Manifest URL:</strong></div>
+            <div class="code-snippet" id="d-url"></div>
         </div>
         <div class="dialog-actions">
-            <button class="btn-text ripple-wrapper" onclick="document.getElementById('detail-dialog').close()">关闭</button>
-            <button class="btn-text ripple-wrapper" onclick="App.copyJson()">复制 JSON</button>
+            <button class="btn-text ripple-trigger" onclick="document.getElementById('detail-dialog').close()">关闭</button>
+            <button class="btn-text ripple-trigger" onclick="App.copyJson()">复制 JSON</button>
         </div>
     </dialog>
 
-    <!-- 日志 Dialog -->
+    <!-- 日志弹窗 -->
     <dialog id="log-dialog">
-        <h2 class="dialog-title" style="text-align: left; font-size: 20px;">运行日志</h2>
-        <div class="code-block" id="log-list">
-            <!-- 日志 -->
+        <div class="dialog-header" style="align-items: flex-start; text-align: left;">
+            <div class="dialog-title" style="font-size:20px;">运行日志</div>
+        </div>
+        <div class="dialog-body" style="padding: 0;">
+            <div id="log-container" class="code-snippet" style="height: 200px; background: #2b2d31; color: #ccc; margin-top:0;"></div>
         </div>
         <div class="dialog-actions" style="margin-top: 16px;">
-            <button class="btn-text ripple-wrapper" onclick="Logger.clear()">清空</button>
-            <button class="btn-text ripple-wrapper" onclick="document.getElementById('log-dialog').close()">关闭</button>
+            <button class="btn-text ripple-trigger" onclick="Logger.clear()">清空</button>
+            <button class="btn-text ripple-trigger" onclick="document.getElementById('log-dialog').close()">关闭</button>
         </div>
     </dialog>
 
-    <!-- 源码 Dialog -->
+    <!-- 源码弹窗 -->
     <dialog id="source-dialog">
-        <h2 class="dialog-title">网页源码</h2>
-        <div class="code-block" id="source-preview" style="height: 300px;"></div>
-        <div class="dialog-actions" style="margin-top: 16px;">
-            <button class="btn-text ripple-wrapper" onclick="document.getElementById('source-dialog').close()">关闭</button>
-            <button class="btn-text ripple-wrapper" onclick="App.copySource()">复制全部</button>
+        <div class="dialog-header">
+            <div class="dialog-title">网页源码</div>
+        </div>
+        <div class="dialog-body">
+            <div id="source-preview" class="code-snippet" style="height: 300px;"></div>
+        </div>
+        <div class="dialog-actions">
+            <button class="btn-text ripple-trigger" onclick="document.getElementById('source-dialog').close()">关闭</button>
+            <button class="btn-text ripple-trigger" onclick="App.copySource()">复制全部</button>
         </div>
     </dialog>
 
     <script>
-        /**
-         * 日志工具
-         */
+        // --- 日志系统 ---
         const Logger = {
-            add(msg, type = 'info') {
-                const list = document.getElementById('log-list');
-                const now = new Date();
-                const ts = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+            add(msg, level = 'INFO') {
+                const box = document.getElementById('log-container');
+                const time = new Date().toLocaleTimeString('zh-CN', {hour12:false});
+                const color = level === 'ERROR' ? '#ff6b6b' : (level === 'ACTION' ? '#74c0fc' : '#a5d8ff');
                 
-                const div = document.createElement('div');
-                div.className = 'log-item';
-                div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="log-msg ${type}">${msg}</span>`;
+                const line = document.createElement('div');
+                line.style.marginBottom = '4px';
+                line.style.fontSize = '11px';
+                line.style.borderBottom = '1px solid #333';
+                line.style.paddingBottom = '2px';
+                line.innerHTML = `<span style="color:#666">[${time}]</span> <span style="color:${color}">${msg}</span>`;
                 
-                list.appendChild(div);
-                list.scrollTop = list.scrollHeight;
+                box.appendChild(line);
+                box.scrollTop = box.scrollHeight;
             },
             clear() {
-                document.getElementById('log-list').innerHTML = '';
-                this.add('日志已清空', 'action');
+                document.getElementById('log-container').innerHTML = '';
+                this.add('日志已清空', 'ACTION');
             }
         };
 
-        /**
-         * 核心应用
-         */
+        // --- 应用逻辑 ---
         const App = {
-            versions: [],
-            currentTab: 'all',
-            currentDetail: null,
+            data: [],
+            currentFilter: 'all',
+            detailData: null,
 
             init() {
-                Logger.add('App initialized', 'info');
-                this.bindEvents();
+                Logger.add('应用初始化...', 'INFO');
+                this.setupRipple();
+                this.setupScroll();
+                this.bindDialogs();
                 this.fetchData();
-                this.handleScroll();
             },
 
-            bindEvents() {
-                // 初始化所有波纹
-                this.initRipple();
-
-                // 日志按钮
-                document.getElementById('btn-logs').onclick = () => {
-                    document.getElementById('log-dialog').showModal();
-                };
-                // 源码按钮
-                document.getElementById('btn-source').onclick = () => {
-                    document.getElementById('source-preview').textContent = document.documentElement.outerHTML;
-                    document.getElementById('source-dialog').showModal();
-                };
-                // Dialog 关闭 (点击遮罩)
-                document.querySelectorAll('dialog').forEach(d => {
-                    d.addEventListener('click', (e) => {
-                        if (e.target === d) d.close();
-                    });
-                });
-            },
-
-            handleScroll() {
-                const main = document.getElementById('main-scroll');
-                const header = document.getElementById('app-bar');
-                main.addEventListener('scroll', () => {
-                    if (main.scrollTop > 10) {
-                        header.classList.add('scrolled');
-                    } else {
-                        header.classList.remove('scrolled');
-                    }
-                });
-            },
-
-            /**
-             * 修复后的波纹系统
-             * 使用事件委托或直接绑定，并计算正确的偏移
-             */
-            initRipple() {
-                // 使用事件委托处理动态元素，这里使用通用监听器
-                document.addEventListener('mousedown', (e) => {
-                    const target = e.target.closest('.ripple-wrapper');
-                    if (target) {
-                        this.createRipple(e, target);
-                    }
-                });
-            },
-
-            createRipple(event, element) {
-                const rect = element.getBoundingClientRect();
-                
-                // 1. 计算波纹大小 (取对角线长度以覆盖整个元素)
-                const diameter = Math.max(rect.width, rect.height);
-                const radius = diameter / 2;
-
-                // 2. 创建 DOM
-                const circle = document.createElement('span');
-                circle.className = 'ripple-effect';
-                circle.style.width = circle.style.height = `${diameter}px`;
-                
-                // 3. 计算位置 (相对于元素左上角)
-                // event.clientX - rect.left 得到鼠标在元素内的 X 坐标
-                // 减去 radius 是为了让波纹中心对准鼠标
-                circle.style.left = `${event.clientX - rect.left - radius}px`;
-                circle.style.top = `${event.clientY - rect.top - radius}px`;
-
-                // 4. 清理旧波纹 (可选，防止堆积)
-                // const oldRipple = element.getElementsByClassName('ripple-effect')[0];
-                // if (oldRipple) oldRipple.remove();
-
-                element.appendChild(circle);
-
-                // 5. 动画结束后移除
-                setTimeout(() => {
-                    circle.remove();
-                }, 500); // 必须匹配 CSS animation duration
-            },
-
+            // 核心：无代理直连
             async fetchData() {
-                const root = document.getElementById('list-root');
+                const listRoot = document.getElementById('list-root');
                 const fabIcon = document.getElementById('fab-icon');
                 
-                fabIcon.classList.add('rotate-anim');
-                root.innerHTML = '<div style="text-align:center; padding:40px; color:#888;">正在获取数据...</div>';
-                Logger.add('Start fetching...', 'action');
+                fabIcon.classList.add('spin');
+                listRoot.innerHTML = '<div style="text-align:center; padding:40px; color:var(--md-sys-color-outline);">正在连接 Mojang 服务器...</div>';
+                Logger.add('发起请求: launchermeta.mojang.com', 'ACTION');
 
                 try {
+                    // 直连请求
                     const res = await fetch('https://launchermeta.mojang.com/mc/game/version_manifest.json');
-                    if (!res.ok) throw new Error('Network response was not ok');
-                    const data = await res.json();
                     
-                    this.versions = data.versions;
-                    Logger.add(`Fetched ${this.versions.length} versions`, 'info');
-                    this.renderList();
-                } catch (e) {
-                    Logger.add(`Fetch error: ${e.message}`, 'error');
-                    root.innerHTML = `<div style="text-align:center; padding:40px; color:#E57373;">获取失败: ${e.message}<br><small>请确保网络环境支持跨域访问</small></div>`;
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    
+                    const json = await res.json();
+                    this.data = json.versions;
+                    Logger.add(`成功获取 ${this.data.length} 个版本`, 'INFO');
+                    this.render();
+                    
+                } catch (err) {
+                    console.error(err);
+                    Logger.add(`请求失败: ${err.message}`, 'ERROR');
+                    listRoot.innerHTML = `
+                        <div style="text-align:center; padding:40px; color:var(--md-sys-color-error);">
+                            <span class="material-symbols-rounded" style="font-size:48px; color:#ba1a1a; margin-bottom:16px;">cloud_off</span>
+                            <p>连接失败</p>
+                            <p style="font-size:12px; opacity:0.7; margin-top:8px;">${err.message}</p>
+                            <p style="font-size:12px; opacity:0.7; color:#ba1a1a;">请检查是否允许跨域 (CORS)</p>
+                        </div>`;
                 } finally {
-                    setTimeout(() => fabIcon.classList.remove('rotate-anim'), 500);
+                    setTimeout(() => fabIcon.classList.remove('spin'), 500);
                 }
             },
 
             switchTab(type, idx) {
-                if (this.currentTab === type) return;
-                this.currentTab = type;
-                Logger.add(`Tab switched to ${type}`, 'info');
+                if (this.currentFilter === type) return;
+                this.currentFilter = type;
+                Logger.add(`切换视图: ${type}`, 'ACTION');
 
                 // UI 更新
-                document.querySelectorAll('.tab').forEach((t, i) => {
-                    t.classList.toggle('active', i === idx);
-                });
-                document.getElementById('tab-indicator').style.transform = `translateX(${idx * 100}%)`;
+                document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+                document.getElementById('indicator-container').style.transform = `translateX(${idx * 100}%)`;
 
-                this.renderList();
+                this.render();
             },
 
-            renderList() {
+            render() {
                 const root = document.getElementById('list-root');
                 root.innerHTML = '';
 
-                const filtered = this.versions.filter(v => 
-                    this.currentTab === 'all' || v.type === this.currentTab
-                );
+                const list = this.data.filter(v => this.currentFilter === 'all' || v.type === this.currentFilter);
 
-                if (filtered.length === 0) {
-                    root.innerHTML = '<div style="text-align:center; padding:20px;">无数据</div>';
+                if (list.length === 0) {
+                    if (this.data.length > 0) root.innerHTML = '<div style="text-align:center; padding:40px; opacity:0.5">无此类版本</div>';
                     return;
                 }
 
-                // 限制渲染数量
-                const list = filtered.slice(0, 100);
-                
-                list.forEach((v, i) => {
+                // 限制渲染数量优化性能
+                const fragment = document.createDocumentFragment();
+                list.slice(0, 100).forEach((v, i) => {
                     const el = document.createElement('div');
-                    // 添加 ripple-wrapper 类以便触发波纹
-                    el.className = 'card ripple-wrapper animate-enter';
-                    // 动态设置动画延迟
-                    el.style.animationDelay = `${Math.min(i * 0.04, 0.4)}s`;
+                    el.className = 'card ripple-trigger';
+                    // 动态设置动画延迟，制造交错感
+                    el.style.animationDelay = `${Math.min(i * 0.04, 0.5)}s`;
+                    
+                    // 稍后添加类名触发动画，防止页面卡顿时动画直接跳过
+                    requestAnimationFrame(() => el.classList.add('enter'));
 
-                    const date = new Date(v.releaseTime).toLocaleDateString();
-                    const badgeClass = v.type === 'release' ? 'release' : 'snapshot';
-                    const badgeText = v.type === 'release' ? 'RELEASE' : 'SNAPSHOT';
-
+                    const isRelease = v.type === 'release';
+                    
                     el.innerHTML = `
                         <div class="card-icon"></div>
                         <div class="card-content">
                             <div class="card-title">${v.id}</div>
-                            <div class="card-subtitle">
-                                <span class="badge ${badgeClass}">${badgeText}</span>
-                                <span style="font-size:11px; margin-left: auto;">${date}</span>
+                            <div class="card-meta">
+                                <span class="badge ${isRelease ? 'release' : 'snapshot'}">${isRelease ? '正式版' : '快照'}</span>
+                                <span style="margin-left: auto;">${new Date(v.releaseTime).toLocaleDateString()}</span>
                             </div>
                         </div>
+                        <span class="material-symbols-rounded" style="color:var(--md-sys-color-outline-variant);">chevron_right</span>
                     `;
 
-                    el.onclick = () => this.openDetail(v);
-                    root.appendChild(el);
+                    el.onclick = (e) => this.showDetail(v);
+                    fragment.appendChild(el);
                 });
+                root.appendChild(fragment);
             },
 
-            openDetail(v) {
-                this.currentDetail = v;
-                Logger.add(`Open detail: ${v.id}`, 'action');
-                
-                const content = document.getElementById('detail-content');
-                content.innerHTML = `
-                    <div style="margin-bottom:8px;"><strong>ID:</strong> ${v.id}</div>
-                    <div style="margin-bottom:8px;"><strong>Type:</strong> ${v.type}</div>
-                    <div style="margin-bottom:8px;"><strong>Time:</strong> ${v.releaseTime}</div>
-                    <div style="margin-bottom:4px;"><strong>Manifest:</strong></div>
-                    <div class="code-block" style="max-height:100px;">${v.url}</div>
-                `;
+            showDetail(v) {
+                this.detailData = v;
+                Logger.add(`查看详情: ${v.id}`, 'ACTION');
+
+                document.getElementById('d-title').textContent = v.id;
+                document.getElementById('d-type').textContent = v.type;
+                document.getElementById('d-time').textContent = v.releaseTime;
+                document.getElementById('d-url').textContent = v.url;
                 
                 document.getElementById('detail-dialog').showModal();
             },
 
             copyJson() {
-                if(this.currentDetail) {
-                    navigator.clipboard.writeText(JSON.stringify(this.currentDetail, null, 2));
-                    Logger.add('Copied JSON to clipboard', 'info');
+                if (this.detailData) {
+                    navigator.clipboard.writeText(JSON.stringify(this.detailData, null, 2));
+                    Logger.add('已复制 JSON', 'INFO');
                 }
             },
-
+            
             copySource() {
                 navigator.clipboard.writeText(document.documentElement.outerHTML);
-                Logger.add('Copied source code', 'info');
+                Logger.add('已复制源码', 'INFO');
+            },
+
+            // --- 交互与事件 ---
+            setupScroll() {
+                const main = document.getElementById('main-scroll');
+                const bar = document.getElementById('app-bar');
+                main.addEventListener('scroll', () => {
+                    if (main.scrollTop > 10) bar.classList.add('scrolled');
+                    else bar.classList.remove('scrolled');
+                });
+            },
+
+            bindDialogs() {
+                document.getElementById('btn-logs').onclick = () => document.getElementById('log-dialog').showModal();
+                document.getElementById('btn-source').onclick = () => {
+                    document.getElementById('source-preview').textContent = document.documentElement.outerHTML;
+                    document.getElementById('source-dialog').showModal();
+                };
+                // 点击遮罩关闭
+                document.querySelectorAll('dialog').forEach(d => {
+                    d.addEventListener('click', e => { if(e.target === d) d.close(); });
+                });
+            },
+
+            // 波纹系统
+            setupRipple() {
+                document.addEventListener('mousedown', (e) => {
+                    const target = e.target.closest('.ripple-trigger');
+                    if (!target) return;
+
+                    const rect = target.getBoundingClientRect();
+                    const maxDim = Math.max(rect.width, rect.height);
+                    const ripple = document.createElement('div');
+                    
+                    ripple.className = 'ripple';
+                    ripple.style.width = ripple.style.height = `${maxDim * 2}px`;
+                    ripple.style.left = `${e.clientX - rect.left - maxDim}px`;
+                    ripple.style.top = `${e.clientY - rect.top - maxDim}px`;
+                    
+                    target.appendChild(ripple);
+                    setTimeout(() => ripple.remove(), 600);
+                });
             }
         };
 
-        // 启动
         window.addEventListener('DOMContentLoaded', () => App.init());
-
     </script>
 </body>
 </html>
