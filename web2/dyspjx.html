@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MD3 抖音解析器 Ultra+ Pages</title>
+    
+    <!-- 字体与图标 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+    <style>
+        :root {
+            /* --- MD3 Color Tokens --- */
+            --md-sys-color-primary: #65558f;
+            --md-sys-color-on-primary: #ffffff;
+            --md-sys-color-primary-container: #eaddff;
+            --md-sys-color-on-primary-container: #21005d;
+            
+            --md-sys-color-secondary-container: #e8def8;
+            --md-sys-color-on-secondary-container: #1d192b;
+            
+            --md-sys-color-surface: #fdfcff;
+            --md-sys-color-surface-container-low: #f7f2fa;
+            --md-sys-color-surface-container: #f3edf7;
+            --md-sys-color-surface-container-high: #ece6f0;
+            
+            --md-sys-color-on-surface: #1c1b1f;
+            --md-sys-color-on-surface-variant: #49454f;
+            --md-sys-color-outline: #79747e;
+            
+            --md-sys-color-error: #b3261e;
+            
+            /* --- Motion Tokens --- */
+            --md-sys-motion-easing-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+            --md-sys-motion-duration-medium: 400ms;
+            --md-sys-motion-duration-long: 600ms;
+
+            /* --- Shapes --- */
+            --shape-corner-xl: 28px;
+            --shape-corner-lg: 16px;
+            --shape-corner-sm: 8px;
+            --shape-corner-full: 100px;
+            
+            /* --- Elevation --- */
+            --elevation-1: 0 1px 2px rgba(0,0,0,0.3), 0 1px 3px 1px rgba(0,0,0,0.15);
+            --elevation-3: 0 4px 8px 3px rgba(0,0,0,0.15), 0 1px 3px 0 rgba(0,0,0,0.3);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px 16px;
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 460px;
+            position: relative;
+            /* Ensure height adapts */
+        }
+
+        /* --- View Management (Page Transition) --- */
+        .view-section {
+            width: 100%;
+            transition: 
+                transform var(--md-sys-motion-duration-long) var(--md-sys-motion-easing-emphasized),
+                opacity var(--md-sys-motion-duration-medium) ease;
+            position: absolute;
+            top: 0; left: 0;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(30px) scale(0.98);
+        }
+
+        .view-section.active {
+            position: relative;
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0) scale(1);
+        }
+
+        .view-section.exit {
+            transform: translateY(-20px);
+            opacity: 0;
+        }
+
+        /* --- Header --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 4px;
+            margin-bottom: 24px;
+            height: 64px;
+        }
+        .branding { display: flex; align-items: center; gap: 16px; }
+        .branding h1 { font-size: 22px; font-weight: 500; letter-spacing: -0.5px; }
+        .header-actions { display: flex; gap: 4px; }
+
+        .icon-btn {
+            background: transparent; border: none; color: var(--md-sys-color-on-surface-variant);
+            width: 48px; height: 48px; border-radius: 50%; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden; transition: background 0.2s;
+        }
+        .icon-btn:hover { background-color: rgba(29, 25, 43, 0.08); }
+
+        /* --- Home View Components --- */
+        .main-card {
+            background-color: var(--md-sys-color-surface-container);
+            padding: 24px; border-radius: var(--shape-corner-xl);
+            display: flex; flex-direction: column; gap: 24px;
+        }
+
+        /* Inputs */
+        .field-group { position: relative; }
+        .md3-input, .md3-select {
+            width: 100%; padding: 16px;
+            background-color: var(--md-sys-color-surface-container-low);
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 4px; font-size: 16px;
+            color: var(--md-sys-color-on-surface); transition: all 0.2s ease;
+        }
+        .md3-input:focus, .md3-select:focus { outline: none; border-color: var(--md-sys-color-primary); border-width: 2px; padding: 15px; }
+        
+        .input-label {
+            position: absolute; left: 12px; top: 16px;
+            background-color: var(--md-sys-color-surface-container-low);
+            padding: 0 4px; color: var(--md-sys-color-on-surface-variant);
+            pointer-events: none; transition: 0.2s; font-size: 16px;
+        }
+        .md3-input:focus ~ .input-label, .md3-input:not(:placeholder-shown) ~ .input-label { top: -10px; font-size: 12px; color: var(--md-sys-color-primary); font-weight: 500; }
+
+        .select-wrapper { position: relative; }
+        .md3-select { appearance: none; cursor: pointer; border-radius: var(--shape-corner-sm); }
+        .select-arrow { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+
+        /* Buttons */
+        .btn {
+            border: none; border-radius: var(--shape-corner-full); padding: 0 24px;
+            height: 56px; /* Slightly taller for primary actions */
+            font-size: 14px; font-weight: 500; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            position: relative; overflow: hidden; transition: 0.2s;
+        }
+        .btn:active { transform: scale(0.98); }
+        
+        .btn-filled { background-color: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
+        .btn-filled:hover { box-shadow: var(--elevation-1); opacity: 0.95; }
+        
+        .btn-tonal { background-color: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); }
+        
+        /* Ripple */
+        .ripple {
+            position: absolute; border-radius: 50%; transform: scale(0);
+            animation: ripple 600ms linear; background-color: rgba(255,255,255,0.3); pointer-events: none;
+        }
+        .btn-tonal .ripple, .icon-btn .ripple { background-color: rgba(0,0,0,0.1); }
+        @keyframes ripple { to { transform: scale(4); opacity: 0; } }
+
+        /* --- Result View Components --- */
+        .result-card {
+            background-color: var(--md-sys-color-surface-container-high);
+            border-radius: var(--shape-corner-xl);
+            padding: 20px;
+            display: flex; flex-direction: column; gap: 20px;
+        }
+
+        .video-container {
+            width: 100%; border-radius: var(--shape-corner-lg);
+            overflow: hidden; background: #000;
+            aspect-ratio: 9/16; max-height: 65vh; /* Max height for full page feel */
+            box-shadow: var(--elevation-1);
+        }
+        video { width: 100%; height: 100%; object-fit: contain; }
+
+        .result-info h2 { font-size: 18px; margin-bottom: 4px; line-height: 1.4; }
+        .result-info p { font-size: 13px; color: var(--md-sys-color-on-surface-variant); }
+
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .action-grid > * { text-decoration: none; }
+
+        /* --- Modals (Unchanged) --- */
+        .scrim {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(3px); z-index: 1000;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .scrim.active { opacity: 1; visibility: visible; }
+        .dialog-surface {
+            background: var(--md-sys-color-surface-container);
+            padding: 24px; border-radius: var(--shape-corner-xl); width: 90%; max-width: 340px;
+            box-shadow: var(--elevation-3); transform: scale(0.9);
+            transition: transform var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-emphasized);
+            display: flex; flex-direction: column; gap: 16px; max-height: 85vh;
+        }
+        .scrim.active .dialog-surface { transform: scale(1); }
+        .dialog-header { font-size: 24px; text-align: center; display: flex; justify-content: center; gap:10px; color: var(--md-sys-color-on-surface);}
+        .dialog-body { font-size: 14px; color: var(--md-sys-color-on-surface-variant); overflow-y: auto; line-height:1.6;}
+        .dialog-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+        .dialog-btn { background: none; border: none; color: var(--md-sys-color-primary); font-weight: 500; padding: 10px 16px; border-radius: 100px; cursor: pointer; }
+        
+        /* Utils */
+        .help-list li { margin-bottom: 12px; display: flex; gap: 10px; }
+        .help-step { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; font-weight: bold; }
+        .log-list { background: #1a1a1a; border-radius: 12px; padding: 12px; font-family: monospace; font-size: 11px; color: #e0e0e0; height: 300px; overflow-y: auto; }
+        .log-item { margin-bottom: 8px; border-bottom: 1px solid #333; padding-bottom: 4px; word-break: break-all; }
+        .tag-err { color: #ef9a9a; } .tag-req { color: #81d4fa; } .tag-info { color: #a5d6a7; }
+        
+        .loader { width: 20px; height: 20px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; animation: rot 1s linear infinite; }
+        @keyframes rot { 100% { transform: rotate(360deg); } }
+        .hidden { display: none !important; }
+        #toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #1c1b1f; color: #f2f0f4; padding: 14px 24px; border-radius: 50px; opacity: 0; visibility: hidden; transition: 0.3s; z-index: 2000; font-size: 14px;}
+        #toast.show { opacity: 1; visibility: visible; bottom: 50px; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <!-- View 1: Home Page -->
+        <div id="viewHome" class="view-section active">
+            <!-- Global Header for Home -->
+            <header>
+                <div class="branding">
+                    <span class="material-symbols-rounded" style="font-size: 32px; color: var(--md-sys-color-primary);">play_circle</span>
+                    <h1>抖音解析器</h1>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn ripple-target" onclick="openHelpModal()">
+                        <span class="material-symbols-rounded">help</span>
+                    </button>
+                    <button class="icon-btn ripple-target" onclick="openLogModal()">
+                        <span class="material-symbols-rounded">terminal</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="main-card">
+                <div class="select-wrapper">
+                    <select id="apiSelect" class="md3-select">
+                        <option value="1">线路一 (Cenguigui)</option>
+                        <option value="2">线路二 (TakeURL)</option>
+                        <option value="3">线路三 (Jfi.la)</option>
+                        <option value="4">线路四 (BTStu)</option>
+                        <option value="5">线路五 (IESDouyin 官方直连)</option>
+                    </select>
+                    <span class="material-symbols-rounded select-arrow">expand_more</span>
+                </div>
+
+                <div class="field-group">
+                    <input type="text" id="urlInput" class="md3-input" placeholder=" " autocomplete="off">
+                    <label for="urlInput" class="input-label">粘贴抖音链接</label>
+                </div>
+
+                <button class="btn btn-filled ripple-target" onclick="startParse()" id="parseBtn">
+                    <span id="btnText">开始解析</span>
+                    <span id="btnLoader" class="loader hidden"></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- View 2: Result Page -->
+        <div id="viewResult" class="view-section">
+            <!-- Header for Result -->
+            <header>
+                <div class="branding">
+                    <button class="icon-btn ripple-target" onclick="goBack()" style="margin-left: -12px;">
+                        <span class="material-symbols-rounded">arrow_back</span>
+                    </button>
+                    <h1 style="font-size: 20px;">解析结果</h1>
+                </div>
+                <!-- Optional: Add actions here like Share if needed -->
+            </header>
+
+            <div class="result-card">
+                <div class="video-container">
+                    <video id="videoPlayer" controls playsinline></video>
+                </div>
+
+                <div class="result-info">
+                    <h2 id="videoTitle">视频标题</h2>
+                    <p>解析成功，请及时下载。</p>
+                </div>
+
+                <div class="action-grid">
+                    <a id="downloadBtn" href="#" target="_blank" class="btn btn-filled ripple-target">
+                        <span class="material-symbols-rounded">download</span> 下载视频
+                    </a>
+                    <button class="btn btn-tonal ripple-target" onclick="copyUrl()">
+                        <span class="material-symbols-rounded">content_copy</span> 复制链接
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modals (Help, Terms, Logs) - Keeping DOM out of Views for global access -->
+    <div class="scrim" id="helpModal">
+        <div class="dialog-surface">
+            <div class="dialog-header"><span class="material-symbols-rounded" style="color:var(--md-sys-color-primary);">school</span>使用教程</div>
+            <div class="dialog-body">
+                <ul class="help-list">
+                    <li><div class="help-step">1</div><span>复制抖音视频分享链接。</span></li>
+                    <li><div class="help-step">2</div><span>粘贴至输入框，选择线路。</span></li>
+                    <li><div class="help-step">3</div><span>点击解析，等待跳转结果页。</span></li>
+                    <li><div class="help-step">4</div><span>点击下载保存视频。</span></li>
+                </ul>
+                <div style="background:var(--md-sys-color-surface-container-high); padding:10px; border-radius:8px; font-size:12px; margin-top:10px;">
+                    <strong>注意：</strong>线路5仅支持含ID的长链接。
+                </div>
+            </div>
+            <div class="dialog-actions"><button class="dialog-btn ripple-target" onclick="closeHelpModal()">好的</button></div>
+        </div>
+    </div>
+
+    <div class="scrim" id="termsModal">
+        <div class="dialog-surface">
+            <div style="display:flex; justify-content:center; color: var(--md-sys-color-primary);"><span class="material-symbols-rounded" style="font-size: 40px;">gavel</span></div>
+            <div class="dialog-header">使用协议</div>
+            <div class="dialog-body"><p>请确认：</p><ul style="margin:12px 0 12px 24px;"><li>仅供技术研究。</li><li>严禁商业用途。</li><li>数据源于第三方。</li></ul></div>
+            <div class="dialog-actions"><button class="dialog-btn ripple-target" onclick="acceptTerms()">同意</button></div>
+        </div>
+    </div>
+
+    <div class="scrim" id="logModal">
+        <div class="dialog-surface" style="max-width:400px;">
+            <div class="dialog-header"><span class="material-symbols-rounded">terminal</span>日志</div>
+            <div id="logContent" class="log-list"><div style="text-align:center; color:#666; margin-top:20px;">无日志</div></div>
+            <div class="dialog-actions">
+                <button class="dialog-btn ripple-target" style="color:var(--md-sys-color-error);" onclick="Logger.clear()">清空</button>
+                <button class="dialog-btn ripple-target" onclick="closeLogModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">消息提示</div>
+
+    <script>
+        // --- Navigation Logic ---
+        function switchView(viewName) {
+            const home = document.getElementById('viewHome');
+            const result = document.getElementById('viewResult');
+            
+            if (viewName === 'result') {
+                home.classList.remove('active');
+                home.classList.add('exit');
+                setTimeout(() => {
+                    result.classList.add('active');
+                }, 50); // Small delay for layout
+            } else {
+                result.classList.remove('active');
+                home.classList.remove('exit');
+                home.classList.add('active');
+                
+                // Stop video when leaving
+                const video = document.getElementById('videoPlayer');
+                video.pause();
+                setTimeout(() => { video.src = ""; }, 300); // Clear source after transition
+            }
+        }
+
+        function goBack() {
+            switchView('home');
+        }
+
+        // --- Ripple & UI Utils ---
+        function createRipple(e) {
+            const btn = e.currentTarget;
+            const circle = document.createElement("span");
+            const d = Math.max(btn.clientWidth, btn.clientHeight);
+            circle.style.width = circle.style.height = `${d}px`;
+            circle.style.left = `${e.clientX - btn.getBoundingClientRect().left - d/2}px`;
+            circle.style.top = `${e.clientY - btn.getBoundingClientRect().top - d/2}px`;
+            circle.classList.add("ripple");
+            const old = btn.getElementsByClassName("ripple")[0];
+            if (old) old.remove();
+            btn.appendChild(circle);
+        }
+        document.querySelectorAll(".ripple-target").forEach(b => b.addEventListener("click", createRipple));
+
+        // --- Logger ---
+        const Logger = {
+            logs: [],
+            add(t, m, d=null) {
+                this.logs.push({time: new Date().toLocaleTimeString('en-GB',{hour12:false}), type:t, msg:m, data:d});
+                this.render();
+            },
+            clear() { this.logs=[]; this.render(); },
+            render() {
+                const el = document.getElementById('logContent');
+                if(!this.logs.length) { el.innerHTML='<div style="text-align:center; color:#666; margin-top:20px;">无日志</div>'; return;}
+                el.innerHTML = this.logs.map(l => {
+                    let c = l.type==='ERR'?'tag-err':(l.type==='REQ'?'tag-req':'tag-info');
+                    let j = l.data ? `<div style="background:#000; padding:4px; border-radius:4px; margin-top:4px; color:#ccc;">${JSON.stringify(l.data,null,2)}</div>` : '';
+                    return `<div class="log-item"><span style="color:#666">[${l.time}]</span> <span class="${c}">${l.type}</span> ${l.msg}${j}</div>`;
+                }).join('');
+                el.scrollTop = el.scrollHeight;
+            }
+        };
+
+        // --- Modals ---
+        function openHelpModal(){document.getElementById('helpModal').classList.add('active');}
+        function closeHelpModal(){document.getElementById('helpModal').classList.remove('active');}
+        function openLogModal(){document.getElementById('logModal').classList.add('active');}
+        function closeLogModal(){document.getElementById('logModal').classList.remove('active');}
+        function acceptTerms(){localStorage.setItem('dy_agreed_v4','true'); document.getElementById('termsModal').classList.remove('active');}
+
+        // --- App Logic ---
+        document.addEventListener('DOMContentLoaded', () => {
+            if(!localStorage.getItem('dy_agreed_v4')) setTimeout(()=>document.getElementById('termsModal').classList.add('active'),400);
+            Logger.add('INFO', 'System Ready (Page Mode)');
+        });
+
+        async function startParse() {
+            const urlIn = document.getElementById('urlInput');
+            const apiSel = document.getElementById('apiSelect');
+            const ui = {
+                btnText: document.getElementById('btnText'),
+                loader: document.getElementById('btnLoader'),
+                btn: document.getElementById('parseBtn')
+            };
+
+            const val = urlIn.value.trim();
+            if(!val) { showToast("请输入链接"); return; }
+            
+            const targetUrl = (val.match(/(https?:\/\/[^\s]+)/) || [val])[0];
+            Logger.add('INFO', '开始解析', targetUrl);
+
+            ui.btnText.innerText = "处理中...";
+            ui.loader.classList.remove('hidden');
+            ui.btn.disabled = true;
+
+            try {
+                let vUrl = "", vTitle = "无标题";
+                
+                if(apiSel.value === '5') {
+                    Logger.add('INFO', '官方直连模式');
+                    let m = targetUrl.match(/video\/(\d+)/) || targetUrl.match(/modal_id=(\d+)/);
+                    if(!m) throw new Error("官方线路需要长链接(含ID)");
+                    vUrl = `https://www.iesdouyin.com/aweme/v1/play/?video_id=${m[1]}&ratio=1080p&line=0`;
+                    vTitle = `官方直连-${m[1]}`;
+                } else {
+                    let api = "";
+                    const enc = encodeURIComponent(targetUrl);
+                    if(apiSel.value==='1') api = `https://api.cenguigui.cn/api/douyin/api.php?url=${enc}`;
+                    else if(apiSel.value==='2') api = `https://api.takeurl.cn/api/douyin/?url=${enc}`;
+                    else if(apiSel.value==='3') api = `https://douyin.jfi.la/?url=${enc}`;
+                    else if(apiSel.value==='4') api = `https://api.btstu.cn/dyjx/api.php?url=${enc}`;
+                    
+                    Logger.add('REQ', `请求 API-${apiSel.value}`, api);
+                    const res = await fetch(api);
+                    const cType = res.headers.get('content-type');
+                    
+                    if(cType && cType.includes('json')) {
+                        const d = await res.json();
+                        Logger.add('INFO', '响应JSON', d);
+                        // Smart Parse
+                        vUrl = d.url || d.data?.play_url || d.data?.url || d.video_url || d.play_addr?.url_list?.[0];
+                        vTitle = d.title || d.data?.title || vTitle;
+                    } else {
+                        Logger.add('INFO', '响应非JSON', {url: res.url});
+                        if(res.url && res.url !== api) vUrl = res.url;
+                        else {
+                            const txt = await res.text();
+                            const m = txt.match(/https?:\/\/[^\s"']+/);
+                            if(m) vUrl = m[0];
+                        }
+                    }
+                }
+
+                if(!vUrl) throw new Error("解析失败: 未获取到地址");
+                if(vUrl.startsWith('http://')) vUrl = vUrl.replace('http://','https://');
+
+                // Update Result UI
+                const player = document.getElementById('videoPlayer');
+                player.src = vUrl;
+                // Auto play is often blocked by browsers unless muted, but let's try
+                // player.play().catch(e => console.log('Autoplay blocked')); 
+                
+                document.getElementById('videoTitle').innerText = vTitle;
+                document.getElementById('downloadBtn').href = vUrl;
+
+                Logger.add('INFO', '跳转结果页');
+                showToast("解析成功");
+                switchView('result');
+
+            } catch(e) {
+                console.error(e);
+                Logger.add('ERR', e.message);
+                showToast("解析失败，请看日志");
+            } finally {
+                ui.btnText.innerText = "开始解析";
+                ui.loader.classList.add('hidden');
+                ui.btn.disabled = false;
+            }
+        }
+
+        function copyUrl() {
+            const u = document.getElementById('downloadBtn').href;
+            if(u && u.startsWith('http')) {
+                navigator.clipboard.writeText(u).then(()=>showToast("已复制")).catch(()=>showToast("复制失败"));
+            } else showToast("无链接");
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById("toast");
+            t.innerText = msg; t.className = "show";
+            setTimeout(()=>t.className="", 3000);
+        }
+    </script>
+</body>
+</html>
