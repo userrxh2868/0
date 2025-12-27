@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>调试工具箱 Pro Max (文档版)</title>
+    <!-- 默认加载 MDUI 1.0 (Staticfile CDN) -->
+    <link rel="stylesheet" href="https://cdn.staticfile.org/mdui/1.0.2/css/mdui.min.css"/>
+    
+    <style>
+        /* === 基础样式 === */
+        body {
+            background-color: #f1f1f1;
+            padding-bottom: 80px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .main-container { padding-top: 20px; }
+        .tool-card { margin-bottom: 16px; transition: all 0.3s; }
+        .btn-grid .mdui-col-xs-6, .btn-grid .mdui-col-xs-12 { margin-bottom: 10px; }
+        .btn-grid .mdui-btn { width: 100%; }
+        
+        /* 状态徽章 */
+        .status-badge { display: none; margin-left: 10px; }
+
+        /* ====== 核心样式：强制弹窗居中 (保留) ====== */
+        .mdui-dialog {
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            margin: 0 !important;
+            position: fixed !important;
+            max-width: 90%;
+        }
+
+        /* ====== 新增：代码块样式 ====== */
+        pre.code-block {
+            background: #e0e0e0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: Consolas, monospace;
+            font-size: 13px;
+            margin: 5px 0 10px 0;
+            overflow-x: auto;
+            color: #333;
+            border: 1px solid #ccc;
+        }
+
+        /* === MD3UI (Material Design 3) 深度定制模式 === */
+        body.theme-md3 {
+            background-color: #fdfcff;
+            font-family: 'Roboto', sans-serif;
+        }
+        
+        /* MD3 代码块适配 */
+        body.theme-md3 pre.code-block {
+            background: #e7e0ec;
+            color: #1d1b20;
+            border: none;
+            border-radius: 8px;
+        }
+
+        /* 1. 顶部栏重构 */
+        body.theme-md3 .mdui-appbar {
+            box-shadow: none !important;
+            background-color: #fdfcff !important;
+            color: #1a1c1e !important;
+            border-bottom: 1px solid #e7e0ec;
+        }
+        body.theme-md3 .mdui-toolbar { background-color: transparent !important; }
+        body.theme-md3 .mdui-typo-title { font-weight: 600; font-size: 22px; }
+
+        /* 2. 卡片重构 */
+        body.theme-md3 .mdui-card {
+            box-shadow: none !important;
+            border: 1px solid #cac4d0;
+            border-radius: 16px;
+            background-color: #fdfcff;
+            overflow: hidden;
+        }
+        body.theme-md3 .mdui-card-primary-title { font-weight: 500; font-size: 18px; color: #1d1b20; }
+        body.theme-md3 .mdui-card-primary-subtitle { color: #49454f; }
+
+        /* 3. 按钮重构 */
+        body.theme-md3 .mdui-btn {
+            border-radius: 100px;
+            text-transform: none;
+            font-weight: 500;
+            letter-spacing: 0.1px;
+            box-shadow: none !important;
+            transition: background-color 0.2s;
+        }
+        body.theme-md3 .mdui-btn-raised.mdui-color-theme-accent,
+        body.theme-md3 .mdui-btn-raised.mdui-color-blue,
+        body.theme-md3 .mdui-btn-raised.mdui-color-deep-purple {
+            background-color: #6750a4 !important;
+            color: #ffffff !important;
+        }
+        body.theme-md3 .mdui-btn-raised.mdui-color-red {
+            background-color: #b3261e !important;
+            color: #ffffff !important;
+        }
+        body.theme-md3 .mdui-btn-raised.mdui-color-orange {
+            background-color: #eebb00 !important;
+            color: #3e2d00 !important;
+        }
+        /* 新增：MD3 灰色按钮适配 */
+        body.theme-md3 .mdui-btn-raised.mdui-color-blue-grey {
+            background-color: #79747e !important;
+            color: #ffffff !important;
+        }
+
+        /* 4. 输入框 */
+        body.theme-md3 .mdui-select {
+            background-color: #e7e0ec;
+            border-radius: 8px 8px 0 0;
+            padding: 8px 12px;
+            border-bottom: 1px solid #49454f;
+        }
+
+        /* 5. 弹窗 Dialog */
+        body.theme-md3 .mdui-dialog {
+            border-radius: 28px;
+            background-color: #ece6f0;
+            box-shadow: none !important;
+        }
+        body.theme-md3 .mdui-dialog-title { font-weight: 400; font-size: 24px; }
+        body.theme-md3 .mdui-radio-icon { border-radius: 50%; }
+        
+        /* 6. Chip */
+        body.theme-md3 .mdui-chip { border-radius: 8px; background-color: #e8def8; }
+    </style>
+</head>
+<body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
+
+    <!-- 顶部导航 -->
+    <div class="mdui-appbar mdui-appbar-fixed">
+        <div class="mdui-toolbar mdui-color-theme">
+            <span class="mdui-typo-title" id="app-title">调试工具箱</span>
+            <div class="mdui-toolbar-spacer"></div>
+            <!-- 设置按钮 -->
+            <button class="mdui-btn mdui-btn-icon" mdui-dialog="{target: '#settings-dialog'}" mdui-tooltip="{content: '全局配置'}">
+                <i class="mdui-icon material-icons">settings</i>
+            </button>
+            <button class="mdui-btn mdui-btn-icon" onclick="location.reload()" mdui-tooltip="{content: '重置'}">
+                <i class="mdui-icon material-icons">refresh</i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 主内容 -->
+    <div class="mdui-container main-container" style="margin-top: 60px;">
+        
+        <!-- 1. 调试内核 -->
+        <div class="mdui-card tool-card">
+            <div class="mdui-card-primary">
+                <div class="mdui-card-primary-title">第一步：启动调试内核</div>
+                <div class="mdui-card-primary-subtitle">Core Debugger Injection</div>
+            </div>
+            <div class="mdui-card-content">
+                <div class="mdui-row">
+                    <div class="mdui-col-xs-12">
+                        <select class="mdui-select" id="debugger-select" style="width: 100%;">
+                            <option value="vconsole">vConsole (腾讯 - 手机首选)</option>
+                            <option value="eruda">Eruda (功能最全)</option>
+                        </select>
+                    </div>
+                </div>
+                <br>
+                <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent" onclick="initDebugger()">
+                    <i class="mdui-icon material-icons">play_circle_filled</i> 注入调试器
+                </button>
+                <span id="status-tag" class="mdui-chip status-badge">
+                    <span class="mdui-chip-icon mdui-color-green"><i class="mdui-icon material-icons">check</i></span>
+                    <span class="mdui-chip-title">运行中</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- 2. 日志与报错测试 -->
+        <div class="mdui-card tool-card">
+            <div class="mdui-card-primary">
+                <div class="mdui-card-primary-title">日志与报错</div>
+                <div class="mdui-card-primary-subtitle">Console Log & Errors</div>
+            </div>
+            <div class="mdui-card-content">
+                <div class="mdui-row btn-grid">
+                    <div class="mdui-col-xs-6">
+                        <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-blue" onclick="testLog('log')">普通 Log</button>
+                    </div>
+                    <div class="mdui-col-xs-6">
+                        <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-green" onclick="testLog('info')">信息 Info</button>
+                    </div>
+                    <div class="mdui-col-xs-6">
+                        <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-orange" onclick="testLog('warn')">警告 Warn</button>
+                    </div>
+                    <div class="mdui-col-xs-6">
+                        <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-red" onclick="testLog('error')">错误 Error</button>
+                    </div>
+                    <div class="mdui-col-xs-12">
+                        <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-grey-800" onclick="testThrowError()">
+                            <i class="mdui-icon material-icons">bug_report</i> 触发未捕获异常 (Throw)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 设备与 API 测试 -->
+        <div class="mdui-card tool-card">
+            <div class="mdui-card-primary">
+                <div class="mdui-card-primary-title">硬件与网络</div>
+                <div class="mdui-card-primary-subtitle">Hardware & Network</div>
+            </div>
+            <div class="mdui-card-content">
+                <div class="mdui-row btn-grid">
+                    <div class="mdui-col-xs-12">
+                         <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-deep-purple" onclick="testVibrate()">
+                            <i class="mdui-icon material-icons">vibration</i> 震动测试 (200ms)
+                        </button>
+                    </div>
+                    <div class="mdui-col-xs-12">
+                        <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-teal" onclick="getDeviceInfo()">
+                            <i class="mdui-icon material-icons">phone_iphone</i> 设备详情 (UserAgent)
+                        </button>
+                    </div>
+                    <div class="mdui-col-xs-12">
+                        <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-brown" onclick="testNetwork()">
+                            <i class="mdui-icon material-icons">network_check</i> 发起网络请求 (XHR)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. 高级功能测试 -->
+        <div class="mdui-card tool-card">
+            <div class="mdui-card-primary">
+                <div class="mdui-card-primary-title">高级功能</div>
+                <div class="mdui-card-primary-subtitle">Advanced Features</div>
+            </div>
+            <div class="mdui-card-content">
+                <div class="mdui-row btn-grid">
+                    <div class="mdui-col-xs-6">
+                        <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-indigo" onclick="toggleFullScreen()">
+                            <i class="mdui-icon material-icons">fullscreen</i> 全屏切换
+                        </button>
+                    </div>
+                     <div class="mdui-col-xs-6">
+                        <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-lime" onclick="getBatteryInfo()">
+                            <i class="mdui-icon material-icons">battery_std</i> 电池信息
+                        </button>
+                    </div>
+                    <div class="mdui-col-xs-12">
+                        <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-blue-grey" onclick="clearStorage()">
+                            <i class="mdui-icon material-icons">delete_sweep</i> 清空 LocalStorage
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 5. 开发文档 (新增功能) -->
+        <div class="mdui-card tool-card">
+            <div class="mdui-card-primary">
+                <div class="mdui-card-primary-title">开发文档</div>
+                <div class="mdui-card-primary-subtitle">How to call via Code</div>
+            </div>
+            <div class="mdui-card-content">
+                <p class="mdui-typo-body-2"><strong>vConsole 代码调用:</strong></p>
+                <pre class="code-block" id="code-vconsole">// 初始化 vConsole
+var vConsole = new VConsole();
+console.log('Hello vConsole');</pre>
+                <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-blue-grey mdui-btn-dense" onclick="copyText('code-vconsole')">
+                    <i class="mdui-icon material-icons">content_copy</i> 复制代码
+                </button>
+                
+                <div class="mdui-divider mdui-m-y-2"></div>
+                
+                <p class="mdui-typo-body-2"><strong>Eruda 代码调用:</strong></p>
+                <pre class="code-block" id="code-eruda">// 初始化 Eruda
+eruda.init();
+console.log('Hello Eruda');</pre>
+                <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-blue-grey mdui-btn-dense" onclick="copyText('code-eruda')">
+                    <i class="mdui-icon material-icons">content_copy</i> 复制代码
+                </button>
+            </div>
+        </div>
+        
+        <div class="mdui-typo-caption mdui-text-center mdui-text-color-grey">
+            UI Mode: <b id="ui-label">MDUI</b> | CDN: <b id="cdn-label">Staticfile</b>
+        </div>
+
+    </div>
+
+    <!-- 全局设置弹窗 -->
+    <div class="mdui-dialog" id="settings-dialog">
+        <div class="mdui-dialog-title">工具箱配置</div>
+        <div class="mdui-dialog-content">
+            
+            <p class="mdui-typo-subheading"><strong>组件库风格</strong></p>
+            <form id="ui-form">
+                <label class="mdui-radio mdui-m-r-2">
+                    <input type="radio" name="ui-style" value="mdui" checked/>
+                    <i class="mdui-radio-icon"></i>
+                    MDUI (经典 Material 1.0)
+                </label>
+                <div style="height: 8px;"></div>
+                <label class="mdui-radio">
+                    <input type="radio" name="ui-style" value="md3"/>
+                    <i class="mdui-radio-icon"></i>
+                    MD3UI (Material Design 3)
+                </label>
+            </form>
+            
+            <div class="mdui-divider mdui-m-y-2"></div>
+
+            <p class="mdui-typo-subheading"><strong>CDN 镜像源</strong> (影响调试器加载)</p>
+            <form id="cdn-form">
+                <label class="mdui-radio mdui-col-12 mdui-m-b-1">
+                    <input type="radio" name="cdn-source" value="staticfile" checked/>
+                    <i class="mdui-radio-icon"></i>
+                    Staticfile (七牛云 - 推荐)
+                </label>
+                <label class="mdui-radio mdui-col-12 mdui-m-b-1">
+                    <input type="radio" name="cdn-source" value="bootcdn"/>
+                    <i class="mdui-radio-icon"></i>
+                    BootCDN (极兔云)
+                </label>
+                <label class="mdui-radio mdui-col-12">
+                    <input type="radio" name="cdn-source" value="cdnjs"/>
+                    <i class="mdui-radio-icon"></i>
+                    cdnjs (国际源)
+                </label>
+            </form>
+
+        </div>
+        <div class="mdui-dialog-actions">
+            <button class="mdui-btn mdui-ripple" mdui-dialog-cancel>关闭</button>
+            <button class="mdui-btn mdui-ripple mdui-text-color-theme-accent" onclick="saveSettings()">保存并生效</button>
+        </div>
+    </div>
+
+    <!-- MDUI JS -->
+    <script src="https://cdn.staticfile.org/mdui/1.0.2/js/mdui.min.js"></script>
+
+    <script>
+        // === 1. 配置管理系统 ===
+        const CONFIG = {
+            ui: localStorage.getItem('dt_ui') || 'mdui',
+            cdn: localStorage.getItem('dt_cdn') || 'staticfile'
+        };
+
+        const CDN_MAP = {
+            'staticfile': {
+                vconsole: 'https://cdn.staticfile.org/vConsole/3.15.0/vconsole.min.js',
+                eruda: 'https://cdn.staticfile.org/eruda/3.0.0/eruda.min.js'
+            },
+            'bootcdn': {
+                vconsole: 'https://cdn.bootcdn.net/ajax/libs/vConsole/3.15.0/vconsole.min.js',
+                eruda: 'https://cdn.bootcdn.net/ajax/libs/eruda/3.0.0/eruda.min.js'
+            },
+            'cdnjs': {
+                vconsole: 'https://cdnjs.cloudflare.com/ajax/libs/vConsole/3.15.0/vconsole.min.js',
+                eruda: 'https://cdnjs.cloudflare.com/ajax/libs/eruda/3.0.0/eruda.min.js'
+            }
+        };
+
+        let isDebuggerLoaded = false;
+
+        // 初始化
+        window.onload = function() {
+            applySettings();
+        };
+
+        // 应用设置
+        function applySettings() {
+            if (CONFIG.ui === 'md3') {
+                document.body.classList.add('theme-md3');
+                document.getElementById('ui-label').innerText = 'MD3UI';
+                document.getElementById('app-title').innerText = '调试工具箱 (MD3)';
+            } else {
+                document.body.classList.remove('theme-md3');
+                document.getElementById('ui-label').innerText = 'MDUI';
+                document.getElementById('app-title').innerText = '调试工具箱';
+            }
+            document.getElementById('cdn-label').innerText = CONFIG.cdn.toUpperCase();
+            setRadio('ui-style', CONFIG.ui);
+            setRadio('cdn-source', CONFIG.cdn);
+        }
+
+        function setRadio(name, value) {
+            const radios = document.getElementsByName(name);
+            radios.forEach(r => { if(r.value === value) r.checked = true; });
+        }
+
+        // 保存设置
+        function saveSettings() {
+            const newUI = document.querySelector('input[name="ui-style"]:checked').value;
+            const newCDN = document.querySelector('input[name="cdn-source"]:checked').value;
+
+            localStorage.setItem('dt_ui', newUI);
+            localStorage.setItem('dt_cdn', newCDN);
+            CONFIG.ui = newUI;
+            CONFIG.cdn = newCDN;
+
+            applySettings();
+            mdui.snackbar({ message: '配置已更新', position: 'top' });
+        }
+
+        // === 2. 核心功能 ===
+        function initDebugger() {
+            if (isDebuggerLoaded) {
+                mdui.snackbar({ message: '调试器已在运行' });
+                return;
+            }
+            
+            const tool = document.getElementById('debugger-select').value;
+            const url = CDN_MAP[CONFIG.cdn][tool];
+
+            if (!url) { mdui.alert('CDN 配置有误'); return; }
+
+            const loadMsg = mdui.snackbar({ message: `正在从 ${CONFIG.cdn} 加载 ${tool}...`, timeout: 0 });
+
+            const s = document.createElement('script');
+            s.src = url;
+            s.onload = function() {
+                if (tool === 'vconsole') new VConsole();
+                if (tool === 'eruda') eruda.init();
+                
+                loadMsg.close();
+                isDebuggerLoaded = true;
+                document.getElementById('status-tag').style.display = 'inline-flex';
+                mdui.snackbar({ message: '注入成功！请查看右下角图标' });
+            };
+            s.onerror = function() {
+                loadMsg.close();
+                mdui.snackbar({ message: '加载失败，请在设置中切换 CDN 源' });
+            };
+            document.body.appendChild(s);
+        }
+
+        // === 3. 功能测试逻辑 ===
+        
+        function testLog(type) {
+            const t = new Date().toLocaleTimeString();
+            const msg = `[${t}] ${type.toUpperCase()} 测试日志`;
+            if (type === 'log') console.log(msg, {data: 123});
+            if (type === 'info') console.info(msg);
+            if (type === 'warn') console.warn(msg);
+            if (type === 'error') console.error(msg);
+            mdui.snackbar({ message: `已发送 console.${type}` });
+        }
+
+        function testThrowError() {
+            mdui.snackbar({ message: '300ms 后抛出错误' });
+            setTimeout(() => { throw new Error("这是一个手动触发的测试异常！"); }, 300);
+        }
+
+        function testVibrate() {
+            if (!navigator.vibrate) return mdui.snackbar({ message: '不支持震动 API' });
+            navigator.vibrate(200);
+            mdui.snackbar({ message: '震动 200ms' });
+            console.log('触发震动: navigator.vibrate(200)');
+        }
+
+        function testNetwork() {
+            console.log('开始 Fetch 请求...');
+            const startTime = Date.now();
+            fetch(window.location.href, { method: 'HEAD' })
+                .then(res => {
+                    const duration = Date.now() - startTime;
+                    console.log(`请求成功: Status ${res.status}, 耗时 ${duration}ms`);
+                    mdui.snackbar({ message: `请求成功 (${duration}ms)` });
+                })
+                .catch(e => {
+                    console.error('请求失败', e);
+                    mdui.snackbar({ message: '请求失败，详见控制台' });
+                });
+        }
+
+        function getDeviceInfo() {
+            const info = {
+                UA: navigator.userAgent,
+                Platform: navigator.platform,
+                Screen: `${screen.width}x${screen.height}`,
+                DPR: window.devicePixelRatio,
+                Language: navigator.language
+            };
+            console.table(info);
+            mdui.alert(`<div style="word-break:break-all;font-size:12px;">${navigator.userAgent}</div>`, '设备 UA');
+        }
+
+        // === 4. 高级功能 ===
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(e => mdui.snackbar({message: '全屏被拦截'}));
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        function getBatteryInfo() {
+            if ('getBattery' in navigator) {
+                navigator.getBattery().then(function(battery) {
+                    const level = (battery.level * 100).toFixed(0) + '%';
+                    const charging = battery.charging ? '正在充电' : '未充电';
+                    console.log(`电池: ${level}, ${charging}`);
+                    mdui.alert(`电量: ${level}<br>状态: ${charging}`, '电池信息');
+                });
+            } else {
+                mdui.snackbar({ message: '浏览器不支持电池 API' });
+            }
+        }
+
+        function clearStorage() {
+            localStorage.clear();
+            sessionStorage.clear();
+            mdui.snackbar({ message: 'LocalStorage 与 SessionStorage 已清空，即将刷新...' });
+            setTimeout(() => location.reload(), 1500);
+        }
+
+        // === 5. 文档复制功能 (新增) ===
+        function copyText(elementId) {
+            const text = document.getElementById(elementId).innerText;
+            
+            // 创建临时文本域以实现复制
+            const el = document.createElement('textarea');
+            el.value = text;
+            el.setAttribute('readonly', '');
+            el.style.position = 'absolute';
+            el.style.left = '-9999px';
+            document.body.appendChild(el);
+            el.select();
+            
+            try {
+                document.execCommand('copy');
+                mdui.snackbar({ message: '代码已复制到剪贴板！' });
+            } catch (err) {
+                mdui.snackbar({ message: '复制失败，请手动复制' });
+            }
+            
+            document.body.removeChild(el);
+        }
+
+    </script>
+</body>
+</html>
