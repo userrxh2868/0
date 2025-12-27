@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>猜国旗模拟器 Pro Max</title>
+    <!-- 引入 MDUI CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/mdui@1.0.2/dist/css/mdui.min.css"/>
+    <style>
+        body {
+            background-color: #f5f5f5;
+            user-select: none;
+            padding-bottom: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+        
+        /* 页面切换逻辑 */
+        .page {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        .page.active {
+            display: block;
+        }
+
+        /* 游戏区域样式 */
+        .flag-card {
+            margin-bottom: 20px;
+            padding: 10px;
+            text-align: center;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            position: relative;
+            flex-direction: column; /* 让图片和提示文字垂直排列 */
+        }
+        .flag-img {
+            max-width: 100%;
+            max-height: 200px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border: 1px solid #eee;
+            transition: transform 0.3s;
+            z-index: 1;
+        }
+        
+        /* 宝宝模式提示文字 */
+        #baby-hint {
+            display: none;
+            margin-top: 15px;
+            font-weight: bold;
+            font-size: 2em;
+            color: #e91e63; /* 粉色 */
+            z-index: 2;
+            text-shadow: 1px 1px 0px #fff;
+        }
+
+        /* 镜像模式样式 */
+        .flag-img.mirror-effect {
+            transform: scaleX(-1);
+        }
+        
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .option-btn {
+            height: 60px;
+            font-weight: bold;
+            white-space: normal;
+            line-height: 1.2;
+            padding: 5px;
+        }
+
+        /* 倒计时条 */
+        .timer-bar-bg {
+            height: 6px;
+            background: #e0e0e0;
+            margin-bottom: 10px;
+            border-radius: 3px;
+            overflow: hidden;
+            display: none;
+        }
+        .timer-bar-fill {
+            height: 100%;
+            background: #f44336;
+            width: 100%;
+            transition: width 0.1s linear;
+        }
+
+        /* 状态栏 */
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #555;
+        }
+
+        /* 成就列表样式 */
+        .achievement-item {
+            border-left: 4px solid #ddd;
+            margin-bottom: 10px;
+            background: #fff;
+        }
+        .achievement-item.unlocked {
+            border-left-color: #ff9800;
+            background: #fff8e1;
+        }
+        .achievement-icon {
+            opacity: 0.3;
+        }
+        .achievement-item.unlocked .achievement-icon {
+            opacity: 1;
+            color: #ff9800;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
+
+    <!-- 顶部导航 -->
+    <div class="mdui-appbar mdui-appbar-fixed">
+        <div class="mdui-toolbar mdui-color-theme">
+            <span class="mdui-typo-headline">猜国旗 Pro Max</span>
+            <div class="mdui-toolbar-spacer"></div>
+            <button onclick="game.showAchievements()" class="mdui-btn mdui-btn-icon" mdui-tooltip="{content: '成就'}">
+                <i class="mdui-icon material-icons">emoji_events</i>
+            </button>
+            <!-- 修改：不再刷新页面，而是调用 goHome -->
+            <button onclick="game.goHome()" class="mdui-btn mdui-btn-icon"><i class="mdui-icon material-icons">home</i></button>
+        </div>
+    </div>
+
+    <div class="container" style="margin-top: 70px;">
+        
+        <!-- 1. 菜单页 -->
+        <div id="page-menu" class="page active">
+            <div class="mdui-card mdui-p-a-2 mdui-m-b-2">
+                <div class="mdui-typo-title mdui-text-center mdui-m-b-2">选择游戏模式</div>
+                
+                <!-- 新增宝宝模式 -->
+                <button onclick="game.start('baby')" class="mdui-btn mdui-btn-block mdui-color-pink-100 mdui-ripple mdui-m-b-1">
+                    <i class="mdui-icon material-icons mdui-text-color-pink">child_care</i> 宝宝模式 <span class="mdui-text-color-red mdui-typo-caption">(NEW)</span>
+                    <div class="mdui-text-color-grey-600 mdui-typo-caption">显示名字，轻松认图</div>
+                </button>
+
+                <button onclick="game.start('practice')" class="mdui-btn mdui-btn-block mdui-color-green-100 mdui-ripple mdui-m-b-1">
+                    <i class="mdui-icon material-icons mdui-text-color-green">school</i> 练习模式
+                    <div class="mdui-text-color-grey-600 mdui-typo-caption">无压力，纯练习</div>
+                </button>
+
+                <button onclick="game.start('endless')" class="mdui-btn mdui-btn-block mdui-color-blue-100 mdui-ripple mdui-m-b-1">
+                    <i class="mdui-icon material-icons mdui-text-color-blue">all_inclusive</i> 无尽模式
+                    <div class="mdui-text-color-grey-600 mdui-typo-caption">累积分数，一直玩</div>
+                </button>
+                
+                <button onclick="game.start('mirror')" class="mdui-btn mdui-btn-block mdui-color-purple-100 mdui-ripple mdui-m-b-1">
+                    <i class="mdui-icon material-icons mdui-text-color-purple">flip</i> 镜像模式
+                    <div class="mdui-text-color-grey-600 mdui-typo-caption">国旗左右翻转，无尽挑战</div>
+                </button>
+
+                <button onclick="game.start('timeattack')" class="mdui-btn mdui-btn-block mdui-color-cyan-100 mdui-ripple mdui-m-b-1">
+                    <i class="mdui-icon material-icons mdui-text-color-cyan">timer</i> 60秒竞速
+                    <div class="mdui-text-color-grey-600 mdui-typo-caption">限时60秒，答错扣时</div>
+                </button>
+
+                <button onclick="game.start('extreme')" class="mdui-btn mdui-btn-block mdui-color-orange-100 mdui-ripple mdui-m-b-1">
+                    <i class="mdui-icon material-icons mdui-text-color-orange">warning</i> 极限模式
+                    <div class="mdui-text-color-grey-600 mdui-typo-caption">错一个直接重来</div>
+                </button>
+
+                <button onclick="game.start('hell')" class="mdui-btn mdui-btn-block mdui-color-red-100 mdui-ripple">
+                    <i class="mdui-icon material-icons mdui-text-color-red">whatshot</i> 地狱模式
+                    <div class="mdui-text-color-grey-600 mdui-typo-caption">极限模式 + 单题限时5秒</div>
+                </button>
+            </div>
+            
+            <div class="mdui-text-center">
+                <button onclick="game.showAchievements()" class="mdui-btn mdui-btn-raised mdui-color-amber-500 mdui-text-color-white mdui-ripple">
+                    <i class="mdui-icon material-icons">stars</i> 查看成就
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. 游戏页 -->
+        <div id="page-game" class="page">
+            <div class="status-bar">
+                <span id="score-display">得分: 0</span>
+                <span id="mode-display">模式</span>
+            </div>
+
+            <!-- 倒计时条 -->
+            <div id="timer-bar" class="timer-bar-bg">
+                <div id="timer-fill" class="timer-bar-fill"></div>
+            </div>
+            
+            <!-- 竞速模式文本倒计时 -->
+            <div id="text-timer" class="mdui-text-center mdui-typo-title mdui-text-color-red" style="display:none; margin-bottom:10px;">
+                剩余时间: <span id="text-timer-val">60</span>s
+            </div>
+
+            <div class="mdui-card flag-card mdui-shadow-3">
+                <div id="flag-loading" class="mdui-spinner mdui-spinner-colorful"></div>
+                <img id="flag-img" class="flag-img" src="" alt="Flag" style="display:none;" onload="this.style.display='block'; document.getElementById('flag-loading').style.display='none';">
+                <!-- 宝宝模式提示文字容器 -->
+                <div id="baby-hint"></div>
+            </div>
+
+            <div class="options-grid" id="options-container">
+                <!-- 选项由 JS 生成 -->
+            </div>
+        </div>
+
+        <!-- 3. 结算页 -->
+        <div id="page-result" class="page">
+            <div class="mdui-card mdui-p-a-3 mdui-text-center">
+                <i class="mdui-icon material-icons mdui-text-color-red mdui-typo-display-4">sentiment_very_dissatisfied</i>
+                <h2 class="mdui-typo-display-1 mdui-m-t-2">游戏结束</h2>
+                <div class="mdui-typo-title mdui-m-y-2">最终得分: <span id="final-score" class="mdui-text-color-theme-accent">0</span></div>
+                <div id="result-reason" class="mdui-typo-subheading mdui-text-color-grey mdui-m-b-3"></div>
+                
+                <!-- 修改：返回主菜单调用 goHome -->
+                <button onclick="game.goHome()" class="mdui-btn mdui-btn-raised mdui-btn-block mdui-color-theme-accent mdui-ripple">
+                    返回主菜单
+                </button>
+                <button onclick="game.showAchievements()" class="mdui-btn mdui-btn-flat mdui-btn-block mdui-color-amber-100 mdui-text-color-amber-900 mdui-m-t-2">
+                    查看成就
+                </button>
+            </div>
+        </div>
+
+        <!-- 4. 成就页 -->
+        <div id="page-achievements" class="page">
+             <div class="mdui-card mdui-p-a-2">
+                <div class="mdui-typo-title mdui-m-b-2">
+                    <i class="mdui-icon material-icons mdui-text-color-amber">emoji_events</i> 我的成就
+                    <small id="achievement-count" class="mdui-float-right mdui-typo-subheading mdui-m-t-1">0/0</small>
+                </div>
+                <div class="mdui-divider mdui-m-b-2"></div>
+                
+                <div id="achievements-list">
+                    <!-- JS 生成列表 -->
+                </div>
+
+                <button onclick="game.switchPage('page-menu')" class="mdui-btn mdui-btn-raised mdui-btn-block mdui-color-theme mdui-m-t-2">
+                    返回
+                </button>
+             </div>
+        </div>
+
+    </div>
+
+    <!-- 引入 MDUI JS -->
+    <script src="https://unpkg.com/mdui@1.0.2/dist/js/mdui.min.js"></script>
+    <script>
+        // --- 1. 题库数据 ---
+        const countryData = [
+            {code: "cn", name: "中国"}, {code: "us", name: "美国"}, {code: "jp", name: "日本"}, 
+            {code: "kr", name: "韩国"}, {code: "gb", name: "英国"}, {code: "fr", name: "法国"}, 
+            {code: "de", name: "德国"}, {code: "ru", name: "俄罗斯"}, {code: "it", name: "意大利"}, 
+            {code: "ca", name: "加拿大"}, {code: "au", name: "澳大利亚"}, {code: "br", name: "巴西"}, 
+            {code: "in", name: "印度"}, {code: "ar", name: "阿根廷"}, {code: "mx", name: "墨西哥"}, 
+            {code: "id", name: "印度尼西亚"}, {code: "sa", name: "沙特阿拉伯"}, {code: "tr", name: "土耳其"}, 
+            {code: "za", name: "南非"}, {code: "es", name: "西班牙"}, {code: "pt", name: "葡萄牙"}, 
+            {code: "nl", name: "荷兰"}, {code: "be", name: "比利时"}, {code: "ch", name: "瑞士"}, 
+            {code: "se", name: "瑞典"}, {code: "no", name: "挪威"}, {code: "dk", name: "丹麦"}, 
+            {code: "fi", name: "芬兰"}, {code: "pl", name: "波兰"}, {code: "gr", name: "希腊"}, 
+            {code: "ua", name: "乌克兰"}, {code: "eg", name: "埃及"}, {code: "vn", name: "越南"}, 
+            {code: "th", name: "泰国"}, {code: "my", name: "马来西亚"}, {code: "sg", name: "新加坡"}, 
+            {code: "ph", name: "菲律宾"}, {code: "pk", name: "巴基斯坦"}, {code: "bd", name: "孟加拉国"}, 
+            {code: "ir", name: "伊朗"}, {code: "iq", name: "伊拉克"}, {code: "il", name: "以色列"}, 
+            {code: "kp", name: "朝鲜"}, {code: "mn", name: "蒙古"}, {code: "kz", name: "哈萨克斯坦"}, 
+            {code: "nz", name: "新西兰"}, {code: "cl", name: "智利"}, {code: "co", name: "哥伦比亚"}, 
+            {code: "pe", name: "秘鲁"}, {code: "ve", name: "委内瑞拉"}, {code: "cu", name: "古巴"}, 
+            {code: "at", name: "奥地利"}, {code: "ie", name: "爱尔兰"}, {code: "cz", name: "捷克"}, 
+            {code: "hu", name: "匈牙利"}, {code: "ro", name: "罗马尼亚"}, {code: "hr", name: "克罗地亚"},
+            {code: "qa", name: "卡塔尔"}, {code: "ae", name: "阿联酋"}, {code: "ng", name: "尼日利亚"}
+        ];
+
+        // --- 2. 成就系统定义 ---
+        const achievementsDef = [
+            { id: 'first_blood', title: '初露锋芒', desc: '答对第 1 道题', check: (g) => g.score >= 1 },
+            { id: 'novice_10', title: '入门选手', desc: '单局达到 10 分', check: (g) => g.score >= 10 },
+            { id: 'master_50', title: '国旗大师', desc: '单局达到 50 分', check: (g) => g.score >= 50 },
+            { id: 'extreme_survivor', title: '极限生存', desc: '极限模式达到 15 分', check: (g) => g.mode === 'extreme' && g.score >= 15 },
+            { id: 'hell_walker', title: '地狱行者', desc: '地狱模式达到 10 分', check: (g) => g.mode === 'hell' && g.score >= 10 },
+            { id: 'speed_demon', title: '速度之魔', desc: '60秒竞速模式拿到 20 分', check: (g) => g.mode === 'timeattack' && g.score >= 20 },
+            { id: 'mirror_mind', title: '逆向思维', desc: '镜像模式达到 15 分', check: (g) => g.mode === 'mirror' && g.score >= 15 },
+            { id: 'baby_steps', title: '小小探险家', desc: '宝宝模式玩耍达到 5 分', check: (g) => g.mode === 'baby' && g.score >= 5 }
+        ];
+
+        // --- 3. 游戏逻辑控制器 ---
+        const game = {
+            score: 0,
+            mode: '', 
+            currentQuestion: null,
+            timerInterval: null, 
+            timeLimit: 0, 
+            timeRemaining: 0,
+            unlockedAchievements: JSON.parse(localStorage.getItem('flagGameAchievements') || '[]'),
+
+            ui: {
+                menu: document.getElementById('page-menu'),
+                game: document.getElementById('page-game'),
+                result: document.getElementById('page-result'),
+                achievements: document.getElementById('page-achievements'),
+                score: document.getElementById('score-display'),
+                modeName: document.getElementById('mode-display'),
+                flagImg: document.getElementById('flag-img'),
+                flagLoading: document.getElementById('flag-loading'),
+                babyHint: document.getElementById('baby-hint'), // 宝宝模式提示
+                options: document.getElementById('options-container'),
+                timerBar: document.getElementById('timer-bar'),
+                timerFill: document.getElementById('timer-fill'),
+                textTimer: document.getElementById('text-timer'),
+                textTimerVal: document.getElementById('text-timer-val'),
+                finalScore: document.getElementById('final-score'),
+                resultReason: document.getElementById('result-reason'),
+                achList: document.getElementById('achievements-list'),
+                achCount: document.getElementById('achievement-count')
+            },
+
+            switchPage: function(pageId) {
+                document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+                document.getElementById(pageId).classList.add('active');
+            },
+
+            // --- 新增：返回主页逻辑 ---
+            goHome: function() {
+                clearInterval(this.timerInterval); // 清除可能存在的计时器
+                this.score = 0; // 重置分数
+                this.switchPage('page-menu');
+            },
+
+            // --- 成就系统逻辑 ---
+            checkAchievements: function() {
+                let newUnlock = false;
+                achievementsDef.forEach(ach => {
+                    if (!this.unlockedAchievements.includes(ach.id)) {
+                        if (ach.check(this)) {
+                            this.unlockedAchievements.push(ach.id);
+                            this.showUnlockToast(ach.title);
+                            newUnlock = true;
+                        }
+                    }
+                });
+                if (newUnlock) {
+                    localStorage.setItem('flagGameAchievements', JSON.stringify(this.unlockedAchievements));
+                }
+            },
+
+            showUnlockToast: function(title) {
+                mdui.snackbar({
+                    message: `🏆 解锁成就：${title}`,
+                    position: 'top',
+                    timeout: 2000
+                });
+            },
+
+            showAchievements: function() {
+                this.ui.achList.innerHTML = '';
+                this.ui.achCount.innerText = `${this.unlockedAchievements.length}/${achievementsDef.length}`;
+                
+                achievementsDef.forEach(ach => {
+                    const isUnlocked = this.unlockedAchievements.includes(ach.id);
+                    const div = document.createElement('div');
+                    div.className = `mdui-list-item mdui-ripple achievement-item ${isUnlocked ? 'unlocked' : ''}`;
+                    div.innerHTML = `
+                        <i class="mdui-list-item-icon mdui-icon material-icons achievement-icon">${isUnlocked ? 'emoji_events' : 'lock'}</i>
+                        <div class="mdui-list-item-content">
+                            <div class="mdui-list-item-title">${ach.title}</div>
+                            <div class="mdui-list-item-text">${ach.desc}</div>
+                        </div>
+                        ${isUnlocked ? '<i class="mdui-icon material-icons mdui-text-color-green">check</i>' : ''}
+                    `;
+                    this.ui.achList.appendChild(div);
+                });
+                this.switchPage('page-achievements');
+            },
+
+            // --- 游戏核心逻辑 ---
+            start: function(selectedMode) {
+                this.mode = selectedMode;
+                this.score = 0;
+                this.updateScore();
+                clearInterval(this.timerInterval);
+                
+                // UI 重置
+                this.ui.flagImg.classList.remove('mirror-effect');
+                this.ui.timerBar.style.display = 'none';
+                this.ui.textTimer.style.display = 'none';
+                this.ui.babyHint.style.display = 'none'; // 默认隐藏宝宝提示
+
+                const modeConfig = {
+                    'practice': '练习模式',
+                    'baby': '宝宝模式',
+                    'endless': '无尽模式',
+                    'extreme': '极限模式',
+                    'hell': '地狱模式',
+                    'timeattack': '60秒竞速',
+                    'mirror': '镜像模式'
+                };
+                this.ui.modeName.innerText = modeConfig[selectedMode];
+
+                // 模式特定初始化
+                if (this.mode === 'hell') {
+                    this.ui.timerBar.style.display = 'block';
+                    this.timeLimit = 5000;
+                } else if (this.mode === 'timeattack') {
+                    this.ui.textTimer.style.display = 'block';
+                    this.startTimeAttack(60);
+                } else if (this.mode === 'mirror') {
+                    this.ui.flagImg.classList.add('mirror-effect');
+                } else if (this.mode === 'baby') {
+                    this.ui.babyHint.style.display = 'block'; // 宝宝模式显示提示区域
+                }
+
+                this.switchPage('page-game');
+                this.nextRound();
+            },
+
+            nextRound: function() {
+                if (this.mode !== 'timeattack') {
+                    clearInterval(this.timerInterval);
+                }
+
+                const correctIndex = Math.floor(Math.random() * countryData.length);
+                const correctCountry = countryData[correctIndex];
+                let options = [correctCountry];
+                while (options.length < 4) {
+                    const random = countryData[Math.floor(Math.random() * countryData.length)];
+                    if (!options.includes(random)) options.push(random);
+                }
+                options.sort(() => Math.random() - 0.5);
+                this.currentQuestion = { correct: correctCountry, options: options };
+
+                this.renderQuestion();
+
+                if (this.mode === 'hell') {
+                    this.startQuestionTimer();
+                }
+            },
+
+            renderQuestion: function() {
+                this.ui.flagLoading.style.display = 'inline-block';
+                this.ui.flagImg.style.display = 'none';
+                this.ui.flagImg.src = `https://flagcdn.com/w640/${this.currentQuestion.correct.code}.png`;
+
+                // 宝宝模式：设置提示文字
+                if (this.mode === 'baby') {
+                    this.ui.babyHint.innerText = this.currentQuestion.correct.name;
+                }
+
+                this.ui.options.innerHTML = '';
+                this.currentQuestion.options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'mdui-btn mdui-btn-raised mdui-ripple mdui-color-white option-btn';
+                    btn.innerText = opt.name;
+                    btn.onclick = (e) => this.handleAnswer(opt, e.target);
+                    this.ui.options.appendChild(btn);
+                });
+            },
+
+            startQuestionTimer: function() {
+                this.timeRemaining = this.timeLimit;
+                this.ui.timerFill.style.width = '100%';
+                
+                const step = 50;
+                this.timerInterval = setInterval(() => {
+                    this.timeRemaining -= step;
+                    const percent = (this.timeRemaining / this.timeLimit) * 100;
+                    this.ui.timerFill.style.width = percent + '%';
+
+                    if (this.timeRemaining <= 0) {
+                        clearInterval(this.timerInterval);
+                        this.gameOver('时间到！反应太慢啦！');
+                    }
+                }, step);
+            },
+
+            startTimeAttack: function(seconds) {
+                this.timeRemaining = seconds * 1000;
+                this.updateTextTimer();
+                
+                const step = 100;
+                this.timerInterval = setInterval(() => {
+                    this.timeRemaining -= step;
+                    this.updateTextTimer();
+
+                    if (this.timeRemaining <= 0) {
+                        clearInterval(this.timerInterval);
+                        this.gameOver('时间到！比赛结束。');
+                    }
+                }, step);
+            },
+
+            updateTextTimer: function() {
+                let sec = Math.ceil(this.timeRemaining / 1000);
+                if (sec < 0) sec = 0;
+                this.ui.textTimerVal.innerText = sec;
+            },
+
+            handleAnswer: function(selected, btnElement) {
+                if (this.mode !== 'timeattack') {
+                    clearInterval(this.timerInterval);
+                }
+                
+                const allBtns = this.ui.options.querySelectorAll('button');
+                allBtns.forEach(b => b.disabled = true);
+
+                const isCorrect = selected.code === this.currentQuestion.correct.code;
+
+                if (isCorrect) {
+                    btnElement.classList.remove('mdui-color-white');
+                    btnElement.classList.add('mdui-color-green-500', 'mdui-text-color-white');
+                    
+                    if (this.mode !== 'practice') {
+                        this.score++;
+                        this.updateScore();
+                        this.checkAchievements();
+                    }
+                    
+                    // 宝宝模式或练习模式显示提示
+                    if(this.mode === 'practice' || this.mode === 'baby') mdui.snackbar({message: '真棒！回答正确！', position: 'top', timeout: 500});
+                    setTimeout(() => this.nextRound(), 500);
+                } else {
+                    btnElement.classList.remove('mdui-color-white');
+                    btnElement.classList.add('mdui-color-red-500', 'mdui-text-color-white');
+                    
+                    allBtns.forEach(b => {
+                        if (b.innerText === this.currentQuestion.correct.name) {
+                            b.classList.remove('mdui-color-white');
+                            b.classList.add('mdui-color-green-500', 'mdui-text-color-white');
+                        }
+                    });
+
+                    // 宝宝模式也属于“无惩罚”模式
+                    if (this.mode === 'practice' || this.mode === 'endless' || this.mode === 'mirror' || this.mode === 'baby') {
+                        if(this.mode !== 'practice' && this.mode !== 'baby') mdui.snackbar({message: '答错啦，继续加油！', position: 'top'});
+                        setTimeout(() => this.nextRound(), 1500);
+                    } else if (this.mode === 'timeattack') {
+                        this.timeRemaining -= 2000;
+                        mdui.snackbar({message: '答错扣2秒！', position: 'top', timeout: 500});
+                        setTimeout(() => this.nextRound(), 500);
+                    } else {
+                        setTimeout(() => this.gameOver(`选错了！正确答案是：${this.currentQuestion.correct.name}`), 1000);
+                    }
+                }
+            },
+
+            updateScore: function() {
+                this.ui.score.innerText = `得分: ${this.score}`;
+            },
+
+            gameOver: function(reason) {
+                clearInterval(this.timerInterval);
+                this.ui.finalScore.innerText = this.score;
+                this.ui.resultReason.innerText = reason;
+                this.checkAchievements();
+                this.switchPage('page-result');
+            }
+        };
+    </script>
+</body>
+</html>
