@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>QQ头像查看器 - MD3</title>
+    <!-- 引入 Google Fonts 和 Material Symbols -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+    <style>
+        :root {
+            /* MD3 Color Tokens (Purple Theme) */
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            --md-sys-color-secondary: #625B71;
+            --md-sys-color-surface: #FEF7FF;
+            --md-sys-color-surface-variant: #E7E0EC;
+            --md-sys-color-on-surface: #1D1B20;
+            --md-sys-color-on-surface-variant: #49454F;
+            --md-sys-color-outline: #79747E;
+            --md-sys-color-scrim: #000000;
+            --md-elevation-3: 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px 0px rgba(0, 0, 0, 0.3);
+            
+            /* Motion */
+            --md-sys-motion-easing-emphasized: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+            --md-sys-motion-easing-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden; 
+        }
+
+        /* Container */
+        .app-container {
+            width: 100%;
+            max-width: 480px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            align-items: center;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 0.6s var(--md-sys-motion-easing-emphasized) forwards;
+            justify-content: center;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 400;
+            color: var(--md-sys-color-on-surface);
+            margin: 0;
+            text-align: center;
+        }
+
+        /* Input Field MD3 Style */
+        .text-field {
+            position: relative;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .text-field input {
+            width: 100%;
+            padding: 16px;
+            font-size: 16px;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 4px;
+            background: transparent;
+            color: var(--md-sys-color-on-surface);
+            outline: none;
+            transition: border-color 0.2s;
+            border-radius: 8px 8px 0 0;
+            background-color: var(--md-sys-color-surface-variant);
+            border: none;
+            border-bottom: 1px solid var(--md-sys-color-on-surface-variant);
+        }
+
+        .text-field input:focus {
+            border-bottom: 2px solid var(--md-sys-color-primary);
+        }
+
+        .text-field label {
+            position: absolute;
+            left: 16px;
+            top: 16px;
+            color: var(--md-sys-color-on-surface-variant);
+            transition: all 0.2s var(--md-sys-motion-easing-emphasized);
+            pointer-events: none;
+        }
+
+        .text-field input:focus ~ label,
+        .text-field input:valid ~ label {
+            top: 4px;
+            font-size: 12px;
+            color: var(--md-sys-color-primary);
+        }
+
+        /* Buttons MD3 */
+        .btn {
+            height: 40px;
+            border-radius: 20px;
+            padding: 0 24px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s var(--md-sys-motion-easing-emphasized);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-filled {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+        }
+
+        .btn-filled:active {
+            transform: scale(0.96);
+            box-shadow: var(--md-elevation-3);
+        }
+
+        .btn-tonal {
+            background-color: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+        }
+        
+        .btn-text {
+            background-color: transparent;
+            color: var(--md-sys-color-primary);
+        }
+
+        .btn-text:hover {
+            background-color: rgba(103, 80, 164, 0.08);
+        }
+
+        /* Ripple Effect */
+        .btn::after {
+            content: "";
+            position: absolute;
+            background: rgba(255,255,255,0.2);
+            width: 100%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .btn:active::after {
+            opacity: 1;
+        }
+
+        /* Dialog / Modal */
+        .dialog-backdrop {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s var(--md-sys-motion-easing-emphasized), visibility 0.3s;
+            backdrop-filter: blur(4px);
+        }
+
+        .dialog-backdrop.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .dialog-card {
+            background-color: var(--md-sys-color-surface);
+            border-radius: 28px;
+            padding: 24px;
+            width: 90%;
+            max-width: 320px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: var(--md-elevation-3);
+            transform: scale(0.8);
+            transition: transform 0.4s var(--md-sys-motion-easing-spring);
+        }
+
+        .dialog-backdrop.open .dialog-card {
+            transform: scale(1);
+        }
+
+        .dialog-icon {
+            font-size: 32px;
+            color: var(--md-sys-color-secondary);
+            margin-bottom: 16px;
+        }
+
+        .dialog-title {
+            font-size: 24px;
+            margin: 0 0 16px 0;
+            text-align: center;
+        }
+
+        .dialog-content {
+            font-size: 14px;
+            color: var(--md-sys-color-on-surface-variant);
+            text-align: center;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .dialog-actions {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            justify-content: flex-end;
+        }
+
+        .dialog-actions.center {
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* Avatar Display in Dialog */
+        .avatar-preview {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background-color: var(--md-sys-color-surface-variant);
+            margin-bottom: 24px;
+            object-fit: cover;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: transform 0.5s var(--md-sys-motion-easing-spring);
+        }
+        
+        .avatar-preview:hover {
+            transform: scale(1.05) rotate(2deg);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: var(--md-sys-color-on-surface);
+            color: var(--md-sys-color-surface);
+            padding: 14px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: transform 0.4s var(--md-sys-motion-easing-spring);
+            z-index: 200;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* --- 日志系统弹窗样式 --- */
+        .terminal-view {
+            width: 100%;
+            background-color: #1e1e1e;
+            border-radius: 12px;
+            color: #d4d4d4;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 250px;
+            margin-bottom: 24px;
+            border: 1px solid #333;
+        }
+
+        .terminal-content {
+            padding: 12px;
+            overflow-y: auto;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            scroll-behavior: smooth;
+        }
+
+        .terminal-content::-webkit-scrollbar { width: 4px; }
+        .terminal-content::-webkit-scrollbar-thumb { background-color: #555; border-radius: 2px; }
+
+        .log-item {
+            line-height: 1.4;
+            word-break: break-all;
+            text-align: left;
+        }
+        
+        .log-time { color: #666; margin-right: 6px; }
+        .log-type-info { color: #81D4FA; }
+        .log-type-success { color: #A5D6A7; }
+        .log-type-error { color: #EF9A9A; }
+        .log-type-warn { color: #FFF59D; }
+
+        /* --- 新增：手动复制链接框样式 --- */
+        .manual-copy-box {
+            width: 100%;
+            background-color: var(--md-sys-color-surface-variant);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            color: var(--md-sys-color-on-surface);
+            border: 1px solid var(--md-sys-color-outline);
+            word-break: break-all;
+            user-select: text !important; /* 强制允许选择 */
+            -webkit-user-select: text !important;
+            cursor: text;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Main Interface -->
+    <div class="app-container">
+        <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+            <span class="material-symbols-rounded" style="font-size: 64px; color: var(--md-sys-color-primary);">account_circle</span>
+            <h1>QQ头像查看器</h1>
+        </div>
+        
+        <div style="width: 100%;">
+            <div class="text-field">
+                <input type="tel" id="qqInput" required autocomplete="off">
+                <label>输入QQ号码</label>
+            </div>
+        </div>
+
+        <button class="btn btn-filled" onclick="parseAvatar()" style="width: 100%; height: 50px; border-radius: 25px;">
+            <span class="material-symbols-rounded">search</span>
+            立即解析
+        </button>
+        
+        <button class="btn btn-text" onclick="openLogDialog()">
+            <span class="material-symbols-rounded">terminal</span>
+            查看运行日志
+        </button>
+    </div>
+
+    <!-- Agreement Dialog -->
+    <div class="dialog-backdrop" id="agreementDialog">
+        <div class="dialog-card">
+            <span class="material-symbols-rounded dialog-icon">gavel</span>
+            <h2 class="dialog-title">用户协议</h2>
+            <div class="dialog-content" style="text-align: left;">
+                欢迎使用本工具。在使用前，请您同意以下条款：<br><br>
+                1. 本工具仅供学习交流使用。<br>
+                2. 解析的图片资源来源于腾讯官方API。<br>
+                3. 请勿用于任何非法用途。<br><br>
+                点击“同意”即代表您接受以上条款。
+            </div>
+            <div class="dialog-actions">
+                <button class="btn btn-text" onclick="handleDisagree()">不同意</button>
+                <button class="btn btn-filled" onclick="handleAgree()">同意并继续</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Result Dialog -->
+    <div class="dialog-backdrop" id="resultDialog">
+        <div class="dialog-card" style="max-width: 360px;">
+            <h2 class="dialog-title">头像解析成功</h2>
+            
+            <img id="avatarImg" src="" alt="QQ Avatar" class="avatar-preview">
+            
+            <div class="dialog-actions center">
+                <!-- 修改：点击触发选择弹窗 -->
+                <button class="btn btn-tonal" onclick="openCopyOptions()">
+                    <span class="material-symbols-rounded">content_copy</span>
+                    复制链接
+                </button>
+                <button class="btn btn-filled" onclick="downloadAvatar()">
+                    <span class="material-symbols-rounded">download</span>
+                    保存图片
+                </button>
+            </div>
+            <div style="margin-top: 16px;">
+                <button class="btn btn-text" onclick="closeResult()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增：复制方式选择弹窗 -->
+    <div class="dialog-backdrop" id="copyDialog">
+        <div class="dialog-card">
+            <span class="material-symbols-rounded dialog-icon">link</span>
+            <h3 class="dialog-title">选择复制方式</h3>
+            
+            <div style="width: 100%; display: flex; flex-direction: column; gap: 16px;">
+                <!-- 方式一 -->
+                <div>
+                    <button class="btn btn-filled" onclick="executeCopyDirect()" style="width: 100%;">
+                        <span class="material-symbols-rounded">content_paste</span>
+                        方式一：一键复制
+                    </button>
+                    <div style="font-size: 12px; color: var(--md-sys-color-on-surface-variant); margin-top: 4px; text-align: center;">
+                        推荐使用，快捷方便
+                    </div>
+                </div>
+
+                <!-- 方式二 -->
+                <div>
+                    <div style="font-size: 14px; font-weight: 500; margin-bottom: 4px;">方式二：手动长按复制</div>
+                    <div style="font-size: 12px; color: var(--md-sys-color-on-surface-variant); margin-bottom: 4px;">
+                        若方式一失败，请长按下方链接全选复制
+                    </div>
+                    <!-- 只读输入框，允许选择 -->
+                    <input type="text" id="manualUrlInput" class="manual-copy-box" readonly onclick="this.select()">
+                </div>
+            </div>
+
+            <div class="dialog-actions" style="margin-top: 24px;">
+                <button class="btn btn-text" onclick="closeCopyDialog()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log Dialog -->
+    <div class="dialog-backdrop" id="logDialog">
+        <div class="dialog-card" style="width: 90%; max-width: 400px;">
+            <span class="material-symbols-rounded dialog-icon">terminal</span>
+            <h2 class="dialog-title">运行日志</h2>
+            
+            <div class="terminal-view">
+                <div class="terminal-content" id="sysLog"></div>
+            </div>
+
+            <div class="dialog-actions">
+                <button class="btn btn-text" onclick="clearLogs()" style="color: var(--md-sys-color-error, #B3261E)">清空</button>
+                <button class="btn btn-tonal" onclick="closeLogDialog()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Dialog -->
+    <div class="dialog-backdrop" id="loadingDialog">
+        <div class="dialog-card" style="width: auto; flex-direction: row; gap: 16px;">
+            <span class="material-symbols-rounded" style="animation: spin 1s linear infinite;">progress_activity</span>
+            <span>正在解析...</span>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">操作成功</div>
+
+    <style>
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+
+    <script>
+        // DOM Elements
+        const agreementDialog = document.getElementById('agreementDialog');
+        const resultDialog = document.getElementById('resultDialog');
+        const loadingDialog = document.getElementById('loadingDialog');
+        const logDialog = document.getElementById('logDialog');
+        const copyDialog = document.getElementById('copyDialog'); // 新增
+        const qqInput = document.getElementById('qqInput');
+        const avatarImg = document.getElementById('avatarImg');
+        const toast = document.getElementById('toast');
+        const logContent = document.getElementById('sysLog');
+        const manualUrlInput = document.getElementById('manualUrlInput'); // 新增
+
+        // State
+        let currentQQ = '';
+        let currentImgUrl = '';
+
+        // --- Log System ---
+        function systemLog(msg, type = 'info') {
+            const now = new Date();
+            const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+            
+            const item = document.createElement('div');
+            item.className = 'log-item';
+            item.innerHTML = `<span class="log-time">[${timeStr}]</span><span class="log-type-${type}">${msg}</span>`;
+            
+            logContent.appendChild(item);
+            logContent.scrollTop = logContent.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${msg}`);
+        }
+
+        function clearLogs() {
+            logContent.innerHTML = '';
+            systemLog('日志已清空', 'info');
+        }
+
+        function openLogDialog() {
+            logDialog.classList.add('open');
+        }
+
+        function closeLogDialog() {
+            logDialog.classList.remove('open');
+        }
+
+        // 1. App Initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            systemLog('应用初始化完成', 'info');
+            const hasAgreed = localStorage.getItem('qq_viewer_agreed');
+            if (!hasAgreed) {
+                systemLog('用户未签署协议，显示协议弹窗', 'warn');
+                agreementDialog.classList.add('open');
+            } else {
+                systemLog('检测到已同意协议', 'success');
+            }
+        });
+
+        function handleAgree() {
+            localStorage.setItem('qq_viewer_agreed', 'true');
+            agreementDialog.classList.remove('open');
+            systemLog('用户同意协议', 'success');
+        }
+
+        function handleDisagree() {
+            systemLog('用户拒绝协议', 'error');
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                alert("您必须同意协议才能使用本工具。");
+                systemLog('无法返回上一页，已阻止使用', 'error');
+                window.close();
+            }
+        }
+
+        // 2. Parsing Logic
+        function parseAvatar() {
+            const qq = qqInput.value.trim();
+            
+            if (!/^\d{5,12}$/.test(qq)) {
+                showToast("请输入正确的QQ号码 (5-12位数字)");
+                systemLog(`输入校验失败: "${qq}" 不是有效QQ号`, 'warn');
+                return;
+            }
+
+            currentQQ = qq;
+            const apiUrl = `https://q1.qlogo.cn/g?b=qq&nk=${qq}&s=640`;
+            currentImgUrl = apiUrl;
+
+            systemLog(`开始解析 QQ: ${qq}`, 'info');
+            systemLog(`API URL: ${apiUrl}`, 'info');
+
+            loadingDialog.classList.add('open');
+
+            const img = new Image();
+            
+            img.onload = () => {
+                loadingDialog.classList.remove('open');
+                avatarImg.src = apiUrl;
+                resultDialog.classList.add('open');
+                systemLog(`图片加载成功 (Width: ${img.width}px)`, 'success');
+            };
+            img.onerror = () => {
+                loadingDialog.classList.remove('open');
+                showToast("解析失败，请检查QQ号或网络");
+                systemLog('图片加载失败，可能是QQ号不存在', 'error');
+            };
+            img.src = apiUrl;
+        }
+
+        function closeResult() {
+            resultDialog.classList.remove('open');
+            systemLog('关闭结果弹窗', 'info');
+        }
+
+        // 3. Download Logic
+        async function downloadAvatar() {
+            systemLog('尝试下载...', 'info');
+            showToast("正在准备下载...");
+
+            try {
+                const response = await fetch(currentImgUrl);
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const blob = await response.blob();
+                systemLog(`Blob 数据获取成功: ${blob.size} bytes`, 'info');
+                
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `${currentQQ}_avatar.jpg`;
+                
+                document.body.appendChild(a);
+                a.click();
+                
+                setTimeout(() => {
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                }, 100);
+                
+                showToast("已触发下载");
+                systemLog('触发浏览器下载行为', 'success');
+            } catch (e) {
+                console.error(e);
+                systemLog(`自动下载受限: ${e.message}`, 'error');
+                
+                showToast("下载受限，请长按图片保存");
+                systemLog('提示用户手动长按保存', 'warn');
+            }
+        }
+
+        // 4. Copy Logic (New Implementation)
+        
+        // 打开复制选项弹窗
+        function openCopyOptions() {
+            manualUrlInput.value = currentImgUrl; // 填充链接
+            copyDialog.classList.add('open');
+            systemLog('打开复制选项弹窗', 'info');
+        }
+
+        // 关闭复制选项弹窗
+        function closeCopyDialog() {
+            copyDialog.classList.remove('open');
+        }
+
+        // 方式一：直接复制
+        function executeCopyDirect() {
+            systemLog('执行方式一：一键复制', 'info');
+            navigator.clipboard.writeText(currentImgUrl).then(() => {
+                showToast("链接已复制到剪贴板");
+                systemLog('剪贴板写入成功', 'success');
+                closeCopyDialog(); // 成功后关闭弹窗
+            }).catch((err) => {
+                showToast("一键复制失败，请尝试方式二");
+                systemLog(`剪贴板写入失败: ${err}`, 'error');
+            });
+        }
+
+        // Utility: Toast
+        let toastTimeout;
+        function showToast(msg) {
+            toast.innerText = msg;
+            toast.classList.add('show');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        qqInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                parseAvatar();
+            }
+        });
+
+    </script>
+</body>
+</html>
