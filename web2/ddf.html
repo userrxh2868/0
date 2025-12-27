@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#fdfbff">
+    <title>点点富 - 官方正版</title>
+    <!-- 引入 Material Symbols -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
+
+    <style>
+        /* --- MD3 Token System --- */
+        :root {
+            --md-primary: #4F378B;
+            --md-on-primary: #FFFFFF;
+            --md-primary-container: #EADDFF;
+            --md-on-primary-container: #21005D;
+            --md-surface: #FEF7FF;
+            --md-surface-container: #F3EDF7;
+            --md-on-surface: #1D1B20;
+            --md-on-surface-variant: #49454F;
+            --md-outline: #79747E;
+            --md-secondary-container: #E8DEF8;
+            --md-error: #B3261E;
+            
+            /* 动画曲线 */
+            --motion-easing-emphasized: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            font-family: 'Roboto', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--md-surface);
+            color: var(--md-on-surface);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- 通用组件：水波纹效果 (Ripple) --- */
+        .ripple-effect {
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .ripple-span {
+            position: absolute;
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple-anim 600ms linear;
+            background-color: rgba(0, 0, 0, 0.1);
+            pointer-events: none;
+        }
+        @keyframes ripple-anim {
+            to { transform: scale(4); opacity: 0; }
+        }
+
+        /* --- 顶部栏 --- */
+        .top-app-bar {
+            height: 64px;
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--md-surface);
+        }
+        .user-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--md-surface-container);
+            padding: 4px 12px 4px 4px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .avatar {
+            width: 32px;
+            height: 32px;
+            background: var(--md-primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        /* --- 主体内容 --- */
+        main {
+            flex: 1;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow-y: auto;
+        }
+
+        /* 资产卡片 */
+        .asset-card {
+            background: linear-gradient(135deg, var(--md-primary), #6750A4);
+            color: var(--md-on-primary);
+            border-radius: 28px;
+            padding: 24px;
+            box-shadow: 0 4px 8px 3px rgba(0,0,0,0.15);
+            position: relative;
+            overflow: hidden;
+        }
+        .asset-card::before {
+            content: '';
+            position: absolute;
+            top: -50px; right: -50px;
+            width: 150px; height: 150px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+        }
+        .balance-row {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+            margin-top: 8px;
+        }
+        .currency-symbol { font-size: 24px; font-weight: 500; }
+        .balance-val { font-size: 48px; font-weight: 700; line-height: 1; letter-spacing: -1px; }
+        
+        /* VIP 进度条 */
+        .vip-bar-container {
+            margin-top: 16px;
+            background: rgba(0,0,0,0.2);
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .vip-bar-fill {
+            height: 100%;
+            background: #FFD700;
+            width: 10%;
+            transition: width 0.3s ease;
+        }
+        .vip-text {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* 滚动广播 */
+        .notice-bar {
+            background: var(--md-secondary-container);
+            color: var(--md-on-surface-variant);
+            padding: 10px 16px;
+            border-radius: 16px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .notice-content {
+            flex: 1;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        /* 挖矿按钮区域 */
+        .mine-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 200px;
+            position: relative;
+        }
+        
+        .fab-large {
+            width: 160px;
+            height: 160px;
+            border-radius: 40px; /* 方圆角，MD3 特征 */
+            background: var(--md-primary-container);
+            color: var(--md-on-primary-container);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 12px 6px rgba(0,0,0,0.15);
+            transition: transform 0.1s, box-shadow 0.2s;
+            z-index: 10;
+        }
+        .fab-large:active {
+            transform: scale(0.92);
+            box-shadow: 0 4px 8px 3px rgba(0,0,0,0.15);
+        }
+        .fab-large .material-symbols-rounded {
+            font-size: 64px;
+            margin-bottom: 8px;
+        }
+        .fab-text { font-size: 16px; font-weight: 600; }
+
+        /* 浮动金币 */
+        .float-money {
+            position: absolute;
+            color: #1E8E3E;
+            font-weight: 900;
+            font-size: 24px;
+            pointer-events: none;
+            z-index: 20;
+            text-shadow: 0 2px 4px rgba(255,255,255,0.8);
+            animation: floatUpFade 0.8s cubic-bezier(0.0, 0.0, 0.2, 1) forwards;
+        }
+        @keyframes floatUpFade {
+            0% { transform: translateY(0) scale(0.8); opacity: 0; }
+            20% { transform: translateY(-20px) scale(1.2); opacity: 1; }
+            100% { transform: translateY(-80px) scale(1); opacity: 0; }
+        }
+
+        /* 功能按钮网格 */
+        .grid-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .btn-filled {
+            background: var(--md-primary);
+            color: var(--md-on-primary);
+            border: none;
+            height: 56px;
+            border-radius: 28px;
+            font-size: 16px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-tonal {
+            background: var(--md-secondary-container);
+            color: var(--md-on-surface-variant);
+            border: none;
+            height: 56px;
+            border-radius: 28px;
+            font-size: 16px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        /* --- 底部导航栏 (NavigationBar) --- */
+        .nav-bar {
+            background: var(--md-surface-container);
+            height: 80px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding-bottom: 10px; /* 适配手势条 */
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            width: 64px;
+            cursor: pointer;
+            color: var(--md-on-surface-variant);
+        }
+        /* 胶囊选中态 */
+        .nav-icon-container {
+            width: 64px;
+            height: 32px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s var(--motion-easing-emphasized);
+        }
+        .nav-item.active .nav-icon-container {
+            background-color: var(--md-primary-container);
+        }
+        .nav-item.active {
+            color: var(--md-on-surface);
+            font-weight: 600;
+        }
+        .nav-item.active .material-symbols-rounded {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            color: var(--md-on-primary-container);
+        }
+        .nav-label { font-size: 12px; font-weight: 500; }
+
+        /* --- Snackbar (Toast) --- */
+        #snackbar {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #323232;
+            color: #fff;
+            text-align: center;
+            border-radius: 4px;
+            padding: 14px 16px;
+            position: fixed;
+            z-index: 100;
+            left: 50%;
+            bottom: 100px;
+            transform: translateX(-50%);
+            font-size: 14px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+        #snackbar.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 110px;
+        }
+
+        /* --- 弹窗遮罩 --- */
+        .dialog-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .dialog-overlay.open { opacity: 1; pointer-events: auto; }
+        
+        .md-dialog {
+            background: var(--md-surface);
+            width: 80%;
+            max-width: 320px;
+            border-radius: 28px;
+            padding: 24px;
+            text-align: center;
+            transform: scale(0.8);
+            transition: transform 0.2s var(--motion-easing-emphasized);
+        }
+        .dialog-overlay.open .md-dialog { transform: scale(1); }
+        
+        .dialog-icon { font-size: 48px; color: var(--md-primary); margin-bottom: 16px; }
+        .dialog-title { font-size: 24px; margin: 0 0 16px 0; }
+        .dialog-text { color: var(--md-on-surface-variant); margin-bottom: 24px; line-height: 1.5; }
+
+        .spinner {
+            width: 48px; height: 48px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--md-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+    <!-- 顶部栏 -->
+    <div class="top-app-bar">
+        <span class="material-symbols-rounded ripple-effect" style="padding: 8px; border-radius: 50%;" onclick="showToast('侧边栏功能暂未开放')">menu</span>
+        <div class="user-chip ripple-effect" onclick="showToast('ID: 8848 信用极好')">
+            <div class="avatar">富</div>
+            <span>会员用户</span>
+        </div>
+        <span class="material-symbols-rounded ripple-effect" style="padding: 8px; border-radius: 50%;" onclick="showToast('暂无新消息')">notifications</span>
+    </div>
+
+    <!-- 主界面 -->
+    <main>
+        <!-- 资产卡片 -->
+        <div class="asset-card ripple-effect" onclick="showToast('点击数字不能提现哦，请点击下方按钮')">
+            <div style="font-size: 14px; opacity: 0.8;">账户总余额 (CNY)</div>
+            <div class="balance-row">
+                <span class="currency-symbol">¥</span>
+                <span class="balance-val" id="moneyDisplay">0.00</span>
+            </div>
+            <!-- VIP 诱导条 -->
+            <div class="vip-bar-container">
+                <div class="vip-bar-fill" id="vipBar"></div>
+            </div>
+            <div class="vip-text">
+                <span>当前等级: LV.1</span>
+                <span>距离 LV.2 还差 90 元</span>
+            </div>
+        </div>
+
+        <!-- 广播 -->
+        <div class="notice-bar">
+            <span class="material-symbols-rounded" style="color: var(--md-primary);">campaign</span>
+            <div class="notice-content" id="marquee">
+                正在获取实时提现数据...
+            </div>
+        </div>
+
+        <!-- 挖矿区 -->
+        <div class="mine-container">
+            <div class="fab-large ripple-effect" id="clickBtn">
+                <span class="material-symbols-rounded">fingerprint</span>
+                <span class="fab-text">点我赚钱</span>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="grid-actions">
+            <button class="btn-tonal ripple-effect" onclick="handleInvite()">
+                <span class="material-symbols-rounded">share</span>
+                邀请好友
+            </button>
+            <button class="btn-filled ripple-effect" onclick="handleWithdraw()">
+                <span class="material-symbols-rounded">payments</span>
+                立即提现
+            </button>
+        </div>
+    </main>
+
+    <!-- 底部导航栏 -->
+    <nav class="nav-bar">
+        <div class="nav-item active ripple-effect" onclick="switchTab(this, 'home')">
+            <div class="nav-icon-container">
+                <span class="material-symbols-rounded">home</span>
+            </div>
+            <span class="nav-label">首页</span>
+        </div>
+        <div class="nav-item ripple-effect" onclick="switchTab(this, 'task')">
+            <div class="nav-icon-container">
+                <span class="material-symbols-rounded">assignment</span>
+            </div>
+            <span class="nav-label">任务</span>
+        </div>
+        <div class="nav-item ripple-effect" onclick="switchTab(this, 'team')">
+            <div class="nav-icon-container">
+                <span class="material-symbols-rounded">groups</span>
+            </div>
+            <span class="nav-label">团队</span>
+        </div>
+        <div class="nav-item ripple-effect" onclick="switchTab(this, 'mine')">
+            <div class="nav-icon-container">
+                <span class="material-symbols-rounded">person</span>
+            </div>
+            <span class="nav-label">我的</span>
+        </div>
+    </nav>
+
+    <!-- 原生感 Toast -->
+    <div id="snackbar">默认消息</div>
+
+    <!-- 提现弹窗 -->
+    <div class="dialog-overlay" id="withdrawDialog">
+        <div class="md-dialog">
+            <div id="dialogContent">
+                <div class="spinner"></div>
+                <h3 class="dialog-title">正在连接银联...</h3>
+                <p class="dialog-text">数据加密传输中，请勿关闭页面</p>
+            </div>
+            <button class="btn-tonal ripple-effect" id="dialogBtn" style="width:100%; display:none;" onclick="closeDialog()">
+                我知道了
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /* --- 数据逻辑 --- */
+        let balance = parseFloat(localStorage.getItem('fake_balance')) || 0.00;
+        const moneyDisplay = document.getElementById('moneyDisplay');
+        const vipBar = document.getElementById('vipBar');
+
+        function updateBalance() {
+            moneyDisplay.innerText = balance.toFixed(2);
+            localStorage.setItem('fake_balance', balance);
+            
+            // 简单的进度条逻辑
+            let percent = (balance % 100) + 10;
+            if(percent > 100) percent = 100;
+            vipBar.style.width = percent + "%";
+        }
+        updateBalance();
+
+        /* --- 点击赚钱逻辑 --- */
+        const clickBtn = document.getElementById('clickBtn');
+        clickBtn.addEventListener('click', (e) => {
+            // 1. 增加余额
+            balance += 0.10;
+            updateBalance();
+
+            // 2. 震动反馈
+            if(navigator.vibrate) navigator.vibrate(40);
+
+            // 3. 浮动数字动画
+            showFloatMoney(e);
+        });
+
+        function showFloatMoney(e) {
+            const rect = clickBtn.getBoundingClientRect();
+            const el = document.createElement('div');
+            el.className = 'float-money';
+            el.innerText = '+0.10';
+            
+            // 随机位置偏移，看起来更自然
+            const offsetX = (Math.random() - 0.5) * 40;
+            el.style.left = (rect.left + rect.width/2 - 20 + offsetX) + 'px';
+            el.style.top = (rect.top - 20) + 'px';
+            
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 800);
+        }
+
+        /* --- 导航栏切换逻辑 --- */
+        function switchTab(element, tabName) {
+            // 移除所有 active
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            // 激活当前
+            element.classList.add('active');
+
+            // 模拟页面切换的 Toast 提示
+            if(tabName !== 'home') {
+                showToast(`正在加载${element.querySelector('.nav-label').innerText}模块...`);
+            }
+        }
+
+        /* --- 邀请逻辑 --- */
+        function handleInvite() {
+            showToast("复制推广链接成功！快去发给好友吧");
+            // 模拟剪贴板写入
+            const input = document.createElement('input');
+            input.value = "点击链接 http://t.cn/xxxx 注册送100元！";
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+        }
+
+        /* --- 提现逻辑 (套路核心) --- */
+        const dialogOverlay = document.getElementById('withdrawDialog');
+        const dialogContent = document.getElementById('dialogContent');
+        const dialogBtn = document.getElementById('dialogBtn');
+
+        function handleWithdraw() {
+            if(balance < 100) {
+                showToast(`余额不足，最低提现 100.00 元，当前还差 ${(100-balance).toFixed(2)} 元`);
+                return;
+            }
+
+            dialogOverlay.classList.add('open');
+            dialogContent.innerHTML = `
+                <div class="spinner"></div>
+                <h3 class="dialog-title">正在提交申请...</h3>
+                <p class="dialog-text">正在连接第三方支付接口，请耐心等待...</p>
+            `;
+            dialogBtn.style.display = 'none';
+
+            // 模拟第一步：成功
+            setTimeout(() => {
+                dialogContent.innerHTML = `
+                    <span class="material-symbols-rounded dialog-icon" style="color:green">check_circle</span>
+                    <h3 class="dialog-title">申请已提交</h3>
+                    <p class="dialog-text">正在排队打款中，预计 3 秒后到账...</p>
+                `;
+            }, 2000);
+
+            // 模拟第二步：失败（经典套路）
+            setTimeout(() => {
+                dialogContent.innerHTML = `
+                    <span class="material-symbols-rounded dialog-icon" style="color:var(--md-error)">error</span>
+                    <h3 class="dialog-title" style="color:var(--md-error)">提现失败</h3>
+                    <p class="dialog-text">错误代码：<b>403_VIP_LIMIT</b><br>检测到您是普通用户，提现通道拥堵。<br>建议升级黄金会员开启极速通道。</p>
+                `;
+                dialogBtn.innerText = "去升级会员";
+                dialogBtn.style.display = 'flex';
+                dialogBtn.onclick = function() {
+                    closeDialog();
+                    showToast("系统维护中，请稍后重试充值");
+                }
+            }, 4500);
+        }
+
+        function closeDialog() {
+            dialogOverlay.classList.remove('open');
+        }
+
+        /* --- 通用 Toast --- */
+        function showToast(msg) {
+            const sb = document.getElementById("snackbar");
+            sb.innerText = msg;
+            sb.className = "show";
+            setTimeout(() => { sb.className = sb.className.replace("show", ""); }, 3000);
+        }
+
+        /* --- 水波纹特效实现 (让每个按钮都像原生APP) --- */
+        document.addEventListener('click', function(e) {
+            const target = e.target.closest('.ripple-effect');
+            if (target) {
+                const rect = target.getBoundingClientRect();
+                const circle = document.createElement('span');
+                const diameter = Math.max(rect.width, rect.height);
+                const radius = diameter / 2;
+
+                circle.style.width = circle.style.height = `${diameter}px`;
+                circle.style.left = `${e.clientX - rect.left - radius}px`;
+                circle.style.top = `${e.clientY - rect.top - radius}px`;
+                circle.classList.add('ripple-span');
+
+                // 移除旧的 ripple，防止堆积
+                const existingRipple = target.querySelector('.ripple-span');
+                if (existingRipple) existingRipple.remove();
+
+                target.appendChild(circle);
+            }
+        });
+
+        /* --- 广播逻辑 --- */
+        const names = ["用户138****8888", "李先生", "张女士", "VIP_King", "陈总"];
+        const actions = ["成功提现 500元", "升级了黄金会员", "邀请好友赚了 20元", "成功提现 1000元"];
+        const marquee = document.getElementById('marquee');
+        
+        setInterval(() => {
+            const n = names[Math.floor(Math.random()*names.length)];
+            const a = actions[Math.floor(Math.random()*actions.length)];
+            marquee.style.opacity = 0;
+            setTimeout(() => {
+                marquee.innerText = `刚刚 ${n} ${a}`;
+                marquee.style.opacity = 1;
+            }, 400);
+        }, 3500);
+
+    </script>
+</body>
+</html>
