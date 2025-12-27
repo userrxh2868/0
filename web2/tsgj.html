@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Eruda Pro + mdui 调试工具</title>
+    
+    <!-- MDUI CSS (Staticfile CDN) -->
+    <link rel="stylesheet" href="https://cdn.staticfile.org/mdui/1.0.2/css/mdui.min.css">
+    
+    <style>
+        body {
+            /* 默认背景浅灰，深色模式由 MDUI 自动处理文字颜色 */
+            background-color: #f5f5f5;
+            padding-bottom: 80px;
+            transition: background-color 0.3s;
+        }
+        /* 深色模式下的背景微调 */
+        body.mdui-theme-layout-dark {
+            background-color: #303030;
+        }
+        .mdui-container {
+            max-width: 800px;
+            margin-top: 80px;
+        }
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .mdui-card {
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        /* 调整图标与文字间距 */
+        .mdui-btn .mdui-icon-left {
+            margin-right: 6px;
+        }
+        /* 状态指示灯 */
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ccc;
+            margin-right: 5px;
+        }
+        .status-dot.active {
+            background-color: #4caf50;
+            box-shadow: 0 0 5px #4caf50;
+        }
+    </style>
+</head>
+<body class="mdui-theme-primary-indigo mdui-theme-accent-pink mdui-appbar-with-toolbar">
+
+    <!-- 顶部导航栏 -->
+    <header class="mdui-appbar mdui-appbar-fixed">
+        <div class="mdui-toolbar mdui-color-theme">
+            <span class="mdui-typo-title">Eruda Pro 调试</span>
+            <div class="mdui-toolbar-spacer"></div>
+            <!-- 夜间模式切换开关 -->
+            <label class="mdui-switch mdui-m-r-2" mdui-tooltip="{content: '切换夜间模式'}">
+                <input type="checkbox" id="theme-toggle" onclick="toggleTheme()"/>
+                <i class="mdui-switch-icon"></i>
+            </label>
+            <a href="javascript:location.reload();" class="mdui-btn mdui-btn-icon" mdui-tooltip="{content: '刷新页面'}">
+                <i class="mdui-icon material-icons">refresh</i>
+            </a>
+        </div>
+    </header>
+
+    <div class="mdui-container">
+        
+        <!-- 1. 设置与状态卡片 -->
+        <div class="mdui-card">
+            <div class="mdui-card-content">
+                <div class="mdui-row mdui-valign-wrapper">
+                    <div class="mdui-col-xs-12">
+                        <div class="mdui-typo-subheading">🔌 核心设置</div>
+                        <div class="mdui-m-t-1">
+                            <span id="eruda-status" class="status-dot"></span> 
+                            <span id="eruda-status-text">Eruda 未加载</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mdui-divider mdui-m-y-2"></div>
+                
+                <div class="mdui-row">
+                    <div class="mdui-col-xs-7">
+                        <select id="cdn-selector" class="mdui-select" style="width: 100%;">
+                            <option value="https://registry.npmmirror.com/eruda/3.0.1/files/eruda.js">源1: npmmirror (阿里推荐)</option>
+                            <option value="https://cdn.bootcdn.net/ajax/libs/eruda/3.0.1/eruda.min.js">源2: BootCDN</option>
+                            <option value="https://cdn.staticfile.org/eruda/3.0.1/eruda.min.js">源3: Staticfile</option>
+                            <option value="https://unpkg.com/eruda">源4: UNPKG (国际)</option>
+                        </select>
+                    </div>
+                    <div class="mdui-col-xs-5">
+                        <button onclick="loadEruda()" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent mdui-btn-block mdui-btn-dense">
+                            启动 Eruda
+                        </button>
+                    </div>
+                </div>
+                <!-- 插件加载区 -->
+                <div class="mdui-row mdui-m-t-2">
+                    <div class="mdui-col-xs-12">
+                        <button onclick="loadFpsPlugin()" class="mdui-btn mdui-btn-outlined mdui-btn-block mdui-color-text-theme">
+                            <i class="mdui-icon material-icons mdui-icon-left">graphic_eq</i>加载 FPS 帧率插件
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 说明卡片 -->
+        <div class="mdui-card">
+            <div class="mdui-card-primary">
+                <div class="mdui-card-primary-title">关于 Eruda</div>
+                <div class="mdui-card-primary-subtitle">轻量级移动端调试神器</div>
+            </div>
+            <div class="mdui-card-content">
+                点击右下角齿轮 <i class="mdui-icon material-icons" style="font-size:16px">settings</i> 打开面板。<br>
+                支持查看 Console、Network、Elements、Sources 等。
+            </div>
+        </div>
+
+        <!-- 3. 功能区：常规调试 -->
+        <div class="mdui-typo-subheading mdui-text-color-theme mdui-m-t-2">📝 常规调试</div>
+        <div class="btn-grid">
+            <button onclick="testLog()" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-white">
+                <i class="mdui-icon material-icons mdui-icon-left mdui-text-color-blue">assignment</i>打印日志
+            </button>
+            <button onclick="testNetwork()" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-white">
+                <i class="mdui-icon material-icons mdui-icon-left mdui-text-color-green">network_check</i>网络请求
+            </button>
+            <button onclick="testDom()" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-white">
+                <i class="mdui-icon material-icons mdui-icon-left mdui-text-color-orange">code</i>DOM 修改
+            </button>
+            <button onclick="testError()" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-white">
+                <i class="mdui-icon material-icons mdui-icon-left mdui-text-color-red">error</i>模拟报错
+            </button>
+             <button onclick="testStorage()" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-white">
+                <i class="mdui-icon material-icons mdui-icon-left mdui-text-color-purple">storage</i>写存储
+            </button>
+            <button onclick="clearConsole()" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-grey-200">
+                <i class="mdui-icon material-icons mdui-icon-left">delete</i>清空
+            </button>
+        </div>
+
+        <!-- 4. 功能区：硬件与系统 -->
+        <div class="mdui-typo-subheading mdui-text-color-theme mdui-m-t-3">🛠️ 硬件与系统</div>
+        <div class="btn-grid">
+            <button onclick="showDeviceInfo()" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent">
+                <i class="mdui-icon material-icons mdui-icon-left">smartphone</i>设备详情
+            </button>
+            
+            <button onclick="testVibration()" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent">
+                <i class="mdui-icon material-icons mdui-icon-left">vibration</i>震动测试
+            </button>
+            
+            <button onclick="testCopy()" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent">
+                <i class="mdui-icon material-icons mdui-icon-left">content_copy</i>剪贴板
+            </button>
+
+            <button onclick="testPerformance()" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent">
+                <i class="mdui-icon material-icons mdui-icon-left">speed</i>JS 性能
+            </button>
+        </div>
+
+    </div>
+
+    <!-- 隐藏的输入框用于复制测试 -->
+    <input type="text" id="copy-target" value="这是复制的测试文本" style="position: absolute; left: -9999px;">
+
+    <!-- MDUI JS -->
+    <script src="https://cdn.staticfile.org/mdui/1.0.2/js/mdui.min.js"></script>
+
+    <script>
+        // === 1. Eruda 核心逻辑 ===
+        var erudaLoaded = false;
+
+        function loadEruda() {
+            if (erudaLoaded) {
+                mdui.snackbar({message: 'Eruda 已经加载过了'});
+                return;
+            }
+
+            var src = document.getElementById('cdn-selector').value;
+            var script = document.createElement('script');
+            script.src = src;
+            
+            mdui.snackbar({message: '正在加载核心库...', position: 'top'});
+
+            script.onload = function () {
+                eruda.init();
+                erudaLoaded = true;
+                // 更新 UI 状态
+                document.getElementById('eruda-status').classList.add('active');
+                document.getElementById('eruda-status-text').innerText = 'Eruda 已就绪 (版本: ' + eruda.version + ')';
+                document.getElementById('eruda-status-text').classList.add('mdui-text-color-green');
+                
+                console.log('%c Eruda Init Success ', 'background: #4caf50; color: #fff; padding: 2px 5px; border-radius: 3px;');
+                mdui.snackbar({message: '加载成功！请点击右下角齿轮。'});
+            };
+
+            script.onerror = function() {
+                mdui.snackbar({message: '加载失败，请切换源重试', timeout: 3000});
+            }
+
+            document.body.appendChild(script);
+        }
+        
+        // 自动加载一次
+        loadEruda();
+
+        // 加载 Eruda FPS 插件
+        function loadFpsPlugin() {
+            if (!erudaLoaded) {
+                mdui.snackbar({message: '请先启动 Eruda'});
+                return;
+            }
+            // 使用 Staticfile CDN 加载 FPS 插件
+            var script = document.createElement('script');
+            script.src = "https://cdn.staticfile.org/eruda-fps/2.0.0/eruda-fps.min.js";
+            script.onload = function() {
+                eruda.add(erudaFps);
+                mdui.snackbar({message: 'FPS 插件已加载，请在 Eruda 面板中查看'});
+                console.log('FPS Plugin Loaded');
+            };
+            document.body.appendChild(script);
+        }
+
+        // === 2. 界面交互功能 ===
+
+        // 切换夜间模式
+        function toggleTheme() {
+            document.body.classList.toggle('mdui-theme-layout-dark');
+            var isDark = document.body.classList.contains('mdui-theme-layout-dark');
+            console.log('主题切换:', isDark ? '深色模式' : '浅色模式');
+        }
+
+        // === 3. 高级测试功能 ===
+
+        // 显示设备详细信息
+        function showDeviceInfo() {
+            var info = "";
+            info += "<b>屏幕尺寸:</b> " + window.screen.width + " x " + window.screen.height + "<br>";
+            info += "<b>视口尺寸:</b> " + window.innerWidth + " x " + window.innerHeight + "<br>";
+            info += "<b>像素比 (DPR):</b> " + window.devicePixelRatio + "<br>";
+            info += "<b>触控点数:</b> " + navigator.maxTouchPoints + "<br>";
+            info += "<b>平台:</b> " + navigator.platform + "<br>";
+            info += "<b>User Agent:</b> <span style='font-size:12px'>" + navigator.userAgent + "</span>";
+            
+            mdui.dialog({
+                title: '设备详情',
+                content: info,
+                buttons: [
+                    {text: '关闭'}
+                ]
+            });
+            console.table({
+                Screen: window.screen.width + 'x' + window.screen.height,
+                Viewport: window.innerWidth + 'x' + window.innerHeight,
+                DPR: window.devicePixelRatio,
+                UA: navigator.userAgent
+            });
+        }
+
+        // 震动测试 (仅安卓有效，iOS需特殊处理或无效)
+        function testVibration() {
+            if (!navigator.vibrate) {
+                mdui.snackbar({message: '您的设备/浏览器不支持震动 API'});
+                return;
+            }
+            // 震动 200ms
+            navigator.vibrate(200);
+            console.log('触发震动: 200ms');
+            mdui.snackbar({message: '📳 滋滋滋... (如果没震动请检查手机设置)'});
+        }
+
+        // 剪贴板测试
+        function testCopy() {
+            var text = "Eruda_Debug_Test_" + Math.floor(Math.random() * 1000);
+            
+            // 现代 API
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(function() {
+                    mdui.snackbar({message: '已复制到剪贴板: ' + text});
+                    console.log('Clipboard Write Success:', text);
+                }).catch(function(err) {
+                    console.error('Clipboard Error:', err);
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            // 兼容旧版
+            var input = document.getElementById('copy-target');
+            input.value = text;
+            input.select();
+            document.execCommand("copy");
+            mdui.snackbar({message: '兼容模式已复制: ' + text});
+        }
+
+        // === 4. 常规测试功能 ===
+
+        function testLog() {
+            var types = ['info', 'warn', 'error', 'debug'];
+            var type = types[Math.floor(Math.random() * types.length)];
+            console[type]('随机日志测试 [' + type.toUpperCase() + ']: ' + new Date().toLocaleTimeString());
+            mdui.snackbar({message: '已发送一条 ' + type + ' 日志'});
+        }
+
+        function testNetwork() {
+            mdui.snackbar({message: '正在请求 IP 信息...'});
+            fetch('https://httpbin.org/ip')
+                .then(res => res.json())
+                .then(data => {
+                    console.log('网络请求响应:', data);
+                    mdui.snackbar({message: '请求成功，您的IP: ' + data.origin});
+                })
+                .catch(e => {
+                    console.error(e);
+                    mdui.snackbar({message: '请求失败 (可能是跨域或无网)'});
+                });
+        }
+
+        function testDom() {
+            var btn = document.createElement('button');
+            btn.className = "mdui-btn mdui-btn-icon mdui-ripple mdui-color-random mdui-m-r-1";
+            btn.innerHTML = "<i class='mdui-icon material-icons'>face</i>";
+            document.querySelector('.mdui-card-content').appendChild(btn);
+            mdui.mutation(); // 刷新 MDUI DOM 监听
+            console.log('DOM 节点已添加');
+        }
+
+        function testError() {
+            try {
+                // 故意调用不存在的变量
+                console.log(undefinedVariable);
+            } catch (e) {
+                console.error("捕获到的模拟错误:", e);
+                mdui.snackbar({message: '已在控制台捕获并打印错误'});
+            }
+        }
+        
+        function testStorage() {
+            sessionStorage.setItem('DebugSession', 'Active');
+            localStorage.setItem('DebugLastRun', new Date().toISOString());
+            console.log('Storage Updated');
+            mdui.snackbar({message: 'Session/Local Storage 已写入'});
+        }
+
+        function testPerformance() {
+            var t0 = performance.now();
+            var arr = [];
+            for (var i = 0; i < 500000; i++) {
+                arr.push(Math.random());
+            }
+            arr.sort();
+            var t1 = performance.now();
+            var cost = (t1 - t0).toFixed(2);
+            console.log("性能测试: 排序50万个随机数耗时 " + cost + "ms");
+            mdui.alert("排序 50万个数字耗时: <b>" + cost + " ms</b>", "JS 性能测试");
+        }
+
+        function clearConsole() {
+            console.clear();
+            mdui.snackbar({message: '控制台已清空'});
+        }
+    </script>
+</body>
+</html>
