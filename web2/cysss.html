@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Color Match MD3 Ultra+</title>
+    <style>
+        :root {
+            /* MD3 Color System - Deep Violet Theme (Refined) */
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            
+            --md-sys-color-secondary: #625B71;
+            --md-sys-color-secondary-container: #E8DEF8;
+            --md-sys-color-on-secondary-container: #1D192B;
+
+            --md-sys-color-tertiary: #7D5260;
+            --md-sys-color-tertiary-container: #FFD8E4;
+            --md-sys-color-on-tertiary-container: #31111D;
+
+            --md-sys-color-error: #B3261E;
+            --md-sys-color-error-container: #F9DEDC;
+            --md-sys-color-on-error-container: #410E0B;
+
+            --md-sys-color-background: #FFFBFE;
+            --md-sys-color-surface: #FFFBFE;
+            --md-sys-color-surface-dim: #DED8E1;
+            --md-sys-color-surface-container: #F3EDF7;
+            --md-sys-color-surface-container-high: #ECE6F0;
+            --md-sys-color-on-surface: #1C1B1F;
+            --md-sys-color-on-surface-variant: #49454F;
+            --md-sys-color-outline: #79747E;
+            --md-sys-color-outline-variant: #CAC4D0;
+
+            /* Animation */
+            --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            --ease-emphasized: cubic-bezier(0.2, 0.0, 0, 1.0);
+            
+            /* Shape */
+            --shape-extra-large: 28px;
+            --shape-large: 16px;
+            --shape-medium: 12px;
+            --shape-full: 999px;
+
+            /* Elevation */
+            --elevation-1: 0px 1px 2px rgba(0,0,0,0.3), 0px 1px 3px 1px rgba(0,0,0,0.15);
+            --elevation-2: 0px 1px 2px rgba(0,0,0,0.3), 0px 2px 6px 2px rgba(0,0,0,0.15);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --md-sys-color-primary: #D0BCFF;
+                --md-sys-color-on-primary: #381E72;
+                --md-sys-color-primary-container: #4F378B;
+                --md-sys-color-on-primary-container: #EADDFF;
+                
+                --md-sys-color-secondary: #CCC2DC;
+                --md-sys-color-secondary-container: #4A4458;
+                --md-sys-color-on-secondary-container: #E8DEF8;
+
+                --md-sys-color-error: #F2B8B5;
+                --md-sys-color-error-container: #8C1D18;
+                --md-sys-color-on-error-container: #F9DEDC;
+
+                --md-sys-color-background: #141218;
+                --md-sys-color-surface: #141218;
+                --md-sys-color-surface-dim: #141218;
+                --md-sys-color-surface-container: #211F26;
+                --md-sys-color-surface-container-high: #2B2930;
+                --md-sys-color-on-surface: #E6E1E5;
+                --md-sys-color-on-surface-variant: #CAC4D0;
+                --md-sys-color-outline: #938F99;
+                --md-sys-color-outline-variant: #49454F;
+            }
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+        
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Roboto', system-ui, -apple-system, sans-serif;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-surface);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- View Management --- */
+        .view {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            background: var(--md-sys-color-background);
+            transition: transform 0.5s var(--ease-emphasized), opacity 0.4s var(--ease-emphasized), filter 0.4s;
+            z-index: 10; will-change: transform, opacity;
+        }
+        .view.hidden { opacity: 0; pointer-events: none; z-index: 0; transform: scale(0.92) translateY(20px); filter: blur(10px); }
+        .view.active { opacity: 1; pointer-events: auto; transform: scale(1) translateY(0); filter: blur(0); }
+
+        /* --- Components --- */
+        header { padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; height: 72px; }
+        h1 { margin: 0; font-size: 24px; font-weight: 400; letter-spacing: -0.5px; }
+
+        .icon-btn {
+            background: transparent; border: none; color: var(--md-sys-color-on-surface-variant);
+            padding: 12px; border-radius: 50%; cursor: pointer; position: relative; overflow: hidden;
+            transition: background 0.2s;
+        }
+        .icon-btn:active { background: var(--md-sys-color-surface-variant); }
+
+        /* Mode Cards Grid */
+        .mode-container {
+            padding: 16px 24px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            overflow-y: auto;
+            padding-bottom: 100px;
+        }
+
+        .mode-card {
+            background: var(--md-sys-color-surface-container);
+            border-radius: var(--shape-extra-large);
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        .mode-card:active { transform: scale(0.97); background: var(--md-sys-color-surface-container-high); }
+        
+        /* Hell Mode Style */
+        .mode-card.hell-mode { background: #2B0808; border: 1px solid var(--md-sys-color-error-container); }
+        .mode-card.hell-mode h3 { color: #FFB4AB; }
+        .mode-card.hell-mode p { color: #FFDAD6; opacity: 0.8; }
+
+        /* Ultra Mode Style */
+        .mode-card.ultra-mode { background: #1E1A29; border: 1px solid #D0BCFF; }
+        .mode-card.ultra-mode h3 { color: #D0BCFF; }
+        .mode-card.ultra-mode p { color: #EADDFF; opacity: 0.8; }
+
+        @media (prefers-color-scheme: light) {
+            .mode-card.hell-mode { background: #FFF0F0; border: 1px solid #FFDAD6; }
+            .mode-card.hell-mode h3 { color: #B3261E; }
+            .mode-card.hell-mode p { color: #601410; }
+
+            .mode-card.ultra-mode { background: #F6F2FC; border: 1px solid #6750A4; }
+            .mode-card.ultra-mode h3 { color: #6750A4; }
+            .mode-card.ultra-mode p { color: #49454F; }
+        }
+
+        .mode-card h3 { margin: 0 0 8px 0; font-size: 20px; font-weight: 500; }
+        .mode-card p { margin: 0; font-size: 14px; color: var(--md-sys-color-on-surface-variant); line-height: 1.5; }
+        .mode-icon { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); font-size: 36px; opacity: 0.2; }
+
+        /* Game Layout */
+        .status-bar {
+            display: flex; justify-content: space-between; padding: 0 32px 10px;
+            font-size: 14px; font-weight: 600; font-family: monospace; letter-spacing: 0.5px;
+            color: var(--md-sys-color-primary);
+        }
+        .game-layout {
+            flex: 1; display: flex; flex-direction: column; align-items: center;
+            padding: 10px 24px 30px; gap: 24px; max-width: 600px; margin: 0 auto; width: 100%;
+        }
+
+        /* Color Stage */
+        .color-stage {
+            display: flex; width: 100%; height: 160px;
+            border-radius: var(--shape-extra-large);
+            overflow: hidden; box-shadow: var(--elevation-2);
+            position: relative;
+        }
+        .color-box {
+            flex: 1; height: 100%; position: relative;
+            transition: background-color 0.1s linear;
+        }
+        .color-box::after {
+            content: attr(data-label);
+            position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+            font-size: 12px; color: rgba(255,255,255,0.9);
+            background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 20px;
+            backdrop-filter: blur(4px); font-weight: 500; white-space: nowrap;
+        }
+        .vs-badge {
+            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+            background: var(--md-sys-color-surface); color: var(--md-sys-color-on-surface);
+            width: 32px; height: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: bold; z-index: 2;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Controls */
+        .controls {
+            width: 100%; display: flex; flex-direction: column; gap: 12px;
+        }
+        
+        .slider-card {
+            background: var(--md-sys-color-surface-container);
+            padding: 16px 20px;
+            border-radius: var(--shape-large);
+            display: flex; align-items: center; gap: 16px;
+        }
+
+        .slider-label {
+            font-weight: 700; font-size: 14px; width: 24px;
+        }
+        
+        .slider-wrapper { flex: 1; display: flex; align-items: center; }
+        
+        .value-display {
+            width: 36px; text-align: right; font-family: monospace;
+            font-size: 14px; color: var(--md-sys-color-on-surface-variant);
+        }
+
+        /* Improved Range Input */
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; height: 30px; cursor: pointer; }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 6px; background: var(--md-sys-color-outline-variant);
+            border-radius: 3px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 24px; width: 24px; border-radius: 50%;
+            background: var(--thumb-color);
+            border: 2px solid var(--md-sys-color-surface);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            -webkit-appearance: none; margin-top: -9px;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        input[type=range]:active::-webkit-slider-thumb { transform: scale(1.2); box-shadow: 0 0 0 8px rgba(var(--thumb-rgb), 0.15); }
+        
+        #rangeR { --thumb-color: #EF5350; --thumb-rgb: 239, 83, 80; }
+        #rangeG { --thumb-color: #66BB6A; --thumb-rgb: 102, 187, 106; }
+        #rangeB { --thumb-color: #42A5F5; --thumb-rgb: 66, 165, 245; }
+
+        /* FAB */
+        .fab {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border: none; height: 64px; width: 100%;
+            border-radius: 20px; font-size: 18px; font-weight: 500;
+            box-shadow: var(--elevation-2);
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden;
+            margin-top: auto;
+        }
+        .fab:active { transform: scale(0.98); box-shadow: var(--elevation-1); }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 100;
+            backdrop-filter: blur(8px);
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .dialog {
+            background: var(--md-sys-color-surface-container-high);
+            width: 85%; max-width: 340px; border-radius: 28px; padding: 32px 24px;
+            text-align: center; box-shadow: var(--elevation-2);
+            transform: scale(0.9) translateY(20px); transition: transform 0.4s var(--ease-spring);
+        }
+        .modal-overlay.active .dialog { transform: scale(1) translateY(0); }
+
+        .score-display { font-size: 72px; font-weight: 700; color: var(--md-sys-color-primary); line-height: 1; margin: 16px 0; font-family: monospace; letter-spacing: -2px;}
+        .dialog-actions { display: flex; justify-content: center; gap: 12px; margin-top: 32px; }
+        
+        .btn-filled { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); border: none; padding: 12px 24px; border-radius: 24px; font-weight: 500; font-size: 15px; }
+        .btn-tonal { background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); border: none; padding: 12px 24px; border-radius: 24px; font-weight: 500; font-size: 15px; }
+
+        /* Utility */
+        .hidden { display: none !important; }
+        .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; color: var(--md-sys-color-error) !important; }
+        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+        
+        .ripple { position: absolute; border-radius: 50%; background: currentColor; opacity: 0.15; transform: scale(0); animation: ripple 0.6s linear; pointer-events: none; }
+        @keyframes ripple { to { transform: scale(4); opacity: 0; } }
+
+        .toast {
+            position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: var(--md-sys-color-on-surface); color: var(--md-sys-color-surface);
+            padding: 12px 24px; border-radius: 8px; font-size: 14px;
+            opacity: 0; transition: 0.3s var(--ease-emphasized); pointer-events: none; z-index: 200;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    </style>
+</head>
+<body>
+
+    <!-- HOME VIEW -->
+    <div id="home-view" class="view active">
+        <header>
+            <h1>Color Match Ultra+</h1>
+            <button class="icon-btn" id="btnHomeAch" aria-label="成就">🏆</button>
+        </header>
+        <div class="mode-container">
+            <div class="mode-card" onclick="startGame('practice')">
+                <h3>🎓 练习模式</h3>
+                <p>新手推荐。直接显示目标颜色的 RGB 数值，帮助你建立色彩直觉。</p>
+                <div class="mode-icon">🧪</div>
+            </div>
+            <div class="mode-card" onclick="startGame('endless')">
+                <h3>☕ 无尽模式</h3>
+                <p>休闲放松，无时间限制，尽情享受调色的乐趣。</p>
+                <div class="mode-icon">🌈</div>
+            </div>
+            <div class="mode-card" onclick="startGame('time')">
+                <h3>⏱️ 限时挑战</h3>
+                <p>60秒急速挑战！高分匹配可获得额外时间奖励。</p>
+                <div class="mode-icon">⚡</div>
+            </div>
+            <div class="mode-card" onclick="startGame('hardcore')">
+                <h3>🔥 极限模式</h3>
+                <p>一命通关。单次得分低于90分，游戏立刻结束。</p>
+                <div class="mode-icon">💀</div>
+            </div>
+            <div class="mode-card hell-mode" onclick="startGame('hell')">
+                <h3>👿 地狱模式</h3>
+                <p>限时 + 极限！时间紧迫且低于90分直接淘汰。</p>
+                <div class="mode-icon">🩸</div>
+            </div>
+            <!-- NEW ULTRA MODE -->
+            <div class="mode-card ultra-mode" onclick="startGame('ultra')">
+                <h3>🧿 入微模式</h3>
+                <p>变态难度。单次得分低于99分(即几乎完全一致)视为失败。</p>
+                <div class="mode-icon">👁️</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME VIEW -->
+    <div id="game-view" class="view hidden">
+        <header>
+            <button class="icon-btn" id="btnBackHome">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            </button>
+            <h1 id="gameTitle">模式标题</h1>
+            <div style="width: 48px"></div>
+        </header>
+
+        <div class="status-bar">
+            <span id="statLeft">Score: 0</span>
+            <span id="statRight">Round: 1</span>
+        </div>
+
+        <div class="game-layout">
+            <!-- Colors -->
+            <div class="color-stage">
+                <div class="color-box" id="targetColor" data-label="Target"></div>
+                <div class="vs-badge">VS</div>
+                <div class="color-box" id="userColor" data-label="Yours"></div>
+            </div>
+
+            <!-- Palette UI -->
+            <div class="controls">
+                <div class="slider-card">
+                    <span class="slider-label" style="color:#EF5350">R</span>
+                    <div class="slider-wrapper">
+                        <input type="range" id="rangeR" min="0" max="255" value="127">
+                    </div>
+                    <span class="value-display" id="valR">127</span>
+                </div>
+                <div class="slider-card">
+                    <span class="slider-label" style="color:#66BB6A">G</span>
+                    <div class="slider-wrapper">
+                        <input type="range" id="rangeG" min="0" max="255" value="127">
+                    </div>
+                    <span class="value-display" id="valG">127</span>
+                </div>
+                <div class="slider-card">
+                    <span class="slider-label" style="color:#42A5F5">B</span>
+                    <div class="slider-wrapper">
+                        <input type="range" id="rangeB" min="0" max="255" value="127">
+                    </div>
+                    <span class="value-display" id="valB">127</span>
+                </div>
+            </div>
+
+            <button class="fab" id="btnSubmit">
+                <span>匹配颜色</span>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- RESULT MODAL -->
+    <div class="modal-overlay" id="resultModal">
+        <div class="dialog">
+            <h3 id="resultTitle" style="margin:0; opacity:0.6">本轮得分</h3>
+            <div class="score-display" id="scoreValue">0</div>
+            <div style="margin-bottom: 24px; font-weight:500;" id="scoreComment">评价</div>
+            <div class="dialog-actions">
+                <button class="btn-filled" id="btnNextLevel">下一关</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME OVER MODAL -->
+    <div class="modal-overlay" id="gameOverModal">
+        <div class="dialog">
+            <h2 style="color: var(--md-sys-color-error); margin-top:0">游戏结束</h2>
+            <p id="gameOverReason" style="margin:8px 0; color:var(--md-sys-color-on-surface-variant)">原因</p>
+            <div style="font-size: 48px; font-weight:bold; margin: 24px 0; color: var(--md-sys-color-on-surface)" id="finalScore">0</div>
+            <p style="font-size:12px; opacity:0.6; text-transform:uppercase; letter-spacing:1px;">最终成绩</p>
+            <div class="dialog-actions">
+                <button class="btn-tonal" id="btnExitGame">返回主页</button>
+                <button class="btn-filled" id="btnRetry">重试</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ACHIEVEMENTS MODAL -->
+    <div class="modal-overlay" id="achievementsModal">
+        <div class="dialog" style="max-height: 70vh; display: flex; flex-direction: column;">
+            <h3 style="margin-top:0">成就馆</h3>
+            <div style="overflow-y: auto; text-align: left; margin: 10px -10px; padding: 0 10px;" id="achList"></div>
+            <div style="margin-top: 20px;">
+                <button class="btn-tonal" id="btnCloseAch">关闭</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast">消息提示</div>
+
+    <script>
+        // Game State
+        const STATE = {
+            mode: 'endless',
+            targetRGB: { r: 0, g: 0, b: 0 },
+            userRGB: { r: 127, g: 127, b: 127 },
+            score: 0,
+            round: 1,
+            timeLeft: 60,
+            timerInterval: null,
+            isActive: false
+        };
+
+        const ELEMENTS = {
+            homeView: document.getElementById('home-view'),
+            gameView: document.getElementById('game-view'),
+            targetBox: document.getElementById('targetColor'),
+            userBox: document.getElementById('userColor'),
+            sliders: {
+                r: document.getElementById('rangeR'),
+                g: document.getElementById('rangeG'),
+                b: document.getElementById('rangeB')
+            },
+            vals: {
+                r: document.getElementById('valR'),
+                g: document.getElementById('valG'),
+                b: document.getElementById('valB')
+            },
+            statLeft: document.getElementById('statLeft'),
+            statRight: document.getElementById('statRight'),
+            gameTitle: document.getElementById('gameTitle'),
+            btnSubmit: document.getElementById('btnSubmit'),
+            modals: {
+                result: document.getElementById('resultModal'),
+                gameOver: document.getElementById('gameOverModal'),
+                ach: document.getElementById('achievementsModal')
+            },
+            texts: {
+                scoreVal: document.getElementById('scoreValue'),
+                comment: document.getElementById('scoreComment'),
+                goReason: document.getElementById('gameOverReason'),
+                finalScore: document.getElementById('finalScore')
+            }
+        };
+
+        const ACHIEVEMENTS = [
+            { id: 'first_blood', icon: '👶', title: '初出茅庐', desc: '完成第一次颜色匹配', unlocked: false },
+            { id: 'cheat_code', icon: '📝', title: '作弊码', desc: '游玩一次练习模式', unlocked: false },
+            { id: 'good_eye', icon: '👀', title: '好眼力', desc: '单次得分达到 95 分', unlocked: false },
+            { id: 'eagle_eye', icon: '🦅', title: '鹰眼', desc: '单次得分达到 98 分', unlocked: false },
+            { id: 'god_perfect', icon: '👑', title: '绝对完美', desc: '获得真正的 100 分', unlocked: false },
+            { id: 'microscope', icon: '🔬', title: '显微镜', desc: '入微模式连续存活 5 轮', unlocked: false },
+            { id: 'survivor', icon: '🪜', title: '生存专家', desc: '极限模式坚持 10 轮', unlocked: false },
+            { id: 'time_lord', icon: '⏳', title: '时间领主', desc: '限时模式得分超过 3000', unlocked: false },
+            { id: 'hell_walker', icon: '👹', title: '地狱行者', desc: '地狱模式坚持 5 轮', unlocked: false },
+            { id: 'hell_conqueror', icon: '🔱', title: '地狱征服者', desc: '地狱模式坚持 15 轮', unlocked: false }
+        ];
+
+        function init() {
+            loadProgress();
+            setupListeners();
+            updateColorDisplay();
+        }
+
+        // --- Navigation ---
+        function switchView(toGame) {
+            if (toGame) {
+                ELEMENTS.homeView.classList.remove('active');
+                ELEMENTS.homeView.classList.add('hidden');
+                ELEMENTS.gameView.classList.remove('hidden');
+                setTimeout(() => ELEMENTS.gameView.classList.add('active'), 50);
+            } else {
+                ELEMENTS.gameView.classList.remove('active');
+                ELEMENTS.gameView.classList.add('hidden');
+                ELEMENTS.homeView.classList.remove('hidden');
+                setTimeout(() => ELEMENTS.homeView.classList.add('active'), 50);
+                stopGame();
+            }
+        }
+
+        // --- Core Logic ---
+        function startGame(mode) {
+            STATE.mode = mode;
+            STATE.round = 1;
+            STATE.score = 0;
+            STATE.isActive = true;
+
+            // Reset Sliders
+            ['r','g','b'].forEach(k => ELEMENTS.sliders[k].value = 127);
+            
+            // Mode Setup
+            const titles = {
+                'practice': '练习模式',
+                'endless': '无尽模式',
+                'time': '限时挑战',
+                'hardcore': '极限模式',
+                'hell': '地狱模式',
+                'ultra': '入微模式'
+            };
+            ELEMENTS.gameTitle.innerText = titles[mode];
+
+            if (mode === 'time') {
+                STATE.timeLeft = 60;
+                startTimer();
+            } else if (mode === 'hell') {
+                STATE.timeLeft = 30;
+                startTimer();
+            } else if (mode === 'practice') {
+                unlock('cheat_code');
+            }
+
+            updateStatsUI();
+            switchView(true);
+            newRound();
+        }
+
+        function stopGame() {
+            STATE.isActive = false;
+            clearInterval(STATE.timerInterval);
+        }
+
+        function newRound() {
+            STATE.targetRGB = {
+                r: Math.floor(Math.random() * 256),
+                g: Math.floor(Math.random() * 256),
+                b: Math.floor(Math.random() * 256)
+            };
+            
+            // Practice Mode Hint
+            if (STATE.mode === 'practice') {
+                ELEMENTS.targetBox.setAttribute('data-label', `R:${STATE.targetRGB.r} G:${STATE.targetRGB.g} B:${STATE.targetRGB.b}`);
+            } else {
+                ELEMENTS.targetBox.setAttribute('data-label', 'Target');
+            }
+
+            updateColorDisplay();
+            closeModal(ELEMENTS.modals.result);
+            closeModal(ELEMENTS.modals.gameOver);
+        }
+
+        function startTimer() {
+            clearInterval(STATE.timerInterval);
+            STATE.timerInterval = setInterval(() => {
+                STATE.timeLeft--;
+                updateStatsUI();
+                
+                const el = ELEMENTS.statLeft;
+                if (STATE.timeLeft <= 10) el.classList.add('shake');
+                else el.classList.remove('shake');
+
+                if (STATE.timeLeft <= 0) endGame('time_up');
+            }, 1000);
+        }
+
+        function updateStatsUI() {
+            const m = STATE.mode;
+            const r = STATE.round;
+            const t = STATE.timeLeft;
+            const s = STATE.score;
+
+            if (m === 'endless' || m === 'practice') {
+                ELEMENTS.statLeft.innerText = "∞ 自由";
+                ELEMENTS.statRight.innerText = `Round ${r}`;
+            } else if (m === 'time') {
+                ELEMENTS.statLeft.innerText = `⏱️ ${t}s`;
+                ELEMENTS.statRight.innerText = `Pts: ${s}`;
+            } else if (m === 'hardcore') {
+                ELEMENTS.statLeft.innerText = "❤️ 1 Life";
+                ELEMENTS.statRight.innerText = `Streak: ${r-1}`;
+            } else if (m === 'hell') {
+                ELEMENTS.statLeft.innerText = `👿 ${t}s`;
+                ELEMENTS.statRight.innerText = `Survive: ${r-1}`;
+            } else if (m === 'ultra') {
+                ELEMENTS.statLeft.innerText = "🧿 >99";
+                ELEMENTS.statRight.innerText = `Streak: ${r-1}`;
+            }
+        }
+
+        function updateColorDisplay() {
+            const { r: tr, g: tg, b: tb } = STATE.targetRGB;
+            ELEMENTS.targetBox.style.backgroundColor = `rgb(${tr}, ${tg}, ${tb})`;
+            
+            const ur = parseInt(ELEMENTS.sliders.r.value);
+            const ug = parseInt(ELEMENTS.sliders.g.value);
+            const ub = parseInt(ELEMENTS.sliders.b.value);
+            STATE.userRGB = { r: ur, g: ug, b: ub };
+            
+            ELEMENTS.userBox.style.backgroundColor = `rgb(${ur}, ${ug}, ${ub})`;
+            ELEMENTS.vals.r.innerText = ur;
+            ELEMENTS.vals.g.innerText = ug;
+            ELEMENTS.vals.b.innerText = ub;
+        }
+
+        function calculateScore() {
+            const dR = STATE.targetRGB.r - STATE.userRGB.r;
+            const dG = STATE.targetRGB.g - STATE.userRGB.g;
+            const dB = STATE.targetRGB.b - STATE.userRGB.b;
+            const dist = Math.sqrt(dR*dR + dG*dG + dB*dB);
+            const maxDist = Math.sqrt(195075); 
+            
+            let pct = 100 - (dist / maxDist * 100);
+            let score = Math.max(0, Math.round(pct));
+            
+            if (dist < 15) score = Math.max(score, 95 + Math.round((15-dist)/3));
+            if (dist < 3) score = 100;
+            
+            return Math.min(100, score);
+        }
+
+        function handleSubmit() {
+            if (!STATE.isActive) return;
+            const score = calculateScore();
+            if (navigator.vibrate) navigator.vibrate(50);
+            
+            checkAchievements(score);
+
+            if (STATE.mode === 'practice') {
+                // Practice mode: no scoring, just feedback
+                showResult(score);
+                STATE.round++;
+            }
+            else if (STATE.mode === 'endless') {
+                STATE.round++;
+                showResult(score);
+            } 
+            else if (STATE.mode === 'time') {
+                STATE.score += score;
+                STATE.round++;
+                if (score >= 90) {
+                    const bonus = score >= 98 ? 5 : 2;
+                    STATE.timeLeft += bonus;
+                    showToast(`+${bonus}s`);
+                }
+                showResult(score);
+            }
+            else if (STATE.mode === 'hardcore') {
+                if (score < 90) endGame('fail_score', score);
+                else {
+                    STATE.round++;
+                    showResult(score);
+                }
+            }
+            else if (STATE.mode === 'hell') {
+                if (score < 90) {
+                    endGame('fail_hell', score);
+                } else {
+                    const bonus = score >= 98 ? 3 : 1; 
+                    STATE.timeLeft += bonus;
+                    showToast(`+${bonus}s`);
+                    STATE.round++;
+                    showResult(score);
+                }
+            }
+            else if (STATE.mode === 'ultra') {
+                // ULTRA MODE LOGIC
+                if (score < 99) {
+                    endGame('fail_ultra', score);
+                } else {
+                    STATE.round++;
+                    if ((STATE.round - 1) >= 5) unlock('microscope');
+                    showResult(score);
+                }
+            }
+        }
+
+        function showResult(score) {
+            let t = "";
+            if (score === 100) t = "神之色彩";
+            else if (score >= 98) t = "完美无瑕";
+            else if (score >= 90) t = "精准打击";
+            else if (score >= 80) t = "做得不错";
+            else t = "尚需努力";
+
+            ELEMENTS.texts.scoreVal.innerText = score;
+            ELEMENTS.texts.comment.innerText = t;
+            openModal(ELEMENTS.modals.result);
+        }
+
+        function endGame(reason, lastScore) {
+            stopGame();
+            closeModal(ELEMENTS.modals.result);
+            
+            const rounds = STATE.round - 1;
+            let finalVal = 0;
+            let sub = "";
+
+            if (reason === 'time_up') {
+                ELEMENTS.texts.goReason.innerText = "时间耗尽";
+                if (STATE.mode === 'time') {
+                    finalVal = STATE.score;
+                    sub = "总得分";
+                    if (STATE.score > 3000) unlock('time_lord');
+                } else {
+                    finalVal = rounds;
+                    sub = "存活轮数";
+                }
+            } 
+            else if (reason === 'fail_score') {
+                ELEMENTS.texts.goReason.innerText = `得分 ${lastScore} 低于 90`;
+                finalVal = rounds;
+                sub = "极限连胜";
+                if (rounds >= 10) unlock('survivor');
+            }
+            else if (reason === 'fail_hell') {
+                ELEMENTS.texts.goReason.innerText = `地狱审判：得分 ${lastScore} 不合格`;
+                finalVal = rounds;
+                sub = "地狱生存轮数";
+                if (rounds >= 5) unlock('hell_walker');
+                if (rounds >= 15) unlock('hell_conqueror');
+            }
+            else if (reason === 'fail_ultra') {
+                ELEMENTS.texts.goReason.innerText = `微观偏差：得分 ${lastScore} 未达 99`;
+                finalVal = rounds;
+                sub = "入微连胜";
+            }
+
+            ELEMENTS.texts.finalScore.innerText = finalVal;
+            ELEMENTS.modals.gameOver.querySelector('p:last-of-type').innerText = sub;
+            openModal(ELEMENTS.modals.gameOver);
+        }
+
+        // --- Achievement System ---
+        function checkAchievements(score) {
+            unlock('first_blood');
+            if (score >= 95) unlock('good_eye');
+            if (score >= 98) unlock('eagle_eye');
+            if (score === 100) unlock('god_perfect');
+        }
+
+        function unlock(id) {
+            const ach = ACHIEVEMENTS.find(a => a.id === id);
+            if (ach && !ach.unlocked) {
+                ach.unlocked = true;
+                showToast(`🏆 解锁: ${ach.title}`);
+                saveProgress();
+            }
+        }
+
+        function loadProgress() {
+            const d = localStorage.getItem('colorMatchUltraPlus');
+            if (d) {
+                const parsed = JSON.parse(d);
+                ACHIEVEMENTS.forEach(a => {
+                    const saved = parsed.find(p => p.id === a.id);
+                    if (saved) a.unlocked = saved.unlocked;
+                });
+            }
+        }
+        function saveProgress() {
+            localStorage.setItem('colorMatchUltraPlus', JSON.stringify(ACHIEVEMENTS.map(a => ({ id: a.id, unlocked: a.unlocked }))));
+        }
+        
+        function renderAchievements() {
+            const list = document.getElementById('achList');
+            list.innerHTML = '';
+            ACHIEVEMENTS.forEach(ach => {
+                const div = document.createElement('div');
+                div.style.cssText = `display:flex; align-items:center; padding:12px 0; border-bottom:1px solid var(--md-sys-color-outline-variant); opacity:${ach.unlocked?1:0.5}; filter:grayscale(${ach.unlocked?0:1})`;
+                div.innerHTML = `
+                    <div style="font-size:24px; margin-right:16px">${ach.icon}</div>
+                    <div>
+                        <div style="font-weight:bold; font-size:15px">${ach.title}</div>
+                        <div style="font-size:12px; color:var(--md-sys-color-on-surface-variant)">${ach.desc}</div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        // --- Interactions ---
+        function openModal(el) { el.classList.add('active'); }
+        function closeModal(el) { el.classList.remove('active'); }
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg; t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+        function createRipple(e) {
+            const btn = e.currentTarget;
+            const circle = document.createElement("span");
+            const d = Math.max(btn.clientWidth, btn.clientHeight);
+            const r = btn.getBoundingClientRect();
+            circle.style.width = circle.style.height = `${d}px`;
+            circle.style.left = `${(e.clientX || e.touches[0].clientX) - r.left - d/2}px`;
+            circle.style.top = `${(e.clientY || e.touches[0].clientY) - r.top - d/2}px`;
+            circle.classList.add("ripple");
+            const old = btn.querySelector('.ripple');
+            if(old) old.remove();
+            btn.appendChild(circle);
+        }
+
+        function setupListeners() {
+            ['r','g','b'].forEach(k => {
+                const el = ELEMENTS.sliders[k];
+                el.addEventListener('input', updateColorDisplay);
+            });
+
+            const clickables = [
+                { id: 'btnSubmit', fn: handleSubmit },
+                { id: 'btnNextLevel', fn: newRound },
+                { id: 'btnRetry', fn: () => startGame(STATE.mode) },
+                // BUG FIX: Explicitly close modal when exiting game
+                { id: 'btnExitGame', fn: () => { 
+                    closeModal(ELEMENTS.modals.gameOver);
+                    switchView(false); 
+                }},
+                { id: 'btnBackHome', fn: () => switchView(false) },
+                { id: 'btnHomeAch', fn: () => { renderAchievements(); openModal(ELEMENTS.modals.ach); } },
+                { id: 'btnCloseAch', fn: () => closeModal(ELEMENTS.modals.ach) }
+            ];
+
+            clickables.forEach(item => {
+                const el = document.getElementById(item.id);
+                el.addEventListener('click', (e) => { createRipple(e); item.fn(); });
+            });
+            
+            document.querySelectorAll('.mode-card').forEach(c => {
+                c.addEventListener('click', createRipple);
+                c.addEventListener('touchstart', createRipple);
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
