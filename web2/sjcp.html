@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>幸运选号器</title>
+    <style>
+        :root {
+            /* MD3 Color Tokens (Purple Theme) */
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            --md-sys-color-secondary-container: #E8DEF8;
+            --md-sys-color-on-secondary-container: #1D192B;
+            --md-sys-color-background: #FEF7FF;
+            --md-sys-color-surface: #FEF7FF;
+            --md-sys-color-surface-container: #F3EDF7;
+            --md-sys-color-outline: #79747E;
+            
+            /* Ball Colors */
+            --ball-red: #B3261E;
+            --ball-blue: #215FA6;
+            --ball-gold: #EA8600; /* For 3D/KL8 */
+            
+            /* Spacing & Type */
+            --border-radius-lg: 16px;
+            --border-radius-pill: 50px;
+            --font-family: 'Roboto', 'Helvetica Neue', 'PingFang SC', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none; /* Mobile app feel */
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--md-sys-color-background);
+            font-family: var(--font-family);
+            color: #1c1b1f;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* App Bar */
+        header {
+            padding: 20px 16px;
+            text-align: center;
+            background: var(--md-sys-color-surface);
+            font-size: 22px;
+            font-weight: 500;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            padding: 0 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        /* Chips Container (Lottery Type Selector) */
+        .chips-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            padding: 8px 0;
+        }
+
+        .chip {
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 8px;
+            padding: 6px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #49454F;
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .chip.active {
+            background-color: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
+            border-color: transparent;
+        }
+
+        /* Result Card */
+        .card {
+            background-color: var(--md-sys-color-surface-container);
+            border-radius: var(--border-radius-lg);
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+
+        .lottery-title {
+            font-size: 16px;
+            margin-bottom: 24px;
+            color: #49454F;
+        }
+
+        .balls-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .ball {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            opacity: 0;
+            transform: scale(0.5);
+        }
+
+        .ball.red { background-color: var(--ball-red); }
+        .ball.blue { background-color: var(--ball-blue); }
+        .ball.gold { background-color: var(--ball-gold); }
+
+        /* FAB Button */
+        .fab-container {
+            padding: 24px;
+            display: flex;
+            justify-content: center;
+            background: linear-gradient(to top, var(--md-sys-color-background) 80%, transparent);
+        }
+
+        .fab {
+            background-color: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+            border: none;
+            border-radius: 16px;
+            padding: 16px 32px;
+            font-size: 16px;
+            font-weight: 500;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.1s;
+        }
+
+        .fab:active {
+            transform: scale(0.96);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+
+        .fab svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        @keyframes popIn {
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        /* Helper for animation delay */
+        .ball:nth-child(1) { animation-delay: 0.05s; }
+        .ball:nth-child(2) { animation-delay: 0.1s; }
+        .ball:nth-child(3) { animation-delay: 0.15s; }
+        .ball:nth-child(4) { animation-delay: 0.2s; }
+        .ball:nth-child(5) { animation-delay: 0.25s; }
+        .ball:nth-child(6) { animation-delay: 0.3s; }
+        .ball:nth-child(7) { animation-delay: 0.35s; }
+        .ball:nth-child(8) { animation-delay: 0.4s; }
+        .ball:nth-child(9) { animation-delay: 0.45s; }
+        .ball:nth-child(10) { animation-delay: 0.5s; }
+
+    </style>
+</head>
+<body>
+
+    <header>随机彩票</header>
+
+    <main>
+        <div class="chips-container" id="lotteryTypes">
+            <!-- Chips will be injected by JS -->
+        </div>
+
+        <div class="card">
+            <div class="lottery-title" id="currentTitle">双色球</div>
+            <div class="balls-container" id="results">
+                <!-- Balls go here -->
+                <div style="color:#aaa;">点击生成按钮开始</div>
+            </div>
+        </div>
+    </main>
+
+    <div class="fab-container">
+        <button class="fab" onclick="generateNumbers()">
+            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-6 8.5c0 .83-.67 1.5-1.5 1.5H10v2h1.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-4v-2h4v-2h-1.5c-.83 0-1.5-.67-1.5-1.5S9.67 11 10.5 11h4v.5zM7 7h10v2H7V7z"/></svg>
+            生成号码
+        </button>
+    </div>
+
+    <script>
+        // 配置各种彩票规则
+        const lotteries = {
+            ssq: {
+                name: '双色球',
+                redCount: 6, redMax: 33,
+                blueCount: 1, blueMax: 16,
+                isUnique: true,
+                type: 'standard'
+            },
+            dlt: {
+                name: '大乐透',
+                redCount: 5, redMax: 35,
+                blueCount: 2, blueMax: 12,
+                isUnique: true,
+                type: 'standard'
+            },
+            qlc: {
+                name: '七乐彩',
+                redCount: 7, redMax: 30,
+                blueCount: 0,
+                isUnique: true,
+                type: 'standard' // 只有红球
+            },
+            fc3d: {
+                name: '福彩3D',
+                count: 3, max: 9,
+                isUnique: false, // 可重复
+                type: '3d'
+            },
+            kl8: {
+                name: '快乐8 (选10)',
+                count: 10, max: 80,
+                isUnique: true,
+                type: 'kl8' // 全部金色或红色
+            }
+        };
+
+        let currentType = 'ssq';
+
+        // 初始化页面
+        function init() {
+            const container = document.getElementById('lotteryTypes');
+            
+            Object.keys(lotteries).forEach(key => {
+                const chip = document.createElement('button');
+                chip.className = `chip ${key === currentType ? 'active' : ''}`;
+                chip.innerText = lotteries[key].name;
+                chip.onclick = () => switchType(key);
+                container.appendChild(chip);
+            });
+            
+            generateNumbers(); // 首次加载自动生成
+        }
+
+        // 切换彩票类型
+        function switchType(type) {
+            currentType = type;
+            
+            // 更新 UI Chip 状态
+            const chips = document.querySelectorAll('.chip');
+            chips.forEach((chip, index) => {
+                if (Object.keys(lotteries)[index] === type) {
+                    chip.classList.add('active');
+                } else {
+                    chip.classList.remove('active');
+                }
+            });
+
+            document.getElementById('currentTitle').innerText = lotteries[type].name;
+            generateNumbers();
+        }
+
+        // 生成随机数逻辑
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function getUniqueRandomNumbers(count, max) {
+            const nums = new Set();
+            while(nums.size < count) {
+                nums.add(getRandomInt(1, max));
+            }
+            return Array.from(nums).sort((a, b) => a - b);
+        }
+
+        function getRepeatableRandomNumbers(count, max) {
+            const nums = [];
+            for(let i=0; i<count; i++) {
+                nums.push(getRandomInt(0, max));
+            }
+            return nums;
+        }
+
+        // 核心生成与渲染
+        function generateNumbers() {
+            const config = lotteries[currentType];
+            const resultContainer = document.getElementById('results');
+            resultContainer.innerHTML = ''; // 清空
+
+            let redBalls = [];
+            let blueBalls = [];
+
+            // 1. 数据生成
+            if (config.type === 'standard') {
+                redBalls = getUniqueRandomNumbers(config.redCount, config.redMax);
+                if (config.blueCount > 0) {
+                    blueBalls = getUniqueRandomNumbers(config.blueCount, config.blueMax);
+                }
+            } else if (config.type === '3d') {
+                redBalls = getRepeatableRandomNumbers(config.count, config.max);
+            } else if (config.type === 'kl8') {
+                redBalls = getUniqueRandomNumbers(config.count, config.max);
+            }
+
+            // 2. 渲染函数
+            const createBall = (num, colorClass) => {
+                const ball = document.createElement('div');
+                ball.className = `ball ${colorClass}`;
+                // 补零格式化
+                ball.innerText = num.toString().padStart(2, '0');
+                return ball;
+            };
+
+            // 3. 渲染红球/金球/3D球
+            redBalls.forEach(num => {
+                let color = 'red';
+                if (config.type === '3d' || config.type === 'kl8') color = 'gold';
+                // 七乐彩通常是红色，这里保持红色
+                resultContainer.appendChild(createBall(num, color));
+            });
+
+            // 4. 渲染蓝球
+            blueBalls.forEach(num => {
+                resultContainer.appendChild(createBall(num, 'blue'));
+            });
+        }
+
+        // 启动
+        init();
+
+    </script>
+</body>
+</html>
