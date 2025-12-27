@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>MD3 加密工具 Ultra</title>
+    <!-- 引入 Crypto-JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!-- 字体与图标 -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+
+    <style>
+        :root {
+            /* MD3 Color Tokens (M3 Baseline Purple) */
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            
+            --md-sys-color-secondary: #625B71;
+            
+            /* 背景体系 - 更加丰富的层次 */
+            --md-sys-color-background: #FEF7FF;
+            --md-sys-color-surface: #FEF7FF; 
+            --md-sys-color-surface-container-low: #F7F2FA;
+            --md-sys-color-surface-container: #F3EDF7;
+            --md-sys-color-surface-container-high: #ECE6F0;
+            
+            --md-sys-color-on-surface: #1D1B20;
+            --md-sys-color-on-surface-variant: #49454F;
+            --md-sys-color-outline: #79747E;
+            --md-sys-color-outline-variant: #CAC4D0;
+
+            /* 动画曲线 - Spring-like Deceleration */
+            --ease-spring: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+            --ease-standard: cubic-bezier(0.2, 0.0, 0, 1.0);
+            --anim-duration: 500ms;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-surface);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* 保持顶部对齐，防止滚动问题 */
+            min-height: 100vh;
+            padding-bottom: 40px; 
+            overflow-y: auto;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 600px;
+            padding: 16px;
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            opacity: 0;
+            transform: translateY(30px) scale(0.98);
+            transition: opacity 0.6s var(--ease-standard), transform 0.6s var(--ease-spring);
+        }
+
+        .app-container.loaded {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        header {
+            padding: 16px 0 8px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        
+        h1 {
+            font-size: 22px;
+            font-weight: 500; /* Medium */
+            margin: 0;
+            color: var(--md-sys-color-on-surface);
+            letter-spacing: -0.5px;
+        }
+
+        /* Tabs - Segmented Button */
+        .tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            background: var(--md-sys-color-surface-container-high);
+            border: 1px solid var(--md-sys-color-outline-variant);
+            border-radius: 28px;
+            height: 48px;
+            position: relative;
+            margin-bottom: 4px;
+        }
+
+        .tab {
+            border: none;
+            background: transparent;
+            color: var(--md-sys-color-on-surface-variant);
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 2;
+            transition: color 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab.active {
+            color: var(--md-sys-color-on-primary-container);
+        }
+
+        .tab-indicator {
+            position: absolute;
+            top: 0; bottom: 0; left: 0; width: 50%;
+            padding: 4px; /* 内缩 */
+            transform-origin: center center;
+            transition: transform 0.5s var(--ease-spring);
+            z-index: 1;
+        }
+
+        .tab-indicator-inner {
+            background-color: var(--md-sys-color-primary-container);
+            width: 100%; height: 100%;
+            border-radius: 24px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        /* Card System */
+        .card {
+            background: var(--md-sys-color-surface-container-low);
+            border-radius: 24px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            border: 1px solid rgba(0,0,0,0.03); /* 微弱边框增强质感 */
+            box-shadow: 0px 1px 2px rgba(0,0,0,0.06), 0px 4px 8px rgba(0,0,0,0.04); /* 更柔和的阴影 */
+            transition: transform 0.3s var(--ease-spring);
+        }
+
+        /* MD3 Text Field */
+        .input-group {
+            position: relative;
+            background-color: var(--md-sys-color-surface-container-high);
+            border-radius: 4px 4px 0 0;
+            transition: background-color 0.2s;
+        }
+        
+        .input-group:hover {
+            background-color: #E2DEE5;
+        }
+
+        .input-group::after {
+            content: '';
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
+            height: 1px;
+            background-color: var(--md-sys-color-on-surface-variant);
+            transition: height 0.2s, background-color 0.2s;
+        }
+
+        .input-group:focus-within::after {
+            height: 2px;
+            background-color: var(--md-sys-color-primary);
+        }
+
+        .label-float {
+            position: absolute;
+            left: 16px;
+            top: 8px;
+            font-size: 11px;
+            color: var(--md-sys-color-primary);
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            pointer-events: none;
+        }
+
+        select, textarea, input[type="text"] {
+            width: 100%;
+            background: transparent;
+            border: none;
+            padding: 24px 16px 10px 16px;
+            font-family: 'Roboto Mono', monospace; /* 使用等宽字体增强极客感 */
+            font-size: 15px;
+            color: var(--md-sys-color-on-surface);
+            resize: none;
+            line-height: 1.5;
+        }
+        
+        /* 普通文本输入框还是用 sans-serif */
+        textarea#inputText {
+            font-family: 'Roboto', sans-serif;
+        }
+
+        select {
+            font-family: 'Roboto', sans-serif;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%2349454F%22%3E%3Cpath%20d%3D%22M7%2010l5%205%205-5z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+        }
+
+        select:focus, textarea:focus, input:focus { outline: none; }
+
+        /* Key Input Animation */
+        .key-input-wrapper {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.5s var(--ease-spring), opacity 0.3s ease;
+            opacity: 0;
+            margin-top: -10px; /* 收起时紧凑 */
+        }
+        
+        .key-input-wrapper.active {
+            grid-template-rows: 1fr;
+            opacity: 1;
+            margin-top: 0;
+        }
+
+        .key-input-inner { overflow: hidden; }
+
+        /* Filled Button */
+        .btn-filled {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border: none;
+            border-radius: 100px;
+            height: 52px;
+            padding: 0 24px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            box-shadow: 0px 2px 4px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+
+        .btn-filled:active { transform: scale(0.97); }
+
+        .btn-text {
+            background: transparent;
+            color: var(--md-sys-color-primary);
+            border: none;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        /* Ripple */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(0);
+            animation: ripple-anim 0.5s linear;
+            pointer-events: none;
+        }
+        @keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }
+
+        /* Dialog & Toast */
+        .dialog-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s var(--ease-standard);
+        }
+        .dialog-overlay.show { opacity: 1; visibility: visible; }
+        .dialog {
+            background: #FFFBFE;
+            width: 85%; max-width: 320px;
+            border-radius: 28px;
+            padding: 24px;
+            transform: scale(0.9);
+            transition: transform 0.4s var(--ease-spring);
+        }
+        .dialog-overlay.show .dialog { transform: scale(1); }
+        .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+        
+        .toast {
+            position: fixed;
+            bottom: 40px; left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #322F35;
+            color: #F4EFF4;
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.5s var(--ease-spring);
+            z-index: 2000;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            white-space: nowrap;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+        /* Result Area Specifics */
+        .result-container {
+            display: none;
+            transform-origin: top center;
+        }
+        
+        /* 只读输入框样式 - 看起来像输入框，其实只读 */
+        .readonly-input textarea {
+            color: var(--md-sys-color-on-surface-variant);
+            cursor: text; /* 允许选择光标 */
+        }
+        .readonly-input .input-group:hover {
+            background-color: var(--md-sys-color-surface-container-high); /* 保持不变色，表示只读 */
+        }
+        .readonly-input .input-group::after {
+            background-color: var(--md-sys-color-outline-variant); /* 灰色底线 */
+            height: 1px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 协议弹窗 (未改动) -->
+    <div id="agreementOverlay" class="dialog-overlay">
+        <div class="dialog">
+            <div style="text-align:center; margin-bottom:16px;">
+                <span class="material-symbols-rounded" style="font-size: 40px; color: var(--md-sys-color-secondary);">admin_panel_settings</span>
+            </div>
+            <h2 style="margin:0 0 16px 0; font-size:24px; text-align:center;">服务协议</h2>
+            <p style="color: var(--md-sys-color-on-surface-variant); font-size: 14px; line-height: 1.6; margin:0;">
+                请知悉：<br>
+                1. 本工具仅供安全研究与测试。<br>
+                2. 数据纯本地运算，无网络上传。<br>
+                3. 请务必妥善保存您的密钥。<br>
+            </p>
+            <div class="dialog-actions">
+                <button class="btn-text" style="color: var(--md-sys-color-error);" onclick="handleAgreement(false)">退出</button>
+                <button class="btn-text" style="background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); border-radius:20px; padding: 10px 24px;" onclick="handleAgreement(true)">
+                    同意并继续
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Body -->
+    <div class="app-container" id="app">
+        <header>
+            <span class="material-symbols-rounded" style="font-size: 32px; color: var(--md-sys-color-primary);">encrypted</span>
+            <h1>Cipher MD3</h1>
+        </header>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab-indicator" id="tabIndicator">
+                <div class="tab-indicator-inner"></div>
+            </div>
+            <button class="tab active" onclick="switchMode('encrypt')" id="tabEncrypt">
+                <span class="material-symbols-rounded">lock</span> 加密
+            </button>
+            <button class="tab" onclick="switchMode('decrypt')" id="tabDecrypt">
+                <span class="material-symbols-rounded">lock_open_right</span> 解密
+            </button>
+        </div>
+
+        <div class="card">
+            <!-- Algorithm Selection -->
+            <div class="input-group">
+                <span class="label-float">加密算法 / Algorithm</span>
+                <select id="algoSelect" onchange="checkAlgoRequirements()">
+                    <optgroup label="编码 (Encoding)">
+                        <option value="base64">Base64</option>
+                        <option value="url">URL Encode</option>
+                    </optgroup>
+                    <optgroup label="对称加密 (Symmetric)">
+                        <option value="aes">AES (256-bit)</option>
+                        <option value="des">TripleDES (3DES)</option>
+                        <option value="rc4">RC4</option>
+                        <option value="rabbit">Rabbit</option>
+                    </optgroup>
+                    <optgroup label="哈希摘要 (Hash)">
+                        <option value="md5">MD5</option>
+                        <option value="sha1">SHA-1</option>
+                        <option value="sha256">SHA-256</option>
+                        <option value="sha512">SHA-512</option>
+                        <option value="ripemd160">RIPEMD-160</option>
+                    </optgroup>
+                    <!-- 新增加密方式 -->
+                    <optgroup label="HMAC & KDF (With Key)">
+                        <option value="hmac-md5">HMAC-MD5</option>
+                        <option value="hmac-sha1">HMAC-SHA1</option>
+                        <option value="hmac-sha256">HMAC-SHA256</option>
+                        <option value="hmac-sha512">HMAC-SHA512</option>
+                        <option value="pbkdf2">PBKDF2</option>
+                    </optgroup>
+                </select>
+            </div>
+
+            <!-- Key Input (Animated) -->
+            <div class="key-input-wrapper" id="keyWrapper">
+                <div class="key-input-inner">
+                    <div class="input-group" style="margin-top: 16px;">
+                        <span class="label-float">密钥 / Passphrase</span>
+                        <input type="text" id="keyInput" placeholder="请输入加解密密钥">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Text -->
+            <div class="input-group">
+                <span class="label-float">输入内容 / Input</span>
+                <textarea id="inputText" rows="4" placeholder="在此输入..."></textarea>
+            </div>
+
+            <!-- Action Button -->
+            <button class="btn-filled" onclick="processData(event)">
+                <span class="material-symbols-rounded" id="actionIcon">bolt</span>
+                <span id="actionBtnText">执行操作</span>
+            </button>
+        </div>
+
+        <!-- Result Card (Modified to use Input field) -->
+        <div class="card result-container" id="resultCard">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="material-symbols-rounded" style="color:var(--md-sys-color-primary); font-size: 20px;">output</span>
+                    <span style="font-size:14px; font-weight:500;">运算结果</span>
+                </div>
+                <!-- 保持复制按钮，虽然有了输入框，但按钮还是方便 -->
+                <button class="btn-text" onclick="copyResult()">
+                    <span class="material-symbols-rounded" style="font-size:18px; margin-right:4px;">content_copy</span> 复制
+                </button>
+            </div>
+
+            <!-- 这里是修改的地方：变为一个只读的输入框 -->
+            <div class="readonly-input">
+                <div class="input-group">
+                    <span class="label-float" style="color: var(--md-sys-color-outline);">结果 (可长按全选)</span>
+                    <textarea id="outputText" readonly rows="5"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">已复制</div>
+
+    <script>
+        let currentMode = 'encrypt';
+        
+        window.onload = function() {
+            checkAgreement();
+            checkAlgoRequirements();
+        }
+
+        function checkAgreement() {
+            const agreed = localStorage.getItem('user_agreed');
+            if (agreed !== 'true') {
+                document.getElementById('agreementOverlay').classList.add('show');
+            } else {
+                document.getElementById('app').classList.add('loaded');
+            }
+        }
+
+        function handleAgreement(isAgreed) {
+            if (isAgreed) {
+                document.getElementById('agreementOverlay').classList.remove('show');
+                localStorage.setItem('user_agreed', 'true');
+                setTimeout(() => {
+                    document.getElementById('app').classList.add('loaded');
+                }, 300);
+            } else {
+                if (history.length > 1) history.back();
+                else { window.close(); alert("必须同意协议才能使用"); }
+            }
+        }
+
+        function switchMode(mode) {
+            if (currentMode === mode) return;
+            currentMode = mode;
+
+            const indicator = document.getElementById('tabIndicator');
+            const btnEncrypt = document.getElementById('tabEncrypt');
+            const btnDecrypt = document.getElementById('tabDecrypt');
+            const btnText = document.getElementById('actionBtnText');
+
+            if (mode === 'encrypt') {
+                indicator.style.transform = 'translateX(0%)';
+                btnEncrypt.classList.add('active');
+                btnDecrypt.classList.remove('active');
+                btnText.innerText = '执行加密';
+            } else {
+                indicator.style.transform = 'translateX(100%)';
+                btnEncrypt.classList.remove('active');
+                btnDecrypt.classList.add('active');
+                btnText.innerText = '执行解密';
+            }
+
+            checkAlgoRequirements();
+            // 隐藏结果卡片以重置视觉流
+            document.getElementById('resultCard').style.display = 'none';
+        }
+
+        function checkAlgoRequirements() {
+            const algo = document.getElementById('algoSelect').value;
+            const keyWrapper = document.getElementById('keyWrapper');
+            
+            // 需要密钥的算法列表 (更新增加了 HMAC 和 PBKDF2)
+            const needKey = [
+                'aes', 'des', 'rc4', 'rabbit',
+                'hmac-md5', 'hmac-sha1', 'hmac-sha256', 'hmac-sha512', 'pbkdf2'
+            ];
+            
+            // 单向加密算法 (不可解密)
+            const oneWay = [
+                'md5', 'sha1', 'sha256', 'sha512', 'ripemd160',
+                'hmac-md5', 'hmac-sha1', 'hmac-sha256', 'hmac-sha512', 'pbkdf2'
+            ];
+
+            // 1. 密钥框动画
+            if (needKey.includes(algo)) {
+                keyWrapper.classList.add('active');
+            } else {
+                keyWrapper.classList.remove('active');
+            }
+
+            // 2. 按钮状态文字提示
+            const btnText = document.getElementById('actionBtnText');
+            if (currentMode === 'decrypt' && oneWay.includes(algo)) {
+                btnText.innerText = '此算法不可逆 (仅加密)';
+                btnText.style.opacity = '0.7';
+            } else {
+                btnText.innerText = currentMode === 'encrypt' ? '执行加密' : '执行解密';
+                btnText.style.opacity = '1';
+            }
+        }
+
+        function createRipple(event) {
+            const button = event.currentTarget;
+            const circle = document.createElement("span");
+            const diameter = Math.max(button.clientWidth, button.clientHeight);
+            const radius = diameter / 2;
+            const rect = button.getBoundingClientRect();
+            circle.style.width = circle.style.height = `${diameter}px`;
+            circle.style.left = `${event.clientX - rect.left - radius}px`;
+            circle.style.top = `${event.clientY - rect.top - radius}px`;
+            circle.classList.add("ripple");
+            const ripple = button.getElementsByClassName("ripple")[0];
+            if (ripple) ripple.remove();
+            button.appendChild(circle);
+        }
+
+        function processData(e) {
+            createRipple(e);
+
+            const input = document.getElementById('inputText').value;
+            const algo = document.getElementById('algoSelect').value;
+            const key = document.getElementById('keyInput').value;
+            let output = "";
+
+            if (!input) {
+                showToast("请输入内容");
+                return;
+            }
+
+            try {
+                if (currentMode === 'encrypt') {
+                    switch (algo) {
+                        // 基础
+                        case 'base64': output = CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(input)); break;
+                        case 'url': output = encodeURIComponent(input); break;
+                        
+                        // 对称
+                        case 'aes': if(!key) throw new Error("缺少密钥"); output = CryptoJS.AES.encrypt(input, key).toString(); break;
+                        case 'des': if(!key) throw new Error("缺少密钥"); output = CryptoJS.TripleDES.encrypt(input, key).toString(); break;
+                        case 'rc4': if(!key) throw new Error("缺少密钥"); output = CryptoJS.RC4.encrypt(input, key).toString(); break;
+                        case 'rabbit': if(!key) throw new Error("缺少密钥"); output = CryptoJS.Rabbit.encrypt(input, key).toString(); break;
+                        
+                        // 哈希
+                        case 'md5': output = CryptoJS.MD5(input).toString(); break;
+                        case 'sha1': output = CryptoJS.SHA1(input).toString(); break;
+                        case 'sha256': output = CryptoJS.SHA256(input).toString(); break;
+                        case 'sha512': output = CryptoJS.SHA512(input).toString(); break;
+                        case 'ripemd160': output = CryptoJS.RIPEMD160(input).toString(); break;
+
+                        // HMAC & KDF (新增)
+                        case 'hmac-md5': if(!key) throw new Error("HMAC 需要密钥"); output = CryptoJS.HmacMD5(input, key).toString(); break;
+                        case 'hmac-sha1': if(!key) throw new Error("HMAC 需要密钥"); output = CryptoJS.HmacSHA1(input, key).toString(); break;
+                        case 'hmac-sha256': if(!key) throw new Error("HMAC 需要密钥"); output = CryptoJS.HmacSHA256(input, key).toString(); break;
+                        case 'hmac-sha512': if(!key) throw new Error("HMAC 需要密钥"); output = CryptoJS.HmacSHA512(input, key).toString(); break;
+                        case 'pbkdf2': if(!key) throw new Error("PBKDF2 需要盐(此处复用密钥栏)"); output = CryptoJS.PBKDF2(input, key, { keySize: 256/32, iterations: 100 }).toString(); break;
+                    }
+                } else {
+                    // Decrypt
+                    const oneWay = ['md5', 'sha1', 'sha256', 'sha512', 'ripemd160', 'hmac-md5', 'hmac-sha1', 'hmac-sha256', 'hmac-sha512', 'pbkdf2'];
+                    if (oneWay.includes(algo)) throw new Error("此算法不可逆，无法解密");
+
+                    switch (algo) {
+                        case 'base64': output = CryptoJS.enc.Base64.parse(input).toString(CryptoJS.enc.Utf8); break;
+                        case 'url': output = decodeURIComponent(input); break;
+                        case 'aes': if(!key) throw new Error("缺少密钥"); output = CryptoJS.AES.decrypt(input, key).toString(CryptoJS.enc.Utf8); break;
+                        case 'des': if(!key) throw new Error("缺少密钥"); output = CryptoJS.TripleDES.decrypt(input, key).toString(CryptoJS.enc.Utf8); break;
+                        case 'rc4': if(!key) throw new Error("缺少密钥"); output = CryptoJS.RC4.decrypt(input, key).toString(CryptoJS.enc.Utf8); break;
+                        case 'rabbit': if(!key) throw new Error("缺少密钥"); output = CryptoJS.Rabbit.decrypt(input, key).toString(CryptoJS.enc.Utf8); break;
+                    }
+                    if (!output && algo !== 'base64' && algo !== 'url') throw new Error("解密失败：密钥错误或数据损坏");
+                }
+            } catch (err) {
+                output = "错误: " + (err.message || "无法处理");
+            }
+
+            // 显示结果
+            const resultCard = document.getElementById('resultCard');
+            // 修改这里：给 textarea 赋值
+            document.getElementById('outputText').value = output;
+            
+            resultCard.style.display = 'flex';
+            resultCard.style.animation = 'none';
+            resultCard.offsetHeight; 
+            resultCard.style.animation = 'fadeSlideUp 0.6s var(--ease-spring)';
+
+            setTimeout(() => {
+                resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 100);
+        }
+
+        function copyResult() {
+            const textarea = document.getElementById('outputText');
+            // 优先使用 Clipboard API
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textarea.value).then(() => showToast("已复制到剪贴板"))
+                .catch(() => fallbackCopy(textarea));
+            } else {
+                fallbackCopy(textarea);
+            }
+        }
+
+        // 兼容性复制方案
+        function fallbackCopy(textarea) {
+            try {
+                textarea.select();
+                textarea.setSelectionRange(0, 99999); // 适配移动端
+                document.execCommand('copy');
+                showToast("已复制");
+                // 复制完后取消选中，体验更好
+                textarea.blur(); 
+            } catch (err) {
+                showToast("自动复制失败，请手动长按结果框复制");
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+    </script>
+    
+    <style>
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(40px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+    </style>
+</body>
+</html>
