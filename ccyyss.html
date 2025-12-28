@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>辨别颜色大挑战 - 终极版</title>
+    <link rel="stylesheet" href="https://unpkg.com/mdui@1.0.2/dist/css/mdui.min.css"/>
+    <style>
+        body {
+            background-color: #f5f5f5;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: background 0.3s;
+            overflow-x: hidden;
+        }
+        .page-section { display: none; padding-top: 20px; padding-bottom: 80px;}
+        .page-section.active { display: block; }
+        
+        #game-board {
+            width: 100%; max-width: 500px; aspect-ratio: 1 / 1;
+            margin: 20px auto; background: #fff; padding: 5px;
+            border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: grid; gap: 4px;
+            transition: background 0.3s, transform 0.3s;
+        }
+        .color-block { border-radius: 4px; cursor: pointer; transition: transform 0.1s, opacity 0.5s; }
+        .color-block:active { transform: scale(0.95); }
+        
+        .quick-login-chip { margin: 5px; cursor: pointer; }
+        .game-info-bar { display: flex; justify-content: space-between; padding: 0 16px; font-size: 18px; font-weight: bold; color: #555; align-items: center;}
+        
+        .mdui-container { max-width: 600px; }
+
+        .coin-display { color: #ffca28; font-weight: bold; display: flex; align-items: center; }
+        .coin-icon { margin-right: 4px; }
+
+        .achievement-item { opacity: 0.5; filter: grayscale(100%); transition: all 0.3s;}
+        .achievement-item.unlocked { opacity: 1; filter: grayscale(0%); border-left: 4px solid #ff4081; }
+
+        /* 夜视模式 */
+        body.night-mode { background-color: #121212; }
+        body.night-mode .game-info-bar { color: #eee; }
+        body.night-mode #game-board { background-color: #333; box-shadow: 0 4px 10px rgba(255,255,255,0.1); }
+
+        /* 旋风模式动画 */
+        @keyframes spinBoard { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .mode-spin { animation: spinBoard 8s infinite linear; }
+
+        /* 幽灵模式动画 */
+        @keyframes ghostFade { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 0; } }
+        .ghost-active .color-block { animation: ghostFade 2s forwards; }
+
+        /* 商店价格标签 */
+        .price-tag { font-weight: bold; color: #ff6f00; font-size: 1.1em; }
+    </style>
+</head>
+<body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
+
+    <!-- 顶部导航栏 -->
+    <div class="mdui-appbar mdui-appbar-fixed">
+        <div class="mdui-toolbar mdui-color-theme">
+            <span class="mdui-typo-headline">辨别颜色</span>
+            <div class="mdui-toolbar-spacer"></div>
+            
+            <div id="nav-coins" class="coin-display mdui-m-r-2" style="display:none; color: white;">
+                <i class="mdui-icon material-icons coin-icon">monetization_on</i>
+                <span id="display-coins-nav">0</span>
+            </div>
+
+            <span id="current-username-display" class="mdui-typo-subheading"></span>
+            <button id="btn-logout" class="mdui-btn mdui-btn-icon" style="display:none;" onclick="logout()">
+                <i class="mdui-icon material-icons">exit_to_app</i>
+            </button>
+        </div>
+    </div>
+
+    <div class="mdui-container" style="margin-top: 80px;">
+
+        <!-- 1. 登录/注册页面 -->
+        <div id="page-login" class="page-section active">
+            <div id="storage-warning" class="mdui-chip mdui-color-red mdui-text-color-white mdui-m-b-2" style="display:none; width:100%">
+                <span class="mdui-chip-icon"><i class="mdui-icon material-icons">warning</i></span>
+                <span class="mdui-chip-title" id="storage-warning-text"></span>
+            </div>
+
+            <div class="mdui-card mdui-p-a-2">
+                <div class="mdui-typo-h5 mdui-text-center">欢迎挑战</div>
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <label class="mdui-textfield-label">请输入你的名字 (用于存档)</label>
+                    <input class="mdui-textfield-input" type="text" id="input-username"/>
+                </div>
+                <button class="mdui-btn mdui-btn-block mdui-color-theme-accent mdui-ripple mdui-m-t-2" onclick="handleLogin()">开始游戏 / 注册</button>
+            </div>
+            <div id="quick-login-area" class="mdui-m-t-3" style="display:none;">
+                <div class="mdui-typo-caption-opacity mdui-m-b-1">快捷登录:</div>
+                <div id="quick-login-list"></div>
+            </div>
+        </div>
+
+        <!-- 2. 首页 -->
+        <div id="page-home" class="page-section">
+            
+            <div class="mdui-row mdui-m-b-2">
+                <div class="mdui-col-xs-4">
+                    <button class="mdui-btn mdui-btn-block mdui-color-amber-400 mdui-ripple" onclick="showPage('page-shop')">
+                        <i class="mdui-icon material-icons">shopping_cart</i><br>商店
+                    </button>
+                </div>
+                <div class="mdui-col-xs-4">
+                    <button class="mdui-btn mdui-btn-block mdui-color-purple-400 mdui-ripple" onclick="showPage('page-achievements')">
+                        <i class="mdui-icon material-icons">stars</i><br>成就
+                    </button>
+                </div>
+                <div class="mdui-col-xs-4">
+                    <button class="mdui-btn mdui-btn-block mdui-color-grey-400 mdui-ripple" onclick="showPage('page-settings')">
+                        <i class="mdui-icon material-icons">settings</i><br>设置
+                    </button>
+                </div>
+            </div>
+
+            <div class="mdui-typo-h5 mdui-text-center mdui-m-b-2">选择模式</div>
+            <div class="mdui-list">
+                <!-- 原有模式 -->
+                <div class="mdui-card mdui-m-b-2 mdui-ripple" onclick="startGame('practice')">
+                    <div class="mdui-card-primary">
+                        <div class="mdui-card-primary-title">☕ 练习模式</div>
+                        <div class="mdui-card-content">无限制 | 最高分: <span id="score-practice">0</span></div>
+                    </div>
+                </div>
+                <div class="mdui-card mdui-m-b-2 mdui-ripple" onclick="startGame('endless')">
+                    <div class="mdui-card-primary">
+                        <div class="mdui-card-primary-title">⏳ 无尽模式</div>
+                        <div class="mdui-card-content">答对加时 | 最高分: <span id="score-endless">0</span></div>
+                    </div>
+                </div>
+                <!-- 新增 V4 模式 -->
+                <div class="mdui-card mdui-m-b-2 mdui-ripple" onclick="startGame('spin')">
+                    <div class="mdui-card-primary">
+                        <div class="mdui-card-primary-title">🌪️ 旋风模式</div>
+                        <div class="mdui-card-content">天旋地转 | 最高分: <span id="score-spin">0</span></div>
+                    </div>
+                </div>
+                <div class="mdui-card mdui-m-b-2 mdui-ripple" onclick="startGame('ghost')">
+                    <div class="mdui-card-primary">
+                        <div class="mdui-card-primary-title">👻 幽灵模式</div>
+                        <div class="mdui-card-content">方块会逐渐消失 | 最高分: <span id="score-ghost">0</span></div>
+                    </div>
+                </div>
+                 <!-- 其他模式 -->
+                 <div class="mdui-card mdui-m-b-2 mdui-ripple" onclick="startGame('extreme')">
+                    <div class="mdui-card-primary">
+                        <div class="mdui-card-primary-title">⚡ 极限模式</div>
+                        <div class="mdui-card-content">极短时间 | 最高分: <span id="score-extreme">0</span></div>
+                    </div>
+                </div>
+                 <div class="mdui-card mdui-m-b-2 mdui-ripple" onclick="startGame('time_trial')">
+                    <div class="mdui-card-primary">
+                        <div class="mdui-card-primary-title">⏱️ 竞速模式</div>
+                        <div class="mdui-card-content">限时60秒 | 最高分: <span id="score-time_trial">0</span></div>
+                    </div>
+                </div>
+                <div class="mdui-card mdui-m-b-2 mdui-ripple" onclick="startGame('night_vision')">
+                    <div class="mdui-card-primary">
+                        <div class="mdui-card-primary-title">🌃 夜视模式</div>
+                        <div class="mdui-card-content">黑暗中的微光 | 最高分: <span id="score-night_vision">0</span></div>
+                    </div>
+                </div>
+                <div class="mdui-card mdui-m-b-2 mdui-ripple" onclick="startGame('chaos')">
+                    <div class="mdui-card-primary">
+                        <div class="mdui-card-primary-title">🎲 混沌模式</div>
+                        <div class="mdui-card-content">随机大小 | 最高分: <span id="score-chaos">0</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 商店页面 -->
+        <div id="page-shop" class="page-section">
+            <button class="mdui-btn mdui-btn-icon mdui-m-b-1" onclick="backToHome()"><i class="mdui-icon material-icons">arrow_back</i></button>
+            <div class="mdui-typo-h5">道具商店 (涨价了!)</div>
+            <p>当前金币: <span id="shop-coins" class="mdui-text-color-amber-700">0</span></p>
+            
+            <div class="mdui-list">
+                <li class="mdui-list-item mdui-ripple">
+                    <i class="mdui-list-item-icon mdui-icon material-icons mdui-text-color-blue">timer</i>
+                    <div class="mdui-list-item-content">
+                        <div class="mdui-list-item-title">时间大师</div>
+                        <div class="mdui-list-item-text">无尽模式初始时间 +10秒</div>
+                        <div class="price-tag">800币</div>
+                    </div>
+                    <button class="mdui-btn mdui-color-green" onclick="buyItem('extra_time', 800)" id="btn-buy-extra_time">购买</button>
+                </li>
+                <li class="mdui-list-item mdui-ripple">
+                    <i class="mdui-list-item-icon mdui-icon material-icons mdui-text-color-amber">attach_money</i>
+                    <div class="mdui-list-item-content">
+                        <div class="mdui-list-item-title">淘金者</div>
+                        <div class="mdui-list-item-text">永久双倍金币收益</div>
+                         <div class="price-tag">2000币</div>
+                    </div>
+                    <button class="mdui-btn mdui-color-green" onclick="buyItem('double_coins', 2000)" id="btn-buy-double_coins">购买</button>
+                </li>
+                <li class="mdui-list-item mdui-ripple">
+                    <i class="mdui-list-item-icon mdui-icon material-icons mdui-text-color-red">security</i>
+                    <div class="mdui-list-item-content">
+                        <div class="mdui-list-item-title">减刑令</div>
+                        <div class="mdui-list-item-text">无尽模式惩罚减半</div>
+                         <div class="price-tag">2500币</div>
+                    </div>
+                    <button class="mdui-btn mdui-color-green" onclick="buyItem('penalty_shield', 2500)" id="btn-buy-penalty_shield">购买</button>
+                </li>
+                 <li class="mdui-list-item mdui-ripple">
+                    <i class="mdui-list-item-icon mdui-icon material-icons mdui-text-color-teal">remove_red_eye</i>
+                    <div class="mdui-list-item-content">
+                        <div class="mdui-list-item-title">鹰眼</div>
+                        <div class="mdui-list-item-text">颜色差异度增加</div>
+                         <div class="price-tag">3000币</div>
+                    </div>
+                    <button class="mdui-btn mdui-color-green" onclick="buyItem('eagle_eye', 3000)" id="btn-buy-eagle_eye">购买</button>
+                </li>
+                <li class="mdui-list-item mdui-ripple">
+                    <i class="mdui-list-item-icon mdui-icon material-icons mdui-text-color-pink">favorite</i>
+                    <div class="mdui-list-item-content">
+                        <div class="mdui-list-item-title">复活卡 (被动)</div>
+                        <div class="mdui-list-item-text">每局游戏允许失误一次不结束</div>
+                         <div class="price-tag">5000币</div>
+                    </div>
+                    <button class="mdui-btn mdui-color-green" onclick="buyItem('revive_card', 5000)" id="btn-buy-revive_card">购买</button>
+                </li>
+            </div>
+        </div>
+
+        <!-- 4. 成就页面 -->
+        <div id="page-achievements" class="page-section">
+            <button class="mdui-btn mdui-btn-icon mdui-m-b-1" onclick="backToHome()"><i class="mdui-icon material-icons">arrow_back</i></button>
+            <div class="mdui-typo-h5">成就墙</div>
+            <div id="achievements-list" class="mdui-m-t-2"></div>
+        </div>
+
+        <!-- 5. 设置页面 -->
+        <div id="page-settings" class="page-section">
+            <button class="mdui-btn mdui-btn-icon mdui-m-b-1" onclick="backToHome()"><i class="mdui-icon material-icons">arrow_back</i></button>
+            <div class="mdui-typo-h5">游戏设置</div>
+            
+            <div class="mdui-m-t-3">
+                <div class="mdui-typo-title mdui-m-b-1">难度设置 (影响颜色相似度)</div>
+                <label class="mdui-radio mdui-m-b-1 mdui-col-12">
+                    <input type="radio" name="difficulty" value="easy" onclick="setDifficulty('easy')"/>
+                    <i class="mdui-radio-icon"></i>
+                    简单 (Baby)
+                </label>
+                <label class="mdui-radio mdui-m-b-1 mdui-col-12">
+                    <input type="radio" name="difficulty" value="normal" onclick="setDifficulty('normal')"/>
+                    <i class="mdui-radio-icon"></i>
+                    普通 (Normal) - 默认
+                </label>
+                <label class="mdui-radio mdui-m-b-1 mdui-col-12">
+                    <input type="radio" name="difficulty" value="hard" onclick="setDifficulty('hard')"/>
+                    <i class="mdui-radio-icon"></i>
+                    困难 (Hard)
+                </label>
+                <label class="mdui-radio mdui-m-b-1 mdui-col-12">
+                    <input type="radio" name="difficulty" value="hell" onclick="setDifficulty('hell')"/>
+                    <i class="mdui-radio-icon"></i>
+                    地狱 (Hell)
+                </label>
+            </div>
+            
+            <div class="mdui-m-t-3">
+                <div class="mdui-typo-caption">当前存档方式: <span id="storage-method-display">检测中...</span></div>
+            </div>
+        </div>
+
+        <!-- 6. 游戏界面 -->
+        <div id="page-game" class="page-section">
+            <div class="game-info-bar">
+                <span id="game-score">得分: 0</span>
+                <div class="coin-display"><i class="mdui-icon material-icons coin-icon" style="font-size:18px;">monetization_on</i> <span id="game-coins">0</span></div>
+                <span id="game-timer" style="color: #ff4081;">剩余: --</span>
+            </div>
+            <div id="game-board"></div>
+            <button class="mdui-btn mdui-btn-block mdui-color-grey-200 mdui-ripple mdui-m-t-2" onclick="backToHome()">放弃 / 返回首页</button>
+        </div>
+
+    </div>
+
+    <!-- 弹窗部分 -->
+    <div class="mdui-dialog" id="dialog-gameover">
+        <div class="mdui-dialog-title">游戏结束</div>
+        <div class="mdui-dialog-content">
+            <p>得分: <strong id="result-score" style="font-size: 24px;">0</strong></p>
+            <p>获得金币: <strong id="result-coins" style="color:#ffca28;">0</strong></p>
+            <p id="result-revive-msg" class="mdui-text-color-green" style="display:none; font-size:12px;">(复活卡已生效一次)</p>
+            <p id="result-highscore-msg" class="mdui-text-color-pink"></p>
+        </div>
+        <div class="mdui-dialog-actions">
+            <button class="mdui-btn mdui-ripple" onclick="restartGame()">再来一局</button>
+            <button class="mdui-btn mdui-ripple" onclick="closeDialogAndHome()">返回首页</button>
+        </div>
+    </div>
+
+    <div class="mdui-dialog" id="dialog-cheat-detected">
+        <div class="mdui-dialog-title mdui-text-color-red">⚠️ 数据异常警告</div>
+        <div class="mdui-dialog-content">
+            检测到账号 <span id="cheat-username" style="font-weight:bold;"></span> 的数据被修改！<br>
+            你需要重置数据才能继续游戏。
+        </div>
+        <div class="mdui-dialog-actions">
+            <button class="mdui-btn mdui-ripple" mdui-dialog-close>取消</button>
+            <button class="mdui-btn mdui-ripple mdui-text-color-red" onclick="resetUserData()">重置数据并进入</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/mdui@1.0.2/dist/js/mdui.min.js"></script>
+    <script>
+        const DB_KEY = 'color_game_users_v4'; // 数据库版本升级
+        
+        // --- 1. 智能存档检测系统 (Storage System) ---
+        const StorageMgr = {
+            type: null, // 'local', 'session', 'memory'
+            memStore: {}, // 内存模式备用
+
+            init: function() {
+                // 方法 1: LocalStorage
+                try {
+                    localStorage.setItem('__test', '1');
+                    localStorage.removeItem('__test');
+                    this.type = 'local';
+                    console.log("Storage: LocalStorage enabled.");
+                } catch (e) {
+                    // 方法 2: SessionStorage
+                    try {
+                        sessionStorage.setItem('__test', '1');
+                        sessionStorage.removeItem('__test');
+                        this.type = 'session';
+                        console.log("Storage: SessionStorage enabled (fallback 1).");
+                    } catch (e2) {
+                        // 方法 3: Memory
+                        this.type = 'memory';
+                        console.log("Storage: Memory enabled (fallback 2).");
+                    }
+                }
+                this.updateUI();
+            },
+
+            getItem: function(key) {
+                if (this.type === 'local') return localStorage.getItem(key);
+                if (this.type === 'session') return sessionStorage.getItem(key);
+                return this.memStore[key] || null;
+            },
+
+            setItem: function(key, val) {
+                if (this.type === 'local') localStorage.setItem(key, val);
+                else if (this.type === 'session') sessionStorage.setItem(key, val);
+                else this.memStore[key] = val;
+            },
+
+            updateUI: function() {
+                const warnEl = document.getElementById('storage-warning');
+                const setEl = document.getElementById('storage-method-display');
+                
+                let text = "";
+                if (this.type === 'local') text = "永久存档 (LocalStorage)";
+                else if (this.type === 'session') text = "临时存档 (SessionStorage - 关闭浏览器丢失)";
+                else {
+                    text = "无存档 (内存模式)";
+                    // 第三个方法也不行(其实是第三个方法生效了)，提示
+                    warnEl.style.display = 'flex';
+                    document.getElementById('storage-warning-text').textContent = "您的浏览器不支持存档，但仍可正常游玩 (刷新后丢失数据)。";
+                }
+                if(setEl) setEl.textContent = text;
+            }
+        };
+
+        // --- 核心变量 ---
+        let currentUser = null;
+        let userDatabase = {};
+        let gameOverDialogInstance = null;
+        let antiCheatInterval = null;
+
+        let gameState = {
+            mode: 'practice', 
+            level: 1, score: 0, timer: 0, coinsEarned: 0,
+            intervalId: null, isPlaying: false,
+            reviveUsed: false // 复活卡标记
+        };
+
+        const ACHIEVEMENTS = [
+            { id: 'first_blood', name: '初出茅庐', desc: '得分 > 10', condition: (u, s) => s > 10 },
+            { id: 'score_100', name: '火眼金睛', desc: '单局得分 > 50', condition: (u, s) => s > 50 },
+            { id: 'rich_man', name: '小富翁', desc: '累计 500 金币', condition: (u) => u.coins >= 500 },
+            { id: 'tycoon', name: '顶级富豪', desc: '累计 5000 金币', condition: (u) => u.coins >= 5000 },
+            { id: 'shopping', name: '剁手党', desc: '在商店购物', condition: (u) => u.upgrades && Object.keys(u.upgrades).length > 0 },
+            { id: 'spin_master', name: '抗晕眩', desc: '旋风模式得分 > 20', condition: (u, s, mode) => mode === 'spin' && s >= 20 },
+            { id: 'ghost_hunter', name: '幽灵猎手', desc: '幽灵模式得分 > 20', condition: (u, s, mode) => mode === 'ghost' && s >= 20 },
+            { id: 'hard_mode', name: '硬核玩家', desc: '在困难或地狱难度得分 > 30', condition: (u, s) => s > 30 && (u.settings.difficulty === 'hard' || u.settings.difficulty === 'hell') }
+        ];
+
+        window.onload = function() {
+            StorageMgr.init(); // 初始化存储检测
+            loadDatabase();
+            loadQuickLogin();
+            
+            // 加载上次用户
+            const lastUser = StorageMgr.getItem('color_game_last_user');
+            if(lastUser) document.getElementById('input-username').value = lastUser;
+        };
+
+        // --- 反作弊 ---
+        function generateChecksum(userData) {
+            const clone = JSON.parse(JSON.stringify(userData));
+            delete clone.checksum;
+            const str = JSON.stringify(clone, Object.keys(clone).sort());
+            let hash = 5381;
+            for (let i = 0; i < str.length; i++) hash = ((hash << 5) + hash) + str.charCodeAt(i);
+            return hash.toString(16);
+        }
+
+        function verifyData(username) {
+            if (!userDatabase[username]) return true;
+            return userDatabase[username].checksum === generateChecksum(userDatabase[username]);
+        }
+
+        function startRuntimeAntiCheat() {
+            if (StorageMgr.type === 'memory') return; // 内存模式不检测作弊
+            if (antiCheatInterval) clearInterval(antiCheatInterval);
+            antiCheatInterval = setInterval(() => {
+                const rawData = StorageMgr.getItem(DB_KEY);
+                if (rawData) {
+                    const db = JSON.parse(rawData);
+                    if (db[currentUser]) {
+                        const currentMemCheck = generateChecksum(userDatabase[currentUser]);
+                        const diskClone = JSON.parse(JSON.stringify(db[currentUser]));
+                        delete diskClone.checksum;
+                        const diskCheckString = JSON.stringify(diskClone, Object.keys(diskClone).sort());
+                        let hash = 5381;
+                        for (let i = 0; i < diskCheckString.length; i++) hash = ((hash << 5) + hash) + diskCheckString.charCodeAt(i);
+                        
+                        if (db[currentUser].checksum !== hash.toString(16) || userDatabase[currentUser].checksum !== currentMemCheck) {
+                            stopGame();
+                            clearInterval(antiCheatInterval);
+                            alert("⚠️ 数据不一致，强制退出。");
+                            logout();
+                        }
+                    }
+                }
+            }, 3000);
+        }
+
+        // --- 用户与数据 ---
+        function loadDatabase() {
+            try {
+                const data = StorageMgr.getItem(DB_KEY);
+                if (data) userDatabase = JSON.parse(data); else userDatabase = {};
+            } catch (e) { userDatabase = {}; }
+        }
+
+        function saveDatabase() {
+            if (currentUser && userDatabase[currentUser]) {
+                userDatabase[currentUser].checksum = generateChecksum(userDatabase[currentUser]);
+            }
+            StorageMgr.setItem(DB_KEY, JSON.stringify(userDatabase));
+            loadQuickLogin();
+        }
+
+        function handleLogin() {
+            const username = document.getElementById('input-username').value.trim();
+            if (!username) { mdui.snackbar({message: '请输入名字'}); return; }
+            if (userDatabase[username] && !verifyData(username)) {
+                document.getElementById('cheat-username').textContent = username;
+                new mdui.Dialog('#dialog-cheat-detected').open();
+                return;
+            }
+            loginUser(username);
+        }
+
+        function loginUser(username) {
+            currentUser = username;
+            if (!userDatabase[currentUser]) {
+                userDatabase[currentUser] = {
+                    scores: {}, coins: 0, achievements: [], upgrades: {}, 
+                    settings: { difficulty: 'normal' }, // 默认难度
+                    checksum: ""
+                };
+                saveDatabase();
+            } else {
+                // 数据结构补全
+                if(!userDatabase[currentUser].settings) userDatabase[currentUser].settings = { difficulty: 'normal' };
+            }
+            StorageMgr.setItem('color_game_last_user', currentUser);
+            updateUIForLogin();
+            showPage('page-home');
+            updateHomeData();
+            startRuntimeAntiCheat();
+        }
+
+        function resetUserData() {
+            const u = document.getElementById('cheat-username').textContent;
+            delete userDatabase[u];
+            saveDatabase();
+            loginUser(u);
+        }
+
+        function logout() {
+            clearInterval(antiCheatInterval);
+            currentUser = null;
+            document.getElementById('input-username').value = '';
+            document.getElementById('nav-coins').style.display = 'none';
+            document.getElementById('btn-logout').style.display = 'none';
+            document.getElementById('current-username-display').textContent = '';
+            showPage('page-login');
+            loadQuickLogin();
+        }
+
+        function loadQuickLogin() {
+            const listDiv = document.getElementById('quick-login-list');
+            const areaDiv = document.getElementById('quick-login-area');
+            listDiv.innerHTML = '';
+            const users = Object.keys(userDatabase);
+            if (users.length > 0) {
+                areaDiv.style.display = 'block';
+                users.forEach(u => {
+                    const chip = document.createElement('div');
+                    chip.className = 'mdui-chip quick-login-chip';
+                    chip.innerHTML = `<span class="mdui-chip-title">${u}</span>`;
+                    chip.onclick = () => { document.getElementById('input-username').value = u; handleLogin(); };
+                    listDiv.appendChild(chip);
+                });
+            } else { areaDiv.style.display = 'none'; }
+        }
+
+        // --- 界面与设置 ---
+        function updateUIForLogin() {
+            document.getElementById('current-username-display').textContent = currentUser;
+            document.getElementById('btn-logout').style.display = 'block';
+            document.getElementById('nav-coins').style.display = 'flex';
+        }
+
+        function updateHomeData() {
+            const u = userDatabase[currentUser];
+            const getS = (k) => u.scores[k] || 0;
+            const ids = ['practice','endless','extreme','time_trial','night_vision','chaos','spin','ghost'];
+            ids.forEach(id => {
+                const el = document.getElementById('score-' + id);
+                if(el) el.textContent = getS(id);
+            });
+            document.getElementById('display-coins-nav').textContent = u.coins;
+        }
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            if(pageId === 'page-shop') updateShopUI();
+            if(pageId === 'page-achievements') updateAchievementsUI();
+            if(pageId === 'page-settings') updateSettingsUI();
+        }
+
+        function backToHome() { stopGame(); showPage('page-home'); updateHomeData(); }
+
+        // --- 设置逻辑 ---
+        function updateSettingsUI() {
+            const u = userDatabase[currentUser];
+            const diff = u.settings.difficulty || 'normal';
+            const radios = document.getElementsByName('difficulty');
+            for(let r of radios) {
+                if(r.value === diff) r.checked = true;
+            }
+        }
+
+        function setDifficulty(val) {
+            userDatabase[currentUser].settings.difficulty = val;
+            saveDatabase();
+        }
+
+        // --- 商店逻辑 ---
+        function updateShopUI() {
+            const u = userDatabase[currentUser];
+            document.getElementById('shop-coins').textContent = u.coins;
+            
+            const items = [
+                {id: 'extra_time', price: 800},
+                {id: 'double_coins', price: 2000},
+                {id: 'penalty_shield', price: 2500},
+                {id: 'eagle_eye', price: 3000},
+                {id: 'revive_card', price: 5000}
+            ];
+
+            items.forEach(item => {
+                const btn = document.getElementById('btn-buy-' + item.id);
+                const isOwned = u.upgrades[item.id];
+                if(isOwned) {
+                    btn.textContent = "已拥有"; btn.disabled = true;
+                    btn.classList.remove('mdui-color-green'); btn.classList.add('mdui-color-grey');
+                } else if (u.coins < item.price) {
+                    btn.disabled = true; btn.textContent = "金币不足";
+                    btn.classList.remove('mdui-color-green'); btn.classList.add('mdui-color-red');
+                } else {
+                    btn.disabled = false; btn.textContent = "购买";
+                    btn.classList.add('mdui-color-green'); btn.classList.remove('mdui-color-red', 'mdui-color-grey');
+                }
+            });
+        }
+
+        function buyItem(itemId, price) {
+            const u = userDatabase[currentUser];
+            if (u.coins >= price) {
+                u.coins -= price;
+                u.upgrades[itemId] = true;
+                saveDatabase();
+                mdui.snackbar({message: '购买成功！'});
+                updateShopUI();
+                updateHomeData();
+            }
+        }
+
+        // --- 成就 ---
+        function updateAchievementsUI() {
+            const list = document.getElementById('achievements-list');
+            list.innerHTML = '';
+            const u = userDatabase[currentUser];
+            ACHIEVEMENTS.forEach(ach => {
+                const isUnlocked = u.achievements.includes(ach.id);
+                const item = document.createElement('div');
+                item.className = `mdui-card mdui-m-b-1 achievement-item ${isUnlocked ? 'unlocked' : ''}`;
+                item.innerHTML = `
+                    <div class="mdui-card-primary mdui-p-y-1">
+                        <div class="mdui-card-primary-title" style="font-size:16px;">${ach.name} ${isUnlocked?'✅':'🔒'}</div>
+                        <div class="mdui-card-primary-subtitle">${ach.desc}</div>
+                    </div>`;
+                list.appendChild(item);
+            });
+        }
+
+        // --- 游戏核心 ---
+        function startGame(mode) {
+            gameState.mode = mode;
+            gameState.level = 1; gameState.score = 0; gameState.coinsEarned = 0;
+            gameState.isPlaying = true; gameState.reviveUsed = false;
+
+            // 清除之前的特殊类
+            document.body.classList.remove('night-mode');
+            const board = document.getElementById('game-board');
+            board.classList.remove('mode-spin', 'ghost-active');
+
+            // 应用模式特效
+            if (mode === 'night_vision') document.body.classList.add('night-mode');
+            if (mode === 'spin') board.classList.add('mode-spin');
+            if (mode === 'ghost') board.classList.add('ghost-active');
+
+            const u = userDatabase[currentUser];
+            gameState.timer = 0;
+            // 时间设置
+            if (['endless', 'time_trial', 'spin', 'ghost', 'night_vision', 'chaos'].includes(mode)) {
+                if(mode === 'endless') gameState.timer = 60;
+                else if(mode === 'time_trial') gameState.timer = 60;
+                else gameState.timer = 30; // 其他新模式默认30秒
+
+                if(mode === 'endless' && u.upgrades.extra_time) gameState.timer += 10;
+            } else if (mode === 'extreme') {
+                gameState.timer = 5;
+            }
+
+            updateScoreDisplay();
+            showPage('page-game');
+            startTimer();
+            renderGameLevel();
+        }
+
+        function stopGame() {
+            gameState.isPlaying = false;
+            if (gameState.intervalId) clearInterval(gameState.intervalId);
+        }
+
+        function startTimer() {
+            if (gameState.mode === 'practice') {
+                document.getElementById('game-timer').textContent = "无限制"; return;
+            }
+            updateTimerDisplay();
+            if (gameState.intervalId) clearInterval(gameState.intervalId);
+            gameState.intervalId = setInterval(() => {
+                gameState.timer -= 1;
+                updateTimerDisplay();
+                if (gameState.timer <= 0) gameOver();
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const el = document.getElementById('game-timer');
+            if (gameState.timer <= 10) el.style.color = '#f44336';
+            else el.style.color = '#ff4081';
+            el.textContent = `剩余: ${gameState.timer}s`;
+        }
+        function updateScoreDisplay() {
+            document.getElementById('game-score').textContent = `得分: ${gameState.score}`;
+            document.getElementById('game-coins').textContent = `${gameState.coinsEarned}`;
+        }
+
+        function renderGameLevel() {
+            const board = document.getElementById('game-board');
+            board.innerHTML = '';
+            
+            // 网格大小
+            let gridSize;
+            if (gameState.mode === 'chaos') gridSize = Math.floor(Math.random() * 5) + 2;
+            else {
+                gridSize = Math.min(8, Math.floor(Math.sqrt(gameState.level + 3)));
+                if (gameState.level < 3) gridSize = 2;
+            }
+            board.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+
+            const baseColor = getRandomColor();
+            let diff = Math.max(0.02, 0.4 - (gameState.level * 0.005));
+
+            // 模式调整
+            if (gameState.mode === 'extreme') diff *= 0.8;
+            if (gameState.mode === 'reverse') diff *= 1.2;
+
+            // 难度调整 (核心更新)
+            const u = userDatabase[currentUser];
+            const diffSetting = u.settings.difficulty;
+            if (diffSetting === 'easy') diff *= 1.5;   // 更容易辨认
+            else if (diffSetting === 'hard') diff *= 0.8; // 更难
+            else if (diffSetting === 'hell') diff *= 0.6; // 地狱
+
+            // 道具调整
+            if (u.upgrades && u.upgrades.eagle_eye) diff *= 1.2;
+
+            const targetIndex = Math.floor(Math.random() * (gridSize * gridSize));
+            let targetColor, normalColor;
+
+            if (gameState.mode === 'reverse') {
+                 normalColor = lightenDarkenColor(baseColor, 40); 
+                 targetColor = baseColor;
+            } else {
+                 normalColor = baseColor;
+                 targetColor = lightenDarkenColor(baseColor, diff * 100);
+            }
+
+            for (let i = 0; i < gridSize * gridSize; i++) {
+                const block = document.createElement('div');
+                block.className = 'color-block';
+                block.style.backgroundColor = (i === targetIndex) ? targetColor : normalColor;
+                block.onclick = (i === targetIndex) ? () => handleCorrectClick() : () => handleWrongClick();
+                
+                if (gameState.mode === 'night_vision') block.style.boxShadow = `0 0 5px ${block.style.backgroundColor}`;
+                board.appendChild(block);
+            }
+        }
+
+        function handleCorrectClick() {
+            if (!gameState.isPlaying) return;
+            gameState.score++; gameState.level++;
+            
+            let coinGain = 1;
+            const u = userDatabase[currentUser];
+            if (u.upgrades && u.upgrades.double_coins) coinGain = 2;
+            gameState.coinsEarned += coinGain;
+            updateScoreDisplay();
+
+            if (['endless', 'spin', 'ghost', 'night_vision', 'chaos'].includes(gameState.mode)) {
+                gameState.timer += 1; updateTimerDisplay();
+            } else if (gameState.mode === 'extreme') {
+                gameState.timer = 5; updateTimerDisplay();
+            }
+            renderGameLevel();
+        }
+
+        function handleWrongClick() {
+            if (!gameState.isPlaying) return;
+            
+            // 复活卡逻辑 (被动触发)
+            const u = userDatabase[currentUser];
+            // 只有在立即死亡的模式或者时间很少时才有效，这里简化逻辑：
+            // 如果模式是 extreme，或者时间快到了，或者普通扣分
+            
+            if (gameState.mode === 'extreme') {
+                if (u.upgrades.revive_card && !gameState.reviveUsed) {
+                    gameState.reviveUsed = true;
+                    mdui.snackbar({message: '复活卡生效！抵消一次死亡'});
+                    return; // 抵消
+                }
+                gameOver();
+            } else if (['endless', 'spin', 'ghost', 'night_vision', 'chaos'].includes(gameState.mode)) {
+                let penalty = 3;
+                if (u.upgrades.penalty_shield) penalty = 1;
+                gameState.timer -= penalty;
+                updateTimerDisplay();
+                if (gameState.timer <= 0) gameOver();
+                else if (navigator.vibrate) navigator.vibrate(200);
+            }
+        }
+
+        function gameOver() {
+            stopGame();
+            const u = userDatabase[currentUser];
+            
+            // 记录最高分
+            let isNew = false;
+            if (gameState.score > (u.scores[gameState.mode] || 0)) {
+                u.scores[gameState.mode] = gameState.score;
+                isNew = true;
+            }
+            u.coins += gameState.coinsEarned;
+            
+            // 检查成就
+            let newAch = false;
+            ACHIEVEMENTS.forEach(ach => {
+                if(!u.achievements.includes(ach.id) && ach.condition(u, gameState.score, gameState.mode)) {
+                    u.achievements.push(ach.id); newAch = true;
+                    mdui.snackbar({message: `解锁成就: ${ach.name}`});
+                }
+            });
+
+            saveDatabase();
+            
+            document.getElementById('result-score').textContent = gameState.score;
+            document.getElementById('result-coins').textContent = `+ ${gameState.coinsEarned}`;
+            document.getElementById('result-highscore-msg').textContent = isNew ? "新纪录！" : "";
+            document.getElementById('result-revive-msg').style.display = gameState.reviveUsed ? 'block' : 'none';
+
+            if (gameOverDialogInstance) try { gameOverDialogInstance.close(); } catch(e){}
+            gameOverDialogInstance = new mdui.Dialog('#dialog-gameover', {modal: true, destroyOnClosed: false});
+            gameOverDialogInstance.open();
+            updateHomeData();
+        }
+
+        function restartGame() {
+            if (gameOverDialogInstance) gameOverDialogInstance.close();
+            setTimeout(() => startGame(gameState.mode), 250);
+        }
+        function closeDialogAndHome() {
+            if (gameOverDialogInstance) gameOverDialogInstance.close();
+            setTimeout(() => backToHome(), 250);
+        }
+
+        // --- Utils ---
+        function getRandomColor() {
+            const l = '0123456789ABCDEF';
+            let c = '#'; for(let i=0;i<6;i++) c+=l[Math.floor(Math.random()*16)];
+            return c;
+        }
+        function lightenDarkenColor(col, amt) {
+            let usePound=false; if(col[0]=="#"){col=col.slice(1);usePound=true;}
+            let num=parseInt(col,16);
+            let r=(num>>16)+amt; if(r>255)r=255;else if(r<0)r=0;
+            let b=((num>>8)&0x00FF)+amt; if(b>255)b=255;else if(b<0)b=0;
+            let g=(num&0x0000FF)+amt; if(g>255)g=255;else if(g<0)g=0;
+            return(usePound?"#":"")+(g|(b<<8)|(r<<16)).toString(16).padStart(6,'0');
+        }
+    </script>
+</body>
+</html>
