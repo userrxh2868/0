@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MDUI 国旗猜猜乐 Ultra</title>
+    <!-- 引入 MDUI CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/mdui@1.0.2/dist/css/mdui.min.css"/>
+    <style>
+        body {
+            background-color: #f5f5f5;
+            overflow-x: hidden;
+            user-select: none;
+        }
+        .page {
+            display: none;
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+        .page.active {
+            display: block;
+        }
+        .flag-img-large {
+            width: 100%;
+            max-width: 300px;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin: 0 auto;
+            display: block;
+            border: 1px solid #ddd;
+            min-height: 150px; 
+            background: #eee;
+            transition: transform 0.3s;
+        }
+        .flag-option-img {
+            width: 100%;
+            aspect-ratio: 3/2;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.2s;
+            background: #eee;
+        }
+        .flag-option-img:active {
+            transform: scale(0.95);
+        }
+        /* 镜像模式样式 */
+        .mirror-mode .flag-img-large, 
+        .mirror-mode .flag-option-img {
+            transform: scaleX(-1);
+        }
+        
+        .game-header {
+            text-align: center;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .option-btn {
+            margin-bottom: 10px;
+            width: 100%;
+            height: 50px;
+            font-size: 16px;
+            text-transform: none;
+        }
+        .achievement-item { opacity: 0.5; transition: opacity 0.3s; }
+        .achievement-item.unlocked { opacity: 1; background-color: #e8f5e9; }
+        .account-chip { cursor: pointer; margin: 4px; }
+        
+        /* 头像样式 */
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid white;
+            vertical-align: middle;
+            margin-right: 8px;
+            background-color: #ccc;
+        }
+        .avatar-preview {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #ddd;
+            margin: 0 auto;
+            display: block;
+        }
+    </style>
+</head>
+<body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
+
+    <!-- 顶部导航栏 -->
+    <div class="mdui-appbar mdui-appbar-fixed">
+        <div class="mdui-toolbar mdui-color-theme">
+            <span class="mdui-typo-title">国旗大师</span>
+            <div class="mdui-toolbar-spacer"></div>
+            <!-- 用户名区域 -->
+            <div id="user-info-area" class="mdui-chip mdui-hidden" onclick="openProfileDialog()" style="background: rgba(255,255,255,0.2); color: white; cursor: pointer; padding-left: 0;">
+                <img src="" id="top-bar-avatar" class="user-avatar" style="margin-left: -1px;">
+                <span class="mdui-chip-title" id="user-display" style="padding-left: 5px;"></span>
+                <span class="mdui-chip-icon" style="background: transparent;"><i class="mdui-icon material-icons" style="font-size: 16px; color:white;">settings</i></span>
+            </div>
+        </div>
+    </div>
+    <div style="height: 60px;"></div>
+
+    <!-- 1. 登录/注册页 -->
+    <div id="page-login" class="page mdui-container active">
+        <div class="mdui-card mdui-p-a-2 mdui-m-t-4">
+            <div class="mdui-card-primary">
+                <div class="mdui-card-primary-title">欢迎挑战</div>
+                <div class="mdui-card-primary-subtitle">注册新账号或选择已有账号</div>
+            </div>
+            <div class="mdui-card-content">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <label class="mdui-textfield-label">输入名称 (新用户/登录)</label>
+                    <input class="mdui-textfield-input" type="text" id="username-input"/>
+                </div>
+                
+                <!-- 加密开关 -->
+                <div class="mdui-m-t-2">
+                    <label class="mdui-switch">
+                        <input type="checkbox" id="encrypt-switch" checked/>
+                        <i class="mdui-switch-icon"></i>
+                        <span class="mdui-text-color-grey-700">启用账号数据加密存储</span>
+                    </label>
+                    <div class="mdui-typo-caption mdui-text-color-grey-500">开启后数据将加密，关闭则明文保存(易破解)</div>
+                </div>
+
+                <div id="quick-login-area" class="mdui-m-t-2">
+                    <div class="mdui-typo-caption mdui-text-color-grey-600 mdui-m-b-1">历史账号:</div>
+                    <div id="saved-accounts-list"></div>
+                </div>
+            </div>
+            <div class="mdui-card-actions">
+                <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent mdui-btn-block" onclick="handleLogin()">进入游戏</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 首页 (菜单) -->
+    <div id="page-home" class="page mdui-container">
+        <div class="mdui-row">
+            <div class="mdui-col-xs-12 mdui-col-sm-6 mdui-col-offset-sm-3">
+                <div class="mdui-card mdui-p-a-2">
+                    <!-- 设置按钮 -->
+                    <button class="mdui-btn mdui-btn-icon mdui-float-right mdui-text-color-grey" onclick="openSettings()">
+                        <i class="mdui-icon material-icons">settings</i>
+                    </button>
+                    <h2 class="mdui-text-center mdui-m-t-0">选择模式</h2>
+                    
+                    <!-- 经典 -->
+                    <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-btn-block mdui-color-green mdui-m-b-1" onclick="startGame('practice')">
+                        <i class="mdui-icon material-icons">school</i> 练习模式
+                    </button>
+
+                    <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-btn-block mdui-color-blue mdui-m-b-1" onclick="startGame('endless')">
+                        <i class="mdui-icon material-icons">loop</i> 无尽模式
+                    </button>
+
+                    <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-btn-block mdui-color-red mdui-m-b-1" onclick="startGame('hardcore')">
+                        <i class="mdui-icon material-icons">whatshot</i> 极限模式
+                    </button>
+
+                    <!-- 特殊 -->
+                    <div class="mdui-divider mdui-m-y-2"></div>
+                    <div class="mdui-typo-caption mdui-text-center mdui-m-b-1">特殊挑战</div>
+
+                    <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-btn-block mdui-color-purple mdui-m-b-1" onclick="startGame('master')">
+                        <i class="mdui-icon material-icons">collections</i> 图鉴大师
+                    </button>
+
+                    <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-btn-block mdui-color-orange mdui-m-b-1" onclick="startGame('timeattack')">
+                        <i class="mdui-icon material-icons">timer</i> 限时竞速
+                    </button>
+                    
+                    <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-btn-block mdui-color-grey-800 mdui-text-color-white mdui-m-b-1" onclick="startGame('mirror')">
+                        <i class="mdui-icon material-icons">flip</i> 镜像世界 (New!)
+                    </button>
+
+                    <!-- 区域 -->
+                    <div class="mdui-divider mdui-m-y-2"></div>
+                    <div class="mdui-typo-caption mdui-text-center mdui-m-b-1">区域限定</div>
+                    
+                    <div class="mdui-row mdui-m-b-1">
+                        <div class="mdui-col-xs-6" style="padding-right: 4px;">
+                            <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-btn-block mdui-color-indigo-400" onclick="startGame('europe')">
+                                欧洲
+                            </button>
+                        </div>
+                        <div class="mdui-col-xs-6" style="padding-left: 4px;">
+                            <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-btn-block mdui-color-teal-400" onclick="startGame('asia')">
+                                亚洲
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mdui-row mdui-m-b-1">
+                        <div class="mdui-col-xs-6" style="padding-right: 4px;">
+                            <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-btn-block mdui-color-cyan-600" onclick="startGame('americas')">
+                                美洲
+                            </button>
+                        </div>
+                        <div class="mdui-col-xs-6" style="padding-left: 4px;">
+                            <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-btn-block mdui-color-brown-400" onclick="startGame('africa')">
+                                非洲
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mdui-divider mdui-m-y-2"></div>
+
+                    <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-btn-block mdui-color-amber mdui-m-b-2" onclick="showAchievements()">
+                        <i class="mdui-icon material-icons">stars</i> 成就系统
+                    </button>
+                    
+                    <button class="mdui-btn mdui-btn-flat mdui-ripple mdui-btn-block mdui-text-color-grey" onclick="logout()">
+                        退出登录
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 游戏页 -->
+    <div id="page-game" class="page mdui-container">
+        <div class="game-header">
+            <div class="mdui-chip">
+                <span class="mdui-chip-icon mdui-color-blue"><i class="mdui-icon material-icons">score</i></span>
+                <span class="mdui-chip-title">得分: <span id="score-val">0</span></span>
+            </div>
+            
+            <div class="mdui-chip" id="lives-chip">
+                <span class="mdui-chip-icon mdui-color-red"><i class="mdui-icon material-icons">favorite</i></span>
+                <span class="mdui-chip-title">生命: <span id="lives-val">3</span></span>
+            </div>
+
+            <div class="mdui-chip" id="timer-chip" style="display: none;">
+                <span class="mdui-chip-icon mdui-color-orange"><i class="mdui-icon material-icons">timer</i></span>
+                <span class="mdui-chip-title"><span id="timer-val">60</span>s</span>
+            </div>
+        </div>
+
+        <div class="mdui-card mdui-p-a-2">
+            <!-- 镜像模式会给这里加 class -->
+            <div id="game-container-inner">
+                <div id="question-area" class="mdui-text-center mdui-m-b-2"></div>
+                <div id="options-area" class="mdui-row"></div>
+            </div>
+        </div>
+        
+        <div class="mdui-text-center mdui-m-t-2">
+            <button class="mdui-btn mdui-ripple mdui-text-color-theme" onclick="quitGame()">放弃游戏</button>
+        </div>
+    </div>
+
+    <!-- 4. 结算页 -->
+    <div id="page-result" class="page mdui-container">
+        <div class="mdui-card mdui-p-a-3 mdui-text-center">
+            <i class="mdui-icon material-icons mdui-text-color-theme-accent" style="font-size: 60px;">emoji_events</i>
+            <h2 class="mdui-m-t-1">游戏结束</h2>
+            <h1 class="mdui-text-color-theme" id="final-score">0</h1>
+            <p>本局得分</p>
+            <div class="mdui-divider mdui-m-y-2"></div>
+            <p>该模式最高记录: <span id="best-score" class="mdui-text-color-orange">0</span></p>
+            <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme mdui-m-t-2" onclick="goHome()">返回主页</button>
+        </div>
+    </div>
+
+    <!-- 5. 成就页 -->
+    <div id="page-achievements" class="page mdui-container">
+        <div class="mdui-row">
+            <div class="mdui-col-xs-12">
+                <h2 class="mdui-text-center">我的成就</h2>
+                <ul class="mdui-list" id="achievement-list"></ul>
+                <button class="mdui-btn mdui-btn-block mdui-color-theme mdui-m-t-2" onclick="goHome()">返回</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dialogs -->
+
+    <!-- 个人信息/头像设置/改名 Dialog -->
+    <div class="mdui-dialog" id="dialog-profile">
+        <div class="mdui-dialog-title">个人设置</div>
+        <div class="mdui-dialog-content">
+            <div class="mdui-text-center mdui-m-b-2">
+                <img id="avatar-preview" src="" class="avatar-preview">
+                <div class="mdui-typo-caption mdui-m-t-1">当前头像</div>
+            </div>
+
+            <!-- 头像设置 -->
+            <div class="mdui-panel" mdui-panel>
+                <div class="mdui-panel-item">
+                    <div class="mdui-panel-item-header">更换头像 (点击展开)</div>
+                    <div class="mdui-panel-item-body">
+                        <div class="mdui-textfield">
+                            <label class="mdui-textfield-label">图片直链 URL</label>
+                            <input class="mdui-textfield-input" type="text" id="avatar-url-input" placeholder="https://..."/>
+                        </div>
+                        <div class="mdui-text-center mdui-m-y-1">- 或者 -</div>
+                        <button class="mdui-btn mdui-btn-block mdui-color-theme-accent mdui-ripple" onclick="document.getElementById('file-upload').click()">上传本地图片</button>
+                        <input type="file" id="file-upload" accept="image/*" style="display:none" onchange="handleFileUpload(this)">
+                        <div class="mdui-typo-caption mdui-text-color-grey mdui-m-t-1">注意：本地图片将压缩存储，请勿上传过大图片。</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 改名 -->
+            <div class="mdui-textfield mdui-m-t-2">
+                <label class="mdui-textfield-label">修改名称</label>
+                <input class="mdui-textfield-input" type="text" id="new-username-input"/>
+                <div class="mdui-text-color-red-a200 mdui-typo-caption">修改名称将迁移数据，旧名称失效。</div>
+            </div>
+        </div>
+        <div class="mdui-dialog-actions">
+            <button class="mdui-btn mdui-ripple" mdui-dialog-close>取消</button>
+            <button class="mdui-btn mdui-ripple mdui-color-theme-accent" onclick="saveProfileChanges()">保存修改</button>
+        </div>
+    </div>
+
+    <!-- 设置 Dialog (国旗源) -->
+    <div class="mdui-dialog" id="dialog-settings">
+        <div class="mdui-dialog-title">游戏设置</div>
+        <div class="mdui-dialog-content">
+            <p>选择国旗图片来源：</p>
+            <form id="flag-source-form">
+                <label class="mdui-radio mdui-m-b-1 mdui-d-block">
+                    <input type="radio" name="source" value="flagcdn-high" checked/>
+                    <i class="mdui-radio-icon"></i> FlagCDN (高清 - 默认)
+                </label>
+                <label class="mdui-radio mdui-m-b-1 mdui-d-block">
+                    <input type="radio" name="source" value="flagcdn-low"/>
+                    <i class="mdui-radio-icon"></i> FlagCDN (低清 - 省流量)
+                </label>
+                <label class="mdui-radio mdui-m-b-1 mdui-d-block">
+                    <input type="radio" name="source" value="lipis-svg"/>
+                    <i class="mdui-radio-icon"></i> FlagIcons (SVG - 矢量图)
+                </label>
+            </form>
+        </div>
+        <div class="mdui-dialog-actions">
+            <button class="mdui-btn mdui-ripple mdui-color-theme-accent" onclick="saveSettings()">保存</button>
+        </div>
+    </div>
+
+    <!-- 作弊警告 Dialog -->
+    <div class="mdui-dialog" id="dialog-cheat">
+        <div class="mdui-dialog-title mdui-text-color-red">⚠️ 数据异常警告</div>
+        <div class="mdui-dialog-content">
+            检测到账号数据（<span id="cheat-username"></span>）校验失败。<br>
+            这可能是因为文件被修改，或者加密状态不匹配。<br>
+            请清除数据重置。
+        </div>
+        <div class="mdui-dialog-actions">
+            <button class="mdui-btn mdui-ripple" mdui-dialog-close>取消</button>
+            <button class="mdui-btn mdui-ripple mdui-color-red" onclick="resetUserData()">清除数据并重置</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/mdui@1.0.2/dist/js/mdui.min.js"></script>
+    <script>
+        // --- 1. 数据准备 (大幅扩充) ---
+        const countries = [
+            // 亚洲
+            { code: 'cn', name: '中国', region: 'asia' }, { code: 'jp', name: '日本', region: 'asia' },
+            { code: 'kr', name: '韩国', region: 'asia' }, { code: 'in', name: '印度', region: 'asia' },
+            { code: 'id', name: '印度尼西亚', region: 'asia' }, { code: 'sa', name: '沙特阿拉伯', region: 'asia' },
+            { code: 'th', name: '泰国', region: 'asia' }, { code: 'vn', name: '越南', region: 'asia' },
+            { code: 'sg', name: '新加坡', region: 'asia' }, { code: 'my', name: '马来西亚', region: 'asia' },
+            { code: 'ph', name: '菲律宾', region: 'asia' }, { code: 'ir', name: '伊朗', region: 'asia' },
+            { code: 'pk', name: '巴基斯坦', region: 'asia' }, { code: 'bd', name: '孟加拉国', region: 'asia' },
+            { code: 'np', name: '尼泊尔', region: 'asia' }, { code: 'lk', name: '斯里兰卡', region: 'asia' },
+            { code: 'tr', name: '土耳其', region: 'asia' }, { code: 'mn', name: '蒙古', region: 'asia' },
+            
+            // 欧洲
+            { code: 'gb', name: '英国', region: 'europe' }, { code: 'fr', name: '法国', region: 'europe' },
+            { code: 'de', name: '德国', region: 'europe' }, { code: 'ru', name: '俄罗斯', region: 'europe' },
+            { code: 'it', name: '意大利', region: 'europe' }, { code: 'es', name: '西班牙', region: 'europe' },
+            { code: 'ua', name: '乌克兰', region: 'europe' }, { code: 'pl', name: '波兰', region: 'europe' },
+            { code: 'nl', name: '荷兰', region: 'europe' }, { code: 'be', name: '比利时', region: 'europe' },
+            { code: 'se', name: '瑞典', region: 'europe' }, { code: 'ch', name: '瑞士', region: 'europe' },
+            { code: 'pt', name: '葡萄牙', region: 'europe' }, { code: 'gr', name: '希腊', region: 'europe' },
+            { code: 'at', name: '奥地利', region: 'europe' }, { code: 'no', name: '挪威', region: 'europe' },
+            { code: 'fi', name: '芬兰', region: 'europe' }, { code: 'dk', name: '丹麦', region: 'europe' },
+            { code: 'ie', name: '爱尔兰', region: 'europe' }, { code: 'cz', name: '捷克', region: 'europe' },
+            { code: 'hr', name: '克罗地亚', region: 'europe' }, { code: 'ro', name: '罗马尼亚', region: 'europe' },
+
+            // 美洲
+            { code: 'us', name: '美国', region: 'americas' }, { code: 'ca', name: '加拿大', region: 'americas' },
+            { code: 'br', name: '巴西', region: 'americas' }, { code: 'ar', name: '阿根廷', region: 'americas' },
+            { code: 'mx', name: '墨西哥', region: 'americas' }, { code: 'co', name: '哥伦比亚', region: 'americas' },
+            { code: 'pe', name: '秘鲁', region: 'americas' }, { code: 'cl', name: '智利', region: 'americas' },
+            { code: 've', name: '委内瑞拉', region: 'americas' }, { code: 'cu', name: '古巴', region: 'americas' },
+            { code: 'jm', name: '牙买加', region: 'americas' }, { code: 'uy', name: '乌拉圭', region: 'americas' },
+
+            // 非洲
+            { code: 'eg', name: '埃及', region: 'africa' }, { code: 'za', name: '南非', region: 'africa' },
+            { code: 'ng', name: '尼日利亚', region: 'africa' }, { code: 'ke', name: '肯尼亚', region: 'africa' },
+            { code: 'gh', name: '加纳', region: 'africa' }, { code: 'ma', name: '摩洛哥', region: 'africa' },
+            { code: 'dz', name: '阿尔及利亚', region: 'africa' }, { code: 'et', name: '埃塞俄比亚', region: 'africa' },
+            { code: 'sn', name: '塞内加尔', region: 'africa' }, { code: 'cm', name: '喀麦隆', region: 'africa' },
+
+            // 大洋洲
+            { code: 'au', name: '澳大利亚', region: 'oceania' }, { code: 'nz', name: '新西兰', region: 'oceania' },
+            { code: 'fj', name: '斐济', region: 'oceania' }
+        ];
+
+        const achievementsData = [
+            { id: 'first_blood', title: '初出茅庐', desc: '完成第一次游戏' },
+            { id: 'score_10', title: '渐入佳境', desc: '单局得分达到 10 分' },
+            { id: 'score_50', title: '国旗大师', desc: '单局得分达到 50 分' },
+            { id: 'hardcore_5', title: '极限生存', desc: '极限模式下连续答对 5 题' },
+            { id: 'speed_20', title: '闪电手速', desc: '限时模式单局达到 20 分' },
+            { id: 'collector', title: '收藏家', desc: '累计游戏次数达到 10 次' },
+            { id: 'euro_trip', title: '欧洲之旅', desc: '欧洲模式单局达到 15 分' },
+            { id: 'asian_expert', title: '亚洲通', desc: '亚洲模式单局达到 15 分' },
+            { id: 'american_dream', title: '美洲探险家', desc: '美洲模式单局达到 15 分' },
+            { id: 'africa_king', title: '草原之王', desc: '非洲模式单局达到 15 分' },
+            { id: 'mirror_mind', title: '逆向思维', desc: '镜像模式单局达到 10 分' },
+            { id: 'new_look', title: '焕然一新', desc: '首次设置自定义头像' }
+        ];
+
+        // 默认头像
+        const DEFAULT_AVATAR = "https://via.placeholder.com/150/e0e0e0/808080?text=User";
+
+        // --- 2. 加密与安全 ---
+        const SALT = "MDUI_FLAG_GAME_SECURE_KEY_2023";
+
+        // 签名生成
+        function generateSignature(dataObj) {
+            const cleanObj = JSON.parse(JSON.stringify(dataObj));
+            delete cleanObj.signature;
+            const str = JSON.stringify(cleanObj) + SALT;
+            let hash = 5381;
+            for (let i = 0; i < str.length; i++) hash = ((hash << 5) + hash) + str.charCodeAt(i);
+            return hash.toString();
+        }
+        function signUserData(userObj) {
+            userObj.signature = generateSignature(userObj);
+            return userObj;
+        }
+        function verifyIntegrity(userObj) {
+            if (!userObj.signature) return false; 
+            const currentSig = userObj.signature;
+            const computedSig = generateSignature(userObj);
+            return currentSig === computedSig;
+        }
+
+        // 简单的加密/解密 (XOR + Base64)
+        function simpleEncrypt(text) {
+            let res = "";
+            for(let i=0; i<text.length; i++) res += String.fromCharCode(text.charCodeAt(i) ^ SALT.charCodeAt(i % SALT.length));
+            return btoa(res);
+        }
+        function simpleDecrypt(encoded) {
+            try {
+                let text = atob(encoded);
+                let res = "";
+                for(let i=0; i<text.length; i++) res += String.fromCharCode(text.charCodeAt(i) ^ SALT.charCodeAt(i % SALT.length));
+                return res;
+            } catch(e) { return null; }
+        }
+
+        // --- 3. 状态管理 ---
+        let currentUser = null;
+        let flagSource = localStorage.getItem('flagGameSource') || 'flagcdn-high';
+        let gameState = {
+            mode: '', score: 0, lives: 0, timeLeft: 0, timerInterval: null, currentQuestion: null, isGameOver: false
+        };
+
+        // --- 4. 辅助函数 ---
+        function getFlagUrl(code) {
+            switch(flagSource) {
+                case 'flagcdn-low': return `https://flagcdn.com/w320/${code}.png`;
+                case 'lipis-svg': return `https://flagicons.lipis.dev/flags/4x3/${code}.svg`;
+                case 'flagcdn-high': default: return `https://flagcdn.com/w640/${code}.png`;
+            }
+        }
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            window.scrollTo(0,0);
+            const userArea = document.getElementById('user-info-area');
+            if (pageId === 'page-login') userArea.classList.add('mdui-hidden');
+            else userArea.classList.remove('mdui-hidden');
+        }
+
+        // --- 5. 登录与加密逻辑 ---
+        
+        // 从 storage 获取并自动尝试解密
+        function getStorageData() {
+            let raw = localStorage.getItem('flagGameUsers');
+            if (!raw) return {};
+            return JSON.parse(raw); // 结构: { "UserA": {obj}, "UserB": "enc_string" }
+        }
+
+        function renderSavedAccounts() {
+            const list = document.getElementById('saved-accounts-list');
+            list.innerHTML = '';
+            const allUsers = getStorageData();
+            const names = Object.keys(allUsers);
+
+            if (names.length === 0) {
+                list.innerHTML = '<span class="mdui-text-color-grey-400">暂无历史账号</span>';
+                return;
+            }
+
+            names.forEach(name => {
+                const chip = document.createElement('div');
+                chip.className = 'mdui-chip account-chip mdui-color-grey-200 mdui-ripple';
+                chip.innerHTML = `<span class="mdui-chip-title">${name}</span>`;
+                chip.onclick = () => {
+                    document.getElementById('username-input').value = name;
+                    handleLogin(); 
+                };
+                list.appendChild(chip);
+            });
+        }
+        renderSavedAccounts();
+
+        let cheatDialogInst = null;
+        let tempCheatUsername = '';
+
+        function handleLogin() {
+            const inputName = document.getElementById('username-input').value.trim();
+            const encryptOn = document.getElementById('encrypt-switch').checked; // 获取开关状态
+            
+            if (!inputName) {
+                mdui.snackbar({message: '请输入名称', position: 'top'});
+                return;
+            }
+
+            let allUsers = getStorageData();
+            let userData = allUsers[inputName];
+
+            if (userData) {
+                // 如果是字符串，说明是加密的，尝试解密
+                if (typeof userData === 'string') {
+                    const decryptedJson = simpleDecrypt(userData);
+                    if (!decryptedJson) {
+                         alert("解密失败，数据可能已损坏或密钥不匹配。");
+                         return;
+                    }
+                    userData = JSON.parse(decryptedJson);
+                    // 登录时，开关状态应跟随该账号之前的状态？
+                    // 逻辑：只要能解密出来，我们暂时认为当前环境支持。
+                    // 为了方便，登录后，如果不改动开关，下一次保存会依据当前开关覆盖。
+                }
+
+                // 签名校验
+                if (userData.signature && !verifyIntegrity(userData)) {
+                    tempCheatUsername = inputName;
+                    document.getElementById('cheat-username').textContent = inputName;
+                    cheatDialogInst = new mdui.Dialog('#dialog-cheat', {modal: true});
+                    cheatDialogInst.open();
+                    return; 
+                }
+
+                currentUser = userData;
+                // 数据补全
+                const defaults = { 
+                    gamesPlayed: 0, bestScoreEndless: 0, bestScoreHardcore: 0, bestScoreTimeAttack: 0, 
+                    bestScoreMaster: 0, bestScoreEurope: 0, bestScoreAsia: 0, bestScoreAmericas: 0, 
+                    bestScoreAfrica: 0, bestScoreMirror: 0
+                };
+                currentUser.stats = { ...defaults, ...currentUser.stats };
+                if (!currentUser.avatar) currentUser.avatar = DEFAULT_AVATAR;
+
+                mdui.snackbar({message: `欢迎回来，${inputName}！`});
+            } else {
+                // 新注册
+                currentUser = {
+                    name: inputName,
+                    avatar: DEFAULT_AVATAR,
+                    stats: { gamesPlayed: 0, bestScoreEndless: 0, bestScoreHardcore: 0, bestScoreTimeAttack: 0, bestScoreMaster: 0, bestScoreEurope: 0, bestScoreAsia: 0, bestScoreAmericas: 0, bestScoreAfrica: 0, bestScoreMirror: 0 },
+                    unlockedAchievements: []
+                };
+                mdui.snackbar({message: `注册成功，你好 ${inputName}！`});
+            }
+
+            updateUserUI();
+            saveUserData(); // 立即保存一次，确保格式符合当前加密开关
+            showPage('page-home');
+        }
+
+        function saveUserData() {
+            if (!currentUser) return;
+            const encryptOn = document.getElementById('encrypt-switch').checked;
+
+            // 1. 签名
+            signUserData(currentUser);
+            
+            // 2. 读取总数据
+            let allUsers = getStorageData();
+            
+            // 3. 决定保存格式
+            if (encryptOn) {
+                // 加密
+                const jsonStr = JSON.stringify(currentUser);
+                allUsers[currentUser.name] = simpleEncrypt(jsonStr);
+            } else {
+                // 明文
+                allUsers[currentUser.name] = currentUser;
+            }
+
+            localStorage.setItem('flagGameUsers', JSON.stringify(allUsers));
+        }
+
+        function resetUserData() {
+            let allUsers = getStorageData();
+            const newUser = {
+                name: tempCheatUsername,
+                avatar: DEFAULT_AVATAR,
+                stats: { gamesPlayed: 0 }, // 简写，下次登录会补全
+                unlockedAchievements: []
+            };
+            // 重置后按当前开关保存
+            const encryptOn = document.getElementById('encrypt-switch').checked;
+            signUserData(newUser);
+            
+            if (encryptOn) {
+                allUsers[tempCheatUsername] = simpleEncrypt(JSON.stringify(newUser));
+            } else {
+                allUsers[tempCheatUsername] = newUser;
+            }
+            
+            localStorage.setItem('flagGameUsers', JSON.stringify(allUsers));
+            mdui.snackbar({message: '数据已重置'});
+            cheatDialogInst.close();
+            renderSavedAccounts();
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('username-input').value = '';
+            renderSavedAccounts();
+            showPage('page-login');
+        }
+
+        function updateUserUI() {
+            document.getElementById('user-display').textContent = currentUser.name;
+            document.getElementById('top-bar-avatar').src = currentUser.avatar || DEFAULT_AVATAR;
+        }
+
+        // --- 6. 个人设置 (头像 & 改名) ---
+        let profileDialogInst = null;
+        function openProfileDialog() {
+            document.getElementById('new-username-input').value = currentUser.name;
+            document.getElementById('avatar-url-input').value = '';
+            document.getElementById('avatar-preview').src = currentUser.avatar || DEFAULT_AVATAR;
+            profileDialogInst = new mdui.Dialog('#dialog-profile');
+            profileDialogInst.open();
+        }
+
+        // 头像预览 (输入URL时)
+        document.getElementById('avatar-url-input').addEventListener('input', function() {
+            if(this.value) document.getElementById('avatar-preview').src = this.value;
+        });
+
+        // 文件上传处理
+        function handleFileUpload(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                if (file.size > 500 * 1024) { // 500KB 限制
+                    alert("图片太大，请选择小于 500KB 的图片");
+                    input.value = '';
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('avatar-preview').src = e.target.result;
+                    // 此时还没有保存到 currentUser，点保存按钮才存
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function saveProfileChanges() {
+            const newName = document.getElementById('new-username-input').value.trim();
+            const newAvatar = document.getElementById('avatar-preview').src;
+            let allUsers = getStorageData();
+
+            // 1. 处理改名
+            if (newName && newName !== currentUser.name) {
+                if (allUsers[newName]) {
+                    mdui.snackbar({message: '名称已存在'});
+                    return;
+                }
+                delete allUsers[currentUser.name];
+                currentUser.name = newName;
+            }
+
+            // 2. 处理头像
+            if (newAvatar !== currentUser.avatar) {
+                currentUser.avatar = newAvatar;
+                // 检查成就
+                if (!currentUser.unlockedAchievements.includes('new_look')) {
+                    currentUser.unlockedAchievements.push('new_look');
+                    mdui.snackbar({message: '解锁成就: 焕然一新', position: 'bottom'});
+                }
+            }
+
+            // 3. 保存
+            // 这里逻辑有点绕，因为 saveUserData 依赖全局 currentUser 变量
+            // 我们需要先 update UI，然后调用 saveUserData 覆盖
+            updateUserUI();
+            
+            // 需要手动写入 allUsers，因为如果改了名，saveUserData 需要知道映射
+            // 简单的做法：直接调 saveUserData()，它会用 currentUser.name 做 key
+            // 但如果改名了，旧 key 已经被上面的 delete 删了。
+            // 唯一的问题是：如果加密状态变了。saveUserData 会读取 switch。
+            
+            saveUserData(); 
+            // 如果改名了，需要手动存一下（因为 saveUserData 是全量读取再存，
+            // 但我们在 saveProfileChanges 里修改了 allUsers 也就是本地内存的副本，
+            // saveUserData 会重新读 LocalStorage。所以上面的 delete allUsers[old] 无效
+            // 修正：
+            
+            const encryptOn = document.getElementById('encrypt-switch').checked;
+            // 重新读
+            let freshUsers = getStorageData();
+            // 如果改名，删旧
+            if (newName && document.getElementById('new-username-input').defaultValue !== newName) {
+                 delete freshUsers[document.getElementById('new-username-input').defaultValue];
+            }
+            // 存新
+            signUserData(currentUser);
+            if (encryptOn) freshUsers[currentUser.name] = simpleEncrypt(JSON.stringify(currentUser));
+            else freshUsers[currentUser.name] = currentUser;
+            
+            localStorage.setItem('flagGameUsers', JSON.stringify(freshUsers));
+            
+            mdui.snackbar({message: '个人信息已保存'});
+            profileDialogInst.close();
+        }
+
+        // --- 7. 设置 Dialog ---
+        let settingsDialogInst = null;
+        function openSettings() {
+            const radios = document.getElementsByName('source');
+            radios.forEach(r => { if(r.value === flagSource) r.checked = true; });
+            settingsDialogInst = new mdui.Dialog('#dialog-settings');
+            settingsDialogInst.open();
+        }
+        function saveSettings() {
+            const radios = document.getElementsByName('source');
+            radios.forEach(r => { if(r.checked) flagSource = r.value; });
+            localStorage.setItem('flagGameSource', flagSource);
+            mdui.snackbar({message: '设置已保存'});
+            settingsDialogInst.close();
+        }
+
+        // --- 8. 游戏逻辑 ---
+        function startGame(mode) {
+            gameState.mode = mode;
+            gameState.score = 0;
+            gameState.isGameOver = false;
+            clearInterval(gameState.timerInterval);
+
+            // 镜像模式 CSS 处理
+            const container = document.getElementById('game-container-inner');
+            if (mode === 'mirror') container.classList.add('mirror-mode');
+            else container.classList.remove('mirror-mode');
+
+            // UI
+            document.getElementById('lives-chip').style.display = 'inline-flex';
+            document.getElementById('timer-chip').style.display = 'none';
+            
+            // 模式初始化
+            if (mode === 'practice') {
+                gameState.lives = 999;
+                document.getElementById('lives-chip').style.display = 'none';
+            } else if (['endless', 'europe', 'asia', 'americas', 'africa', 'mirror', 'master'].includes(mode)) {
+                gameState.lives = 3;
+            } else if (mode === 'hardcore') {
+                gameState.lives = 1;
+            } else if (mode === 'timeattack') {
+                gameState.lives = 999; 
+                document.getElementById('lives-chip').style.display = 'none';
+                document.getElementById('timer-chip').style.display = 'inline-flex';
+                gameState.timeLeft = 60;
+                document.getElementById('timer-val').textContent = 60;
+                gameState.timerInterval = setInterval(() => {
+                    gameState.timeLeft--;
+                    document.getElementById('timer-val').textContent = gameState.timeLeft;
+                    if (gameState.timeLeft <= 0) endGame();
+                }, 1000);
+            }
+
+            updateScoreBoard();
+            showPage('page-game');
+            nextQuestion();
+        }
+
+        function generateQuestion() {
+            let pool = countries;
+            if (gameState.mode === 'europe') pool = countries.filter(c => c.region === 'europe');
+            else if (gameState.mode === 'asia') pool = countries.filter(c => c.region === 'asia');
+            else if (gameState.mode === 'americas') pool = countries.filter(c => c.region === 'americas');
+            else if (gameState.mode === 'africa') pool = countries.filter(c => c.region === 'africa');
+            
+            if(pool.length < 4) pool = countries;
+
+            const target = pool[Math.floor(Math.random() * pool.length)];
+            let options = [target];
+            while (options.length < 4) {
+                const randomC = pool[Math.floor(Math.random() * pool.length)];
+                if (!options.find(o => o.code === randomC.code)) options.push(randomC);
+            }
+            options.sort(() => Math.random() - 0.5);
+            return { target, options };
+        }
+
+        function nextQuestion() {
+            if (gameState.isGameOver) return;
+            gameState.currentQuestion = generateQuestion();
+            const { target, options } = gameState.currentQuestion;
+            const containerQ = document.getElementById('question-area');
+            const containerO = document.getElementById('options-area');
+
+            containerQ.innerHTML = '';
+            containerO.innerHTML = '';
+
+            // 名字可见模式
+            const isNameVisibleMode = (gameState.mode === 'practice' || gameState.mode === 'master');
+
+            if (isNameVisibleMode) {
+                containerQ.innerHTML = `<h3 class="mdui-text-color-theme">请选择 <span style="font-size:1.5em;font-weight:bold;">${target.name}</span> 的国旗</h3>`;
+                options.forEach(opt => {
+                    const col = document.createElement('div');
+                    col.className = 'mdui-col-xs-6 mdui-p-a-1';
+                    col.innerHTML = `<img src="${getFlagUrl(opt.code)}" class="flag-option-img mdui-shadow-2" onclick="checkAnswer('${opt.code}', this)">`;
+                    containerO.appendChild(col);
+                });
+            } else {
+                // 图片可见模式 (含镜像)
+                containerQ.innerHTML = `<img src="${getFlagUrl(target.code)}" class="flag-img-large">`;
+                options.forEach(opt => {
+                    const col = document.createElement('div');
+                    col.className = 'mdui-col-xs-12 mdui-col-sm-6';
+                    col.innerHTML = `<button class="mdui-btn mdui-btn-raised mdui-ripple option-btn mdui-color-white" onclick="checkAnswer('${opt.code}', this)">${opt.name}</button>`;
+                    containerO.appendChild(col);
+                });
+            }
+        }
+
+        function checkAnswer(selectedCode, element) {
+            if (gameState.isGameOver) return;
+            const isCorrect = selectedCode === gameState.currentQuestion.target.code;
+            
+            if (isCorrect) {
+                if (element.tagName === 'IMG') element.style.borderColor = '#4caf50';
+                else element.classList.replace('mdui-color-white', 'mdui-color-green');
+                gameState.score++;
+                mdui.snackbar({message: '正确!', timeout: 300, position: 'top'});
+                setTimeout(nextQuestion, 400);
+            } else {
+                if (element.tagName === 'IMG') element.style.borderColor = '#f44336';
+                else element.classList.replace('mdui-color-white', 'mdui-color-red');
+
+                if (gameState.mode === 'practice') {
+                    mdui.snackbar({message: `错误，这是 ${countries.find(c=>c.code===selectedCode).name}`, position: 'top'});
+                    setTimeout(nextQuestion, 1000);
+                } else if (gameState.mode === 'timeattack') {
+                     mdui.snackbar({message: '错误!', timeout: 300, position: 'top'});
+                     setTimeout(nextQuestion, 400);
+                } else {
+                    gameState.lives--;
+                    updateScoreBoard();
+                    if (gameState.lives <= 0) endGame();
+                    else {
+                        mdui.snackbar({message: '回答错误!', position: 'top'});
+                        setTimeout(nextQuestion, 800);
+                    }
+                }
+            }
+            updateScoreBoard();
+        }
+
+        function updateScoreBoard() {
+            document.getElementById('score-val').textContent = gameState.score;
+            document.getElementById('lives-val').textContent = gameState.lives;
+        }
+
+        function endGame() {
+            if (gameState.isGameOver) return;
+            gameState.isGameOver = true;
+            clearInterval(gameState.timerInterval);
+            currentUser.stats.gamesPlayed++;
+            
+            let highScoreKey = '';
+            if (gameState.mode === 'endless') highScoreKey = 'bestScoreEndless';
+            else if (gameState.mode === 'hardcore') highScoreKey = 'bestScoreHardcore';
+            else if (gameState.mode === 'timeattack') highScoreKey = 'bestScoreTimeAttack';
+            else if (gameState.mode === 'master') highScoreKey = 'bestScoreMaster';
+            else if (gameState.mode === 'europe') highScoreKey = 'bestScoreEurope';
+            else if (gameState.mode === 'asia') highScoreKey = 'bestScoreAsia';
+            else if (gameState.mode === 'americas') highScoreKey = 'bestScoreAmericas';
+            else if (gameState.mode === 'africa') highScoreKey = 'bestScoreAfrica';
+            else if (gameState.mode === 'mirror') highScoreKey = 'bestScoreMirror';
+
+            let bestScore = 0;
+            if (highScoreKey) {
+                if (gameState.score > (currentUser.stats[highScoreKey] || 0)) {
+                    currentUser.stats[highScoreKey] = gameState.score;
+                }
+                bestScore = currentUser.stats[highScoreKey];
+            }
+
+            checkAchievements();
+            saveUserData();
+
+            document.getElementById('final-score').textContent = gameState.score;
+            document.getElementById('best-score').textContent = gameState.mode === 'practice' ? '无记录' : bestScore;
+            setTimeout(() => { showPage('page-result'); }, 500);
+        }
+
+        function quitGame() {
+            if (confirm('确定要退出？进度不保存。')) {
+                clearInterval(gameState.timerInterval);
+                goHome();
+            }
+        }
+        function goHome() { showPage('page-home'); }
+
+        // --- 9. 成就检测 ---
+        function checkAchievements() {
+            const unlocks = [];
+            const stats = currentUser.stats;
+            const currentUnlocks = currentUser.unlockedAchievements;
+            const isUnlocked = (id) => currentUnlocks.includes(id);
+
+            // 通用
+            if (!isUnlocked('first_blood') && stats.gamesPlayed >= 1) unlocks.push('first_blood');
+            if (!isUnlocked('score_10') && gameState.score >= 10) unlocks.push('score_10');
+            if (!isUnlocked('score_50') && gameState.score >= 50) unlocks.push('score_50');
+            if (!isUnlocked('collector') && stats.gamesPlayed >= 10) unlocks.push('collector');
+            
+            // 特定模式
+            if (!isUnlocked('hardcore_5') && gameState.mode === 'hardcore' && gameState.score >= 5) unlocks.push('hardcore_5');
+            if (!isUnlocked('speed_20') && gameState.mode === 'timeattack' && gameState.score >= 20) unlocks.push('speed_20');
+            if (!isUnlocked('euro_trip') && gameState.mode === 'europe' && gameState.score >= 15) unlocks.push('euro_trip');
+            if (!isUnlocked('asian_expert') && gameState.mode === 'asia' && gameState.score >= 15) unlocks.push('asian_expert');
+            if (!isUnlocked('american_dream') && gameState.mode === 'americas' && gameState.score >= 15) unlocks.push('american_dream');
+            if (!isUnlocked('africa_king') && gameState.mode === 'africa' && gameState.score >= 15) unlocks.push('africa_king');
+            if (!isUnlocked('mirror_mind') && gameState.mode === 'mirror' && gameState.score >= 10) unlocks.push('mirror_mind');
+
+            if (unlocks.length > 0) {
+                currentUser.unlockedAchievements.push(...unlocks);
+                unlocks.forEach(id => {
+                    const ach = achievementsData.find(a => a.id === id);
+                    mdui.snackbar({message: `解锁成就: ${ach.title}`, position: 'bottom'});
+                });
+            }
+        }
+
+        function showAchievements() {
+            const list = document.getElementById('achievement-list');
+            list.innerHTML = '';
+            achievementsData.forEach(ach => {
+                const isUnlocked = currentUser.unlockedAchievements.includes(ach.id);
+                const item = document.createElement('li');
+                item.className = `mdui-list-item mdui-ripple achievement-item ${isUnlocked ? 'unlocked' : ''}`;
+                item.innerHTML = `
+                    <i class="mdui-list-item-icon mdui-icon material-icons achievement-icon ${isUnlocked ? 'mdui-text-color-amber' : 'mdui-text-color-grey'}">
+                        ${isUnlocked ? 'stars' : 'lock'}
+                    </i>
+                    <div class="mdui-list-item-content">
+                        <div class="mdui-list-item-title">${ach.title}</div>
+                        <div class="mdui-list-item-text">${ach.desc}</div>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+            showPage('page-achievements');
+        }
+    </script>
+</body>
+</html>
