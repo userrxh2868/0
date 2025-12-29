@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pixel Art Pro Max (Ultimate Edition)</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.x/css/materialdesignicons.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/vuetify@3.3.0/dist/vuetify.min.css" rel="stylesheet">
+    <!-- 引入 GIF.js 用于GIF录屏导出 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+    
+    <style>
+        body, html { overflow: hidden; touch-action: none; background-color: #121212; }
+        #canvas-container {
+            width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;
+            overflow: hidden;
+            background-image: linear-gradient(45deg, #2a2a2a 25%, transparent 25%), linear-gradient(-45deg, #2a2a2a 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #2a2a2a 75%), linear-gradient(-45deg, transparent 75%, #2a2a2a 75%);
+            background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            cursor: crosshair; position: relative;
+        }
+        canvas.pixel-canvas {
+            image-rendering: pixelated; box-shadow: 0 0 20px rgba(0,0,0,0.5); z-index: 10;
+        }
+        /* 洋葱皮层 */
+        canvas.onion-skin {
+            image-rendering: pixelated; position: absolute; pointer-events: none; z-index: 5; opacity: 0.3;
+        }
+        .color-preview { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #fff; cursor: pointer; }
+        .custom-picker-area { width: 100%; height: 200px; cursor: crosshair; }
+        .custom-picker-slider { width: 100%; height: 20px; margin-top: 10px; border-radius: 10px; cursor: pointer; }
+        
+        /* 悬浮窗样式 */
+        .floating-ref {
+            position: fixed; top: 60px; right: 20px; width: 150px; z-index: 1000;
+            background: rgba(0,0,0,0.7); border: 1px solid #555; border-radius: 8px;
+            touch-action: none; overflow: hidden;
+        }
+        .floating-header { height: 20px; background: #333; cursor: grab; display: flex; justify-content: flex-end; }
+        .ref-img-content { width: 100%; height: auto; display: block; opacity: 0.8; }
+
+        /* 左手模式翻转 */
+        .left-handed-footer .v-btn-toggle { flex-direction: row-reverse; }
+        .left-handed-footer .d-flex.justify-space-between { flex-direction: row-reverse; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <v-app theme="dark">
+            <!-- 顶部导航 -->
+            <v-app-bar density="compact" color="surface">
+                <v-app-bar-title class="text-subtitle-1">Pixel Ultimate</v-app-bar-title>
+                <v-spacer></v-spacer>
+                
+                <!-- 录屏状态指示 -->
+                <v-chip v-if="isRecordingGIF" color="red" size="small" class="mr-2 blink">REC</v-chip>
+
+                <v-btn icon size="small" @click="undo" :disabled="historyIndex <= 0"><v-icon>mdi-undo</v-icon></v-btn>
+                <v-btn icon size="small" @click="redo" :disabled="historyIndex >= history.length - 1"><v-icon>mdi-redo</v-icon></v-btn>
+                
+                <!-- 设置菜单入口 -->
+                <v-btn icon size="small" @click="showSettings = true"><v-icon>mdi-cog</v-icon></v-btn>
+
+                <v-menu>
+                    <template v-slot:activator="{ props }">
+                        <v-btn icon="mdi-dots-vertical" v-bind="props"></v-btn>
+                    </template>
+                    <v-list density="compact">
+                        <v-list-item prepend-icon="mdi-file-plus" title="新建画布" @click="showNewDialog = true"></v-list-item>
+                        <v-list-item prepend-icon="mdi-image-import" title="导入图片" @click="triggerFileUpload"></v-list-item>
+                        <v-list-item prepend-icon="mdi-image-album" title="导入参考图" @click="triggerRefUpload"></v-list-item>
+                        <v-list-item prepend-icon="mdi-download" title="导出画作" @click="exportImage"></v-list-item>
+                        <v-list-item v-if="settings.enableGridExport" prepend-icon="mdi-file-code" title="导出网格数据(TXT)" @click="exportGridData"></v-list-item>
+                        <v-list-item v-if="isRecordingGIF" prepend-icon="mdi-video-stop" title="停止并导出GIF" @click="stopGifRecording"></v-list-item>
+                        <v-list-item v-else prepend-icon="mdi-video" title="开始录制GIF" @click="startGifRecording"></v-list-item>
+                        <v-divider></v-divider>
+                        <v-list-item prepend-icon="mdi-animation-play" :title="animMode ? '退出动画模式' : '进入动画模式'" @click="toggleAnimMode"></v-list-item>
+                    </v-list>
+                </v-menu>
+                <input type="file" ref="fileInput" accept="image/*" style="display: none" @change="handleImageImport">
+                <input type="file" ref="refInput" accept="image/*" style="display: none" @change="handleRefImport">
+            </v-app-bar>
+
+            <!-- 主画布 -->
+            <v-main>
+                <div id="canvas-container" 
+                     @touchstart.prevent="handleTouchStart" 
+                     @touchmove.prevent="handleTouchMove"
+                     @touchend.prevent="handleTouchEnd"
+                     @mousedown="handleMouseDown"
+                     @mousemove="handleMouseMove"
+                     @mouseup="handleMouseUp"
+                     @wheel.prevent="handleWheel">
+                    
+                    <!-- 实际画布 -->
+                    <canvas ref="canvasEl" class="pixel-canvas"></canvas>
+                    <!-- 洋葱皮画布 (动画模式用) -->
+                    <canvas ref="onionEl" class="onion-skin" v-show="animMode && settings.onionSkin"></canvas>
+                    <!-- 网格 -->
+                    <canvas ref="gridEl" class="pixel-canvas" style="position: absolute; pointer-events: none;" v-show="showGrid"></canvas>
+
+                    <!-- 参考图悬浮窗 -->
+                    <div v-if="refImgSrc" class="floating-ref" :style="{ top: refPos.y + 'px', left: refPos.x + 'px' }"
+                         @touchstart.stop="startDragRef" @touchmove.stop="dragRef" @touchend.stop="endDragRef"
+                         @mousedown.stop="startDragRef" @mousemove.stop="dragRef" @mouseup.stop="endDragRef">
+                        <div class="floating-header">
+                            <v-icon size="small" color="white" @click="refImgSrc = null">mdi-close</v-icon>
+                        </div>
+                        <img :src="refImgSrc" class="ref-img-content" draggable="false">
+                    </div>
+                </div>
+            </v-main>
+
+            <!-- 动画时间轴 (仅动画模式显示) -->
+            <v-footer v-if="animMode" app color="grey-darken-4" height="60" class="pa-0 d-flex align-center overflow-x-auto">
+                <div class="d-flex px-2 align-center" style="min-width: 100%;">
+                    <v-btn icon size="x-small" class="mr-2" @click="playAnimation"><v-icon>{{ isPlaying ? 'mdi-stop' : 'mdi-play' }}</v-icon></v-btn>
+                    <v-chip class="mr-2" size="small">帧 {{ currentFrame + 1 }} / {{ frames.length }}</v-chip>
+                    <v-btn icon size="x-small" class="mr-1" @click="prevFrame" :disabled="currentFrame <= 0"><v-icon>mdi-chevron-left</v-icon></v-btn>
+                    <v-btn icon size="x-small" class="mr-3" @click="nextFrame" :disabled="currentFrame >= frames.length - 1"><v-icon>mdi-chevron-right</v-icon></v-btn>
+                    
+                    <v-btn variant="tonal" size="small" class="mr-1" @click="addFrame" prepend-icon="mdi-plus">加帧</v-btn>
+                    <v-btn variant="tonal" size="small" class="mr-1" @click="copyFrame" prepend-icon="mdi-content-copy">复制</v-btn>
+                    <v-btn variant="text" size="small" icon @click="deleteFrame" v-if="frames.length > 1" color="red"><v-icon>mdi-delete</v-icon></v-btn>
+                    <v-spacer></v-spacer>
+                    <v-btn icon size="small" @click="settings.onionSkin = !settings.onionSkin" :color="settings.onionSkin ? 'primary' : ''"><v-icon>mdi-eye-outline</v-icon></v-btn>
+                </div>
+            </v-footer>
+
+            <!-- 底部工具栏 -->
+            <v-footer app color="surface" elevation="4" class="flex-column pa-0" :class="{'left-handed-footer': settings.leftHanded}">
+                <!-- 信息栏 -->
+                <div class="d-flex align-center w-100 px-4 py-2 justify-space-between">
+                    <div class="d-flex align-center">
+                        <div class="color-preview mr-2" :style="{ backgroundColor: brushColor }" @click="showColorPicker = true"></div>
+                        <v-icon v-if="settings.dithering" size="small" color="grey" class="mr-1">mdi-checkerboard</v-icon>
+                        <v-icon v-if="settings.symmetry !== 'none'" size="small" color="primary" class="mr-1">mdi-reflect-horizontal</v-icon>
+                    </div>
+                    
+                    <div class="d-flex align-center">
+                         <v-menu>
+                            <template v-slot:activator="{ props }">
+                                <span v-bind="props" class="text-caption mr-2 cursor-pointer" style="text-decoration: underline">
+                                    {{ getBrushName(settings.brushShape) }} {{ brushSize }}px
+                                </span>
+                            </template>
+                            <v-list density="compact">
+                                <v-list-subheader>笔刷形状</v-list-subheader>
+                                <v-list-item @click="settings.brushShape = 'square'" title="方块 (Square)"></v-list-item>
+                                <v-list-item @click="settings.brushShape = 'circle'" title="圆形 (Circle)"></v-list-item>
+                                <v-list-item @click="settings.brushShape = 'dither'" title="虚线/十字 (Cross)"></v-list-item>
+                            </v-list>
+                         </v-menu>
+                         <v-slider 
+                            v-model="brushSize" 
+                            :min="1" :max="5" :step="1" 
+                            hide-details density="compact" 
+                            style="width: 100px" thumb-size="10"
+                        ></v-slider>
+                    </div>
+                </div>
+
+                <!-- 工具按钮 -->
+                <v-btn-toggle v-model="currentTool" mandatory rounded="0" class="w-100 d-flex justify-space-between" color="primary">
+                    <v-btn value="pen" class="flex-grow-1"><v-icon>mdi-pencil</v-icon></v-btn>
+                    <v-btn value="eraser" class="flex-grow-1"><v-icon>mdi-eraser</v-icon></v-btn>
+                    <v-btn value="bucket" class="flex-grow-1"><v-icon>mdi-format-color-fill</v-icon></v-btn>
+                    <v-btn value="picker" class="flex-grow-1"><v-icon>mdi-eyedropper</v-icon></v-btn>
+                    <v-btn value="move" class="flex-grow-1"><v-icon>mdi-hand-right</v-icon></v-btn>
+                </v-btn-toggle>
+            </v-footer>
+
+            <!-- 设置对话框 -->
+            <v-dialog v-model="showSettings" max-width="400">
+                <v-card title="高级功能 / 设置">
+                    <v-card-text style="max-height: 400px; overflow-y: auto;">
+                        <v-switch v-model="settings.soundEnabled" color="primary" label="开启音效 (Sound)" density="compact" hide-details></v-switch>
+                        <v-switch v-model="settings.leftHanded" color="primary" label="左手模式 (Left-Hand)" density="compact" hide-details></v-switch>
+                        <v-switch v-model="settings.dithering" color="primary" label="颜色抖动填充 (Dithering)" density="compact" hide-details></v-switch>
+                        <v-switch v-model="settings.autoBackup" color="primary" label="自动本地备份 (Auto Backup)" density="compact" hide-details></v-switch>
+                        <v-switch v-model="settings.enableGridExport" color="primary" label="启用网格数据导出 (Grid Export)" density="compact" hide-details></v-switch>
+                        
+                        <v-divider class="my-3"></v-divider>
+                        <div class="text-subtitle-2 mb-2">对称绘画模式</div>
+                        <v-btn-toggle v-model="settings.symmetry" density="compact" mandatory color="primary" class="w-100">
+                            <v-btn value="none">关闭</v-btn>
+                            <v-btn value="x">水平</v-btn>
+                            <v-btn value="y">垂直</v-btn>
+                            <v-btn value="xy">四角</v-btn>
+                        </v-btn-toggle>
+
+                        <v-divider class="my-3"></v-divider>
+                         <v-btn block color="error" variant="outlined" @click="clearBackup">清除本地备份缓存</v-btn>
+                    </v-card-text>
+                    <v-card-actions>
+                        <v-spacer></v-spacer>
+                        <v-btn color="primary" @click="showSettings = false">关闭</v-btn>
+                    </v-card-actions>
+                </v-card>
+            </v-dialog>
+
+            <!-- (保留原有的 新建/选色 对话框代码，此处为节约篇幅简略，逻辑不变) -->
+            <v-dialog v-model="showNewDialog" max-width="350">
+                <v-card title="新建画板">
+                    <v-card-text>
+                        <v-row>
+                            <v-col cols="6"><v-text-field label="宽度" type="number" v-model.number="newWidth" min="4" max="128"></v-text-field></v-col>
+                            <v-col cols="6"><v-text-field label="高度" type="number" v-model.number="newHeight" min="4" max="128"></v-text-field></v-col>
+                        </v-row>
+                        <v-chip-group v-model="presetSize" selected-class="text-primary">
+                            <v-chip :value="16" @click="setPreset(16)">16x16</v-chip>
+                            <v-chip :value="32" @click="setPreset(32)">32x32</v-chip>
+                            <v-chip :value="64" @click="setPreset(64)">64x64</v-chip>
+                        </v-chip-group>
+                    </v-card-text>
+                    <v-card-actions><v-spacer></v-spacer><v-btn @click="showNewDialog=false">取消</v-btn><v-btn color="primary" @click="createNewCanvas">创建</v-btn></v-card-actions>
+                </v-card>
+            </v-dialog>
+
+            <v-dialog v-model="showColorPicker" max-width="350">
+                 <v-card>
+                    <v-card-title>自定义选色</v-card-title>
+                    <v-card-text>
+                        <canvas ref="svCanvas" width="300" height="200" class="custom-picker-area" @mousedown="pickSV" @mousemove="pickSV" @touchstart.prevent="pickSV" @touchmove.prevent="pickSV"></canvas>
+                        <canvas ref="hueCanvas" width="300" height="30" class="custom-picker-slider" @mousedown="pickHue" @mousemove="pickHue" @touchstart.prevent="pickHue" @touchmove.prevent="pickHue"></canvas>
+                        <div class="d-flex align-center mt-4"><div class="color-preview mr-4" :style="{ backgroundColor: tempColor }"></div><v-text-field v-model="tempColor" label="HEX" variant="underlined" hide-details></v-text-field></div>
+                        <div class="mt-3"><div class="d-flex flex-wrap gap-1"><div v-for="c in presetColors" :key="c" class="color-preview mr-1 mb-1" :style="{ backgroundColor: c, width: '24px', height: '24px' }" @click="tempColor = c; updatePickerUI()"></div></div></div>
+                    </v-card-text>
+                    <v-card-actions><v-spacer></v-spacer><v-btn color="primary" @click="confirmColor">确定</v-btn></v-card-actions>
+                </v-card>
+            </v-dialog>
+            
+            <v-snackbar v-model="snackbar" :timeout="2000">{{ snackbarText }}</v-snackbar>
+        </v-app>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@3.3.0/dist/vuetify.min.js"></script>
+
+    <script>
+        const { createApp, ref, onMounted, watch, nextTick, reactive } = Vue;
+        const { createVuetify } = Vuetify;
+        const vuetify = createVuetify();
+
+        // 简易音效 Base64
+        const SFX = {
+            draw: "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...", // 占位，实际逻辑用代码生成
+            undo: "data:audio/wav;base64,UklGR...", 
+            export: "data:audio/wav;base64,UklGR..." 
+        };
+
+        // 简单的 beep 生成器，避免巨大的 base64 字符串
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, type, duration) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        createApp({
+            setup() {
+                // 原有状态
+                const canvasEl = ref(null);
+                const gridEl = ref(null);
+                const onionEl = ref(null);
+                const svCanvas = ref(null);
+                const hueCanvas = ref(null);
+                const fileInput = ref(null);
+                const refInput = ref(null);
+
+                const canvasWidth = ref(32);
+                const canvasHeight = ref(32);
+                const ctx = ref(null);
+                const gridCtx = ref(null);
+                
+                const scale = ref(10);
+                const offsetX = ref(0);
+                const offsetY = ref(0);
+                
+                const currentTool = ref('pen');
+                const brushColor = ref('#000000');
+                const brushSize = ref(1);
+                const showGrid = ref(false);
+
+                // 对话框
+                const showNewDialog = ref(false);
+                const showSettings = ref(false);
+                const newWidth = ref(32);
+                const newHeight = ref(32);
+                const presetSize = ref(null);
+                const showColorPicker = ref(false);
+                const tempColor = ref('#000000');
+                const presetColors = ['#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#00FFFF', '#FF00FF', '#FFA500', '#808080'];
+                
+                const history = ref([]);
+                const historyIndex = ref(-1);
+                const snackbar = ref(false);
+                const snackbarText = ref('');
+                
+                // Color Picker internal
+                const hue = ref(0); const sat = ref(100); const val = ref(0);
+
+                // --- 新增状态 ---
+                const settings = reactive({
+                    soundEnabled: false,
+                    leftHanded: false,
+                    symmetry: 'none', // none, x, y, xy
+                    dithering: false,
+                    brushShape: 'square', // square, circle, dither(cross)
+                    autoBackup: false,
+                    enableGridExport: false,
+                    onionSkin: false // 洋葱皮开关
+                });
+
+                // 动画相关
+                const animMode = ref(false);
+                const frames = ref([]); // Store DataURLs
+                const currentFrame = ref(0);
+                const isPlaying = ref(false);
+                let playTimer = null;
+
+                // GIF 录屏相关
+                const isRecordingGIF = ref(false);
+                const gifFrames = ref([]);
+                
+                // 参考图相关
+                const refImgSrc = ref(null);
+                const refPos = reactive({ x: 20, y: 60 });
+                let isDraggingRef = false;
+                let dragStart = { x:0, y:0 };
+
+                let isDrawing = false;
+                let lastX = -1; let lastY = -1; let lastDist = 0;
+
+                onMounted(() => {
+                    initCanvas();
+                    window.addEventListener('resize', centerCanvas);
+                    // 恢复备份
+                    const saved = localStorage.getItem('pixelArtBackup');
+                    if (saved) {
+                        const data = JSON.parse(saved);
+                        if(confirm('发现本地未保存的备份，是否恢复？')) {
+                            newWidth.value = data.w;
+                            newHeight.value = data.h;
+                            initCanvas(data.w, data.h);
+                            loadHistoryState(data.img);
+                        }
+                    }
+                    // 自动备份定时器
+                    setInterval(() => {
+                        if (settings.autoBackup && canvasEl.value) {
+                            const data = {
+                                w: canvasWidth.value,
+                                h: canvasHeight.value,
+                                img: canvasEl.value.toDataURL()
+                            };
+                            localStorage.setItem('pixelArtBackup', JSON.stringify(data));
+                        }
+                    }, 60000); // 1分钟存一次
+                });
+
+                watch(showGrid, drawGrid);
+                watch(showColorPicker, (val) => { if(val) nextTick(() => initColorPicker()); });
+                
+                // 监听洋葱皮绘制
+                watch([() => settings.onionSkin, currentFrame, animMode], () => {
+                    drawOnionSkin();
+                });
+
+                // --- 核心逻辑 ---
+
+                function initCanvas(w = 32, h = 32) {
+                    canvasWidth.value = w; canvasHeight.value = h;
+                    canvasEl.value.width = w; canvasEl.value.height = h;
+                    gridEl.value.width = w; gridEl.value.height = h;
+                    onionEl.value.width = w; onionEl.value.height = h;
+
+                    ctx.value = canvasEl.value.getContext('2d', { willReadFrequently: true });
+                    gridCtx.value = gridEl.value.getContext('2d');
+                    
+                    ctx.value.fillStyle = '#FFFFFF';
+                    ctx.value.fillRect(0, 0, w, h);
+                    
+                    centerCanvas();
+                    // 动画初始化
+                    frames.value = [canvasEl.value.toDataURL()];
+                    currentFrame.value = 0;
+                    
+                    saveState();
+                    drawGrid();
+                }
+
+                function centerCanvas() {
+                    const container = document.getElementById('canvas-container');
+                    const cw = container.clientWidth; const ch = container.clientHeight;
+                    const fitScale = Math.min(cw / canvasWidth.value, ch / canvasHeight.value) * 0.8;
+                    scale.value = Math.max(1, Math.floor(fitScale));
+                    offsetX.value = (cw - canvasWidth.value * scale.value) / 2;
+                    offsetY.value = (ch - canvasHeight.value * scale.value) / 2;
+                    updateTransform();
+                }
+
+                function updateTransform() {
+                    const t = `translate(${offsetX.value}px, ${offsetY.value}px) scale(${scale.value})`;
+                    canvasEl.value.style.transform = t; canvasEl.value.style.transformOrigin = '0 0';
+                    gridEl.value.style.transform = t; gridEl.value.style.transformOrigin = '0 0';
+                    onionEl.value.style.transform = t; onionEl.value.style.transformOrigin = '0 0';
+                }
+
+                function playSound(type) {
+                    if (!settings.soundEnabled) return;
+                    if (type === 'draw') playTone(400, 'square', 0.05);
+                    if (type === 'undo') playTone(200, 'sine', 0.1);
+                    if (type === 'export') playTone(800, 'triangle', 0.3);
+                }
+
+                // --- 绘图增强 ---
+
+                function useTool(x, y) {
+                    if (currentTool.value === 'move') return; // Move handled in events
+                    
+                    // 对称逻辑
+                    const points = [{x, y}];
+                    if (settings.symmetry === 'x' || settings.symmetry === 'xy') {
+                        points.push({x: canvasWidth.value - 1 - x, y: y});
+                    }
+                    if (settings.symmetry === 'y' || settings.symmetry === 'xy') {
+                        points.push({x: x, y: canvasHeight.value - 1 - y});
+                    }
+                    if (settings.symmetry === 'xy') {
+                        points.push({x: canvasWidth.value - 1 - x, y: canvasHeight.value - 1 - y});
+                    }
+
+                    // 去重
+                    const uniquePoints = points.filter((v,i,a)=>a.findIndex(t=>(t.x===v.x && t.y===v.y))===i);
+
+                    uniquePoints.forEach(p => {
+                        if (p.x >= 0 && p.x < canvasWidth.value && p.y >= 0 && p.y < canvasHeight.value) {
+                            applyToolAt(p.x, p.y);
+                        }
+                    });
+
+                    if (currentTool.value === 'pen' || currentTool.value === 'eraser') {
+                         playSound('draw');
+                    }
+                }
+
+                function applyToolAt(x, y) {
+                    if (currentTool.value === 'pen') {
+                        drawPixelEnhanced(x, y, brushColor.value);
+                    } else if (currentTool.value === 'eraser') {
+                        drawPixelEnhanced(x, y, '#FFFFFF');
+                    } else if (currentTool.value === 'bucket') {
+                        floodFill(x, y, brushColor.value);
+                    } else if (currentTool.value === 'picker') {
+                        const p = ctx.value.getImageData(x, y, 1, 1).data;
+                        brushColor.value = rgbToHex(p[0], p[1], p[2]);
+                        tempColor.value = brushColor.value;
+                        currentTool.value = 'pen';
+                        showToast(`已吸取: ${brushColor.value}`);
+                    }
+                }
+
+                // 支持笔刷形状和抖动的绘制
+                function drawPixelEnhanced(cx, cy, color) {
+                    const size = Math.floor(brushSize.value);
+                    const offset = Math.floor(size / 2);
+                    
+                    ctx.value.fillStyle = color;
+
+                    for (let i = 0; i < size; i++) {
+                        for (let j = 0; j < size; j++) {
+                            const px = cx - offset + i;
+                            const py = cy - offset + j;
+                            
+                            if (px < 0 || px >= canvasWidth.value || py < 0 || py >= canvasHeight.value) continue;
+
+                            // 形状判断
+                            let shouldDraw = true;
+                            if (settings.brushShape === 'circle') {
+                                // 简单圆判断: 距离中心点
+                                const dist = Math.sqrt(Math.pow(i - offset, 2) + Math.pow(j - offset, 2));
+                                if (dist > size / 2) shouldDraw = false;
+                            } else if (settings.brushShape === 'dither') {
+                                // 十字/点阵
+                                if ((i + j) % 2 !== 0) shouldDraw = false;
+                            }
+
+                            // 抖动判断 (Checkerboard)
+                            if (shouldDraw && settings.dithering) {
+                                if ((px + py) % 2 !== 0) shouldDraw = false;
+                            }
+
+                            if (shouldDraw) {
+                                ctx.value.fillRect(px, py, 1, 1);
+                            }
+                        }
+                    }
+                }
+
+                function drawLine(x0, y0, x1, y1) {
+                    // Bresenham logic adapted for symmetry wrapper
+                    const dx = Math.abs(x1 - x0);
+                    const dy = Math.abs(y1 - y0);
+                    const sx = (x0 < x1) ? 1 : -1;
+                    const sy = (y0 < y1) ? 1 : -1;
+                    let err = dx - dy;
+                    while(true) {
+                        useTool(x0, y0);
+                        if ((x0 === x1) && (y0 === y1)) break;
+                        const e2 = 2 * err;
+                        if (e2 > -dy) { err -= dy; x0 += sx; }
+                        if (e2 < dx) { err += dx; y0 += sy; }
+                    }
+                }
+
+                function floodFill(startX, startY, fillColor) {
+                    // 油漆桶暂不支持抖动(算法复杂)，保持实色，或者后续迭代支持
+                    // 这里为了稳定性保持原 BFS
+                    const w = canvasWidth.value; const h = canvasHeight.value;
+                    const imgData = ctx.value.getImageData(0, 0, w, h);
+                    const data = imgData.data;
+                    const targetIdx = (startY * w + startX) * 4;
+                    const tr = data[targetIdx], tg = data[targetIdx+1], tb = data[targetIdx+2];
+                    const rgb = hexToRgb(fillColor);
+                    if (tr === rgb.r && tg === rgb.g && tb === rgb.b) return;
+
+                    const stack = [[startX, startY]];
+                    while (stack.length) {
+                        const [x, y] = stack.pop();
+                        const idx = (y * w + x) * 4;
+                        if (x < 0 || x >= w || y < 0 || y >= h) continue;
+                        if (data[idx] === tr && data[idx+1] === tg && data[idx+2] === tb) {
+                            
+                            // 抖动逻辑注入
+                            let apply = true;
+                            if (settings.dithering && (x + y) % 2 !== 0) apply = false;
+
+                            if (apply) {
+                                data[idx] = rgb.r; data[idx+1] = rgb.g; data[idx+2] = rgb.b; data[idx+3] = 255;
+                            }
+                            
+                            // 即便跳过绘制，也要继续扩散搜索
+                            // 注意：如果开启抖动，被跳过的像素颜色没变，会导致无限循环？
+                            // 修正：Dithering Flood Fill 非常复杂，简单起见，油漆桶模式下暂时忽略全局 Dither 开关，或者只做实色填充。
+                            // 为了用户体验，这里强制实色填充，抖动仅用于画笔。
+                            // 如果用户非要抖动填充，建议用画笔涂。
+                            // 既然已经写了代码，这里回退为普通填充。
+                            data[idx] = rgb.r; data[idx+1] = rgb.g; data[idx+2] = rgb.b; data[idx+3] = 255;
+
+                            stack.push([x+1, y]); stack.push([x-1, y]); stack.push([x, y+1]); stack.push([x, y-1]);
+                        }
+                    }
+                    ctx.value.putImageData(imgData, 0, 0);
+                    saveState();
+                }
+
+                // --- 交互 (Zoom/Pan/Event) ---
+                function getCoords(e) {
+                    const rect = canvasEl.value.getBoundingClientRect();
+                    let cx, cy;
+                    if (e.touches && e.touches.length > 0) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
+                    else { cx = e.clientX; cy = e.clientY; }
+                    return { x: Math.floor((cx - rect.left) / scale.value), y: Math.floor((cy - rect.top) / scale.value), clientX: cx, clientY: cy };
+                }
+
+                function handleStart(e) {
+                    if (currentTool.value === 'move') {
+                        const { clientX, clientY } = getCoords(e);
+                        lastX = clientX; lastY = clientY; isDrawing = true; return;
+                    }
+                    const { x, y } = getCoords(e);
+                    if (x < 0 || x >= canvasWidth.value || y < 0 || y >= canvasHeight.value) return;
+                    isDrawing = true; useTool(x, y); lastX = x; lastY = y;
+                }
+                function handleMove(e) {
+                    if (!isDrawing) return;
+                    if (currentTool.value === 'move') {
+                        const { clientX, clientY } = getCoords(e);
+                        offsetX.value += clientX - lastX; offsetY.value += clientY - lastY;
+                        lastX = clientX; lastY = clientY; updateTransform(); return;
+                    }
+                    const { x, y } = getCoords(e);
+                    if (lastX !== -1 && (currentTool.value === 'pen' || currentTool.value === 'eraser')) drawLine(lastX, lastY, x, y);
+                    else useTool(x, y);
+                    lastX = x; lastY = y;
+                }
+                function handleEnd() {
+                    if (isDrawing) {
+                        isDrawing = false; lastX = -1;
+                        if (currentTool.value !== 'picker' && currentTool.value !== 'move') saveState();
+                    }
+                }
+                const handleMouseDown = handleStart; const handleMouseMove = handleMove; const handleMouseUp = handleEnd;
+                const handleTouchStart = (e) => {
+                    if (e.touches.length === 2) {
+                        isDrawing = false;
+                        lastDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                        lastX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                        lastY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                    } else if (e.touches.length === 1) handleStart(e);
+                };
+                const handleTouchMove = (e) => {
+                    if (e.touches.length === 2) {
+                        const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                        const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                        const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                        const zoomFactor = dist / lastDist;
+                        const newScale = scale.value * zoomFactor;
+                        if (newScale > 0.5 && newScale < 100) {
+                            offsetX.value = cx - (cx - offsetX.value) * zoomFactor;
+                            offsetY.value = cy - (cy - offsetY.value) * zoomFactor;
+                            scale.value = newScale;
+                            updateTransform();
+                        }
+                        offsetX.value += cx - lastX; offsetY.value += cy - lastY;
+                        updateTransform();
+                        lastDist = dist; lastX = cx; lastY = cy;
+                    } else handleMove(e);
+                };
+                const handleTouchEnd = handleEnd;
+                const handleWheel = (e) => {
+                    const z = e.deltaY > 0 ? 0.9 : 1.1; const ns = scale.value * z;
+                    if (ns > 1 && ns < 100) {
+                        const rect = document.getElementById('canvas-container').getBoundingClientRect();
+                        const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
+                        offsetX.value = mx - (mx - offsetX.value) * z; offsetY.value = my - (my - offsetY.value) * z;
+                        scale.value = ns; updateTransform();
+                    }
+                };
+
+                // --- 历史 / 动画 / GIF ---
+
+                function saveState() {
+                    const dataUrl = canvasEl.value.toDataURL();
+                    
+                    // GIF 录制
+                    if (isRecordingGIF.value) {
+                        gifFrames.value.push(dataUrl);
+                    }
+
+                    // 动画模式更新
+                    if (animMode.value) {
+                        frames.value[currentFrame.value] = dataUrl;
+                        // 动画模式下，历史记录比较复杂，暂简化为不存 Undo 或者仅存当前帧的 Undo
+                        // 简单起见：
+                    }
+                    
+                    if (historyIndex.value < history.value.length - 1) history.value = history.value.slice(0, historyIndex.value + 1);
+                    history.value.push(dataUrl);
+                    if (history.value.length > 20) history.value.shift(); else historyIndex.value++;
+                }
+
+                function undo() {
+                    if (historyIndex.value > 0) {
+                        historyIndex.value--;
+                        loadHistoryState(history.value[historyIndex.value]);
+                        playSound('undo');
+                    }
+                }
+                function redo() {
+                    if (historyIndex.value < history.value.length - 1) {
+                        historyIndex.value++;
+                        loadHistoryState(history.value[historyIndex.value]);
+                    }
+                }
+                function loadHistoryState(url) {
+                    const img = new Image(); img.src = url;
+                    img.onload = () => {
+                        ctx.value.clearRect(0,0,canvasWidth.value,canvasHeight.value);
+                        ctx.value.drawImage(img,0,0);
+                        if (animMode.value) frames.value[currentFrame.value] = url; // 更新当前帧
+                    };
+                }
+
+                // 动画功能
+                function toggleAnimMode() {
+                    animMode.value = !animMode.value;
+                    if (animMode.value) {
+                        showToast("进入动画模式: 底部显示时间轴");
+                        // 确保 frames 有数据
+                        if (frames.value.length === 0) frames.value = [canvasEl.value.toDataURL()];
+                    } else {
+                        // 退出时保留最后一帧
+                    }
+                    nextTick(drawOnionSkin);
+                }
+                function addFrame() {
+                    // 复制当前帧作为新帧
+                    frames.value.splice(currentFrame.value + 1, 0, canvasEl.value.toDataURL("image/png"));
+                    nextFrame();
+                    showToast(`新建帧 ${currentFrame.value + 1}`);
+                }
+                function copyFrame() {
+                    frames.value.splice(currentFrame.value + 1, 0, frames.value[currentFrame.value]);
+                    nextFrame();
+                    showToast("已复制帧");
+                }
+                function deleteFrame() {
+                    frames.value.splice(currentFrame.value, 1);
+                    if (currentFrame.value >= frames.value.length) currentFrame.value = frames.value.length - 1;
+                    loadFrame(currentFrame.value);
+                }
+                function prevFrame() { if (currentFrame.value > 0) { currentFrame.value--; loadFrame(currentFrame.value); } }
+                function nextFrame() { if (currentFrame.value < frames.value.length - 1) { currentFrame.value++; loadFrame(currentFrame.value); } }
+                function loadFrame(idx) {
+                    loadHistoryState(frames.value[idx]);
+                    nextTick(drawOnionSkin);
+                }
+                function playAnimation() {
+                    if (isPlaying.value) {
+                        clearInterval(playTimer); isPlaying.value = false;
+                    } else {
+                        isPlaying.value = true;
+                        playTimer = setInterval(() => {
+                            let next = currentFrame.value + 1;
+                            if (next >= frames.value.length) next = 0;
+                            currentFrame.value = next;
+                            loadFrame(next);
+                        }, 200); // 5fps
+                    }
+                }
+                function drawOnionSkin() {
+                    const oCtx = onionEl.value.getContext('2d');
+                    oCtx.clearRect(0, 0, canvasWidth.value, canvasHeight.value);
+                    if (animMode.value && settings.onionSkin && currentFrame.value > 0) {
+                        const img = new Image();
+                        img.onload = () => oCtx.drawImage(img, 0, 0);
+                        img.src = frames.value[currentFrame.value - 1];
+                    }
+                }
+
+                // GIF 录制功能
+                function startGifRecording() {
+                    isRecordingGIF.value = true;
+                    gifFrames.value = [];
+                    // 初始帧
+                    gifFrames.value.push(canvasEl.value.toDataURL());
+                    showToast("开始录制 GIF，尽情作画吧！");
+                }
+                function stopGifRecording() {
+                    isRecordingGIF.value = false;
+                    if (gifFrames.value.length < 2) {
+                        showToast("帧数太少，无法生成GIF");
+                        return;
+                    }
+                    showToast("正在渲染 GIF，请稍候...");
+                    
+                    try {
+                        const gif = new GIF({
+                            workers: 2,
+                            quality: 10,
+                            width: canvasWidth.value * 10, // 放大导出
+                            height: canvasHeight.value * 10,
+                            workerScript: URL.createObjectURL(new Blob([`
+                                importScripts('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');
+                            `], { type: 'application/javascript' }))
+                        });
+
+                        const loadAndAdd = async () => {
+                            for (let src of gifFrames.value) {
+                                await new Promise(resolve => {
+                                    const img = new Image();
+                                    img.onload = () => {
+                                        // 绘制到大画布防止模糊
+                                        const tempC = document.createElement('canvas');
+                                        tempC.width = canvasWidth.value * 10;
+                                        tempC.height = canvasHeight.value * 10;
+                                        const tCtx = tempC.getContext('2d');
+                                        tCtx.imageSmoothingEnabled = false;
+                                        tCtx.drawImage(img, 0, 0, tempC.width, tempC.height);
+                                        gif.addFrame(tempC, {delay: 200}); // 每一步200ms
+                                        resolve();
+                                    };
+                                    img.src = src;
+                                });
+                            }
+                            gif.on('finished', (blob) => {
+                                const link = document.createElement('a');
+                                link.href = URL.createObjectURL(blob);
+                                link.download = 'pixel-process.gif';
+                                link.click();
+                                showToast("GIF 导出成功！");
+                                playSound('export');
+                            });
+                            gif.render();
+                        };
+                        loadAndAdd();
+
+                    } catch (e) {
+                        console.error(e);
+                        showToast("GIF 生成失败，请检查网络或浏览器支持");
+                    }
+                }
+
+                // 参考图拖拽
+                function triggerRefUpload() { refInput.value.click(); }
+                function handleRefImport(e) {
+                    const file = e.target.files[0];
+                    if(!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (evt) => { refImgSrc.value = evt.target.result; showToast("参考图已加载"); };
+                    reader.readAsDataURL(file);
+                    e.target.value = '';
+                }
+                function startDragRef(e) {
+                    isDraggingRef = true;
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    dragStart = { x: clientX - refPos.x, y: clientY - refPos.y };
+                }
+                function dragRef(e) {
+                    if(!isDraggingRef) return;
+                    e.preventDefault();
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    refPos.x = clientX - dragStart.x;
+                    refPos.y = clientY - dragStart.y;
+                }
+                function endDragRef() { isDraggingRef = false; }
+
+                // 通用功能
+                function exportImage() {
+                    const ec = document.createElement('canvas');
+                    ec.width = canvasWidth.value * 20; ec.height = canvasHeight.value * 20;
+                    const eCtx = ec.getContext('2d');
+                    eCtx.imageSmoothingEnabled = false;
+                    eCtx.drawImage(canvasEl.value, 0, 0, ec.width, ec.height);
+                    const link = document.createElement('a');
+                    link.download = `pixel-art-${Date.now()}.png`; link.href = ec.toDataURL(); link.click();
+                    playSound('export');
+                }
+
+                function exportGridData() {
+                    const w = canvasWidth.value; const h = canvasHeight.value;
+                    const data = ctx.value.getImageData(0,0,w,h).data;
+                    let txt = `Size: ${w}x${h}\n`;
+                    for(let y=0; y<h; y++){
+                        for(let x=0; x<w; x++){
+                            const i = (y*w+x)*4;
+                            const hex = rgbToHex(data[i], data[i+1], data[i+2]);
+                            txt += `(${x},${y}): ${hex}\n`;
+                        }
+                    }
+                    const blob = new Blob([txt], {type: 'text/plain'});
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'pixel-grid.txt';
+                    link.click();
+                    showToast("TXT 数据已导出");
+                }
+
+                function clearBackup() {
+                    localStorage.removeItem('pixelArtBackup');
+                    showToast("本地备份已清除");
+                }
+
+                // 辅助
+                function drawGrid() {
+                    if (!gridCtx.value) return;
+                    gridCtx.value.clearRect(0,0,canvasWidth.value,canvasHeight.value);
+                    if (!showGrid.value || scale.value < 4) return;
+                    gridCtx.value.strokeStyle = 'rgba(128,128,128,0.5)'; gridCtx.value.lineWidth = 0.1;
+                    gridCtx.value.beginPath();
+                    for(let x=0; x<=canvasWidth.value; x++){ gridCtx.value.moveTo(x,0); gridCtx.value.lineTo(x,canvasHeight.value); }
+                    for(let y=0; y<=canvasHeight.value; y++){ gridCtx.value.moveTo(0,y); gridCtx.value.lineTo(canvasWidth.value,y); }
+                    gridCtx.value.stroke();
+                }
+                function rgbToHex(r,g,b) { return "#" + ((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1).toUpperCase(); }
+                function hexToRgb(hex) { let res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex); return res?{r:parseInt(res[1],16),g:parseInt(res[2],16),b:parseInt(res[3],16)}:null; }
+                function createNewCanvas() { initCanvas(newWidth.value, newHeight.value); showNewDialog.value = false; history.value = []; historyIndex.value = -1; saveState(); }
+                function setPreset(v) { newWidth.value = v; newHeight.value = v; }
+                function triggerFileUpload() { fileInput.value.click(); }
+                function handleImageImport(e) {
+                    const f = e.target.files[0]; if(!f) return;
+                    const r = new FileReader();
+                    r.onload = (ev) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            let ratio = Math.min(canvasWidth.value/img.width, canvasHeight.value/img.height);
+                            let fw = Math.floor(img.width*ratio), fh = Math.floor(img.height*ratio);
+                            ctx.value.fillStyle='#FFF'; ctx.value.fillRect(0,0,canvasWidth.value,canvasHeight.value);
+                            ctx.value.imageSmoothingEnabled=false;
+                            ctx.value.drawImage(img, (canvasWidth.value-fw)/2, (canvasHeight.value-fh)/2, fw, fh);
+                            saveState();
+                            showToast("图片已导入并像素化");
+                        };
+                        img.src = ev.target.result;
+                    };
+                    r.readAsDataURL(f);
+                    e.target.value='';
+                }
+                function showToast(msg) { snackbarText.value = msg; snackbar.value = true; }
+                function getBrushName(s) { return s==='square'?'方':(s==='circle'?'圆':'花'); }
+                
+                // Color Picker Logic (简化版)
+                function initColorPicker() { drawHue(); drawSV(); }
+                function drawHue() {
+                    const c = hueCanvas.value.getContext('2d');
+                    const g = c.createLinearGradient(0,0,300,0);
+                    g.addColorStop(0,'#f00'); g.addColorStop(1/6,'#ff0'); g.addColorStop(2/6,'#0f0'); g.addColorStop(3/6,'#0ff'); g.addColorStop(4/6,'#00f'); g.addColorStop(5/6,'#f0f'); g.addColorStop(1,'#f00');
+                    c.fillStyle = g; c.fillRect(0,0,300,30);
+                }
+                function drawSV() {
+                    const c = svCanvas.value.getContext('2d');
+                    c.clearRect(0,0,300,200);
+                    c.fillStyle = `hsl(${hue.value}, 100%, 50%)`; c.fillRect(0,0,300,200);
+                    const w = c.createLinearGradient(0,0,300,0); w.addColorStop(0,'#fff'); w.addColorStop(1,'rgba(255,255,255,0)');
+                    c.fillStyle = w; c.fillRect(0,0,300,200);
+                    const b = c.createLinearGradient(0,0,0,200); b.addColorStop(0,'transparent'); b.addColorStop(1,'#000');
+                    c.fillStyle = b; c.fillRect(0,0,300,200);
+                }
+                function pickHue(e) {
+                    if(e.buttons!==1 && e.type!=='touchstart' && e.type!=='touchmove') return;
+                    const r = hueCanvas.value.getBoundingClientRect(); const x = (e.touches?e.touches[0].clientX:e.clientX)-r.left;
+                    hue.value = Math.max(0,Math.min(360,(x/r.width)*360)); drawSV(); updateColor();
+                }
+                function pickSV(e) {
+                    if(e.buttons!==1 && e.type!=='touchstart' && e.type!=='touchmove') return;
+                    const r = svCanvas.value.getBoundingClientRect(); 
+                    sat.value = Math.max(0,Math.min(100, ((e.touches?e.touches[0].clientX:e.clientX)-r.left)/r.width*100));
+                    val.value = Math.max(0,Math.min(100, 100-((e.touches?e.touches[0].clientY:e.clientY)-r.top)/r.height*100));
+                    updateColor();
+                }
+                function updateColor() {
+                    const s = sat.value/100, v = val.value/100, h = hue.value;
+                    const f = (n,k=(n+h/60)%6) => v - v*s*Math.max(Math.min(k,4-k,1),0);
+                    tempColor.value = rgbToHex(Math.round(f(5)*255), Math.round(f(3)*255), Math.round(f(1)*255));
+                }
+                function confirmColor() { brushColor.value = tempColor.value; showColorPicker.value = false; }
+                function updatePickerUI() {} // Placeholder for reverse lookup
+
+                return {
+                    vuetify, canvasEl, gridEl, onionEl, svCanvas, hueCanvas, fileInput, refInput,
+                    canvasWidth, canvasHeight, brushSize, currentTool, brushColor, showGrid,
+                    scale, offsetX, offsetY,
+                    showNewDialog, showSettings, newWidth, newHeight, presetSize,
+                    showColorPicker, tempColor, presetColors,
+                    history, historyIndex, snackbar, snackbarText,
+                    settings, getBrushName,
+                    // Anim
+                    animMode, frames, currentFrame, isPlaying, toggleAnimMode, addFrame, copyFrame, deleteFrame, prevFrame, nextFrame, playAnimation,
+                    // GIF
+                    isRecordingGIF, startGifRecording, stopGifRecording,
+                    // Ref
+                    refImgSrc, refPos, triggerRefUpload, handleRefImport, startDragRef, dragRef, endDragRef,
+                    // Actions
+                    undo, redo, createNewCanvas, setPreset, triggerFileUpload, handleImageImport, exportImage, exportGridData, clearBackup,
+                    pickHue, pickSV, confirmColor, updatePickerUI,
+                    handleMouseDown, handleMouseMove, handleMouseUp, handleTouchStart, handleTouchMove, handleTouchEnd, handleWheel
+                };
+            }
+        }).use(vuetify).mount('#app');
+    </script>
+</body>
+</html>
