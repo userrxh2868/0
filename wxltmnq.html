@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>微信群聊模拟器 (v5.0 终极增强版)</title>
+    
+    <!-- 引入资源 -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.x/css/materialdesignicons.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/vuetify@3.x/dist/vuetify.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #f5f5f5;
+            --chat-bg: #ededed;
+            --header-bg: #ededed;
+            --bubble-left-bg: #ffffff;
+            --bubble-left-border: #e7e7e7;
+            --bubble-right-bg: #95ec69;
+            --bubble-right-border: #86d65e;
+            --text-color: #000000;
+            --nickname-color: #999;
+            --footer-bg: #f7f7f7;
+        }
+
+        [data-theme='dark'] {
+            --bg-color: #121212;
+            --chat-bg: #1e1e1e;
+            --header-bg: #1e1e1e;
+            --bubble-left-bg: #2c2c2c;
+            --bubble-left-border: #3a3a3a;
+            --bubble-right-bg: #2e7d32;
+            --bubble-right-border: #1b5e20;
+            --text-color: #ffffff;
+            --nickname-color: #777;
+            --footer-bg: #1e1e1e;
+        }
+
+        body { 
+            background-color: var(--bg-color); 
+            margin: 0;
+            padding: 0;
+            overflow: hidden; 
+            color: var(--text-color);
+        }
+        
+        .chat-container {
+            background-color: var(--chat-bg);
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            margin: 0 auto;
+            position: relative;
+            transition: background-color 0.3s;
+        }
+
+        @media (min-width: 600px) {
+            .chat-container {
+                max-width: 600px;
+                box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            }
+        }
+
+        .chat-header {
+            background-color: var(--header-bg) !important;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            flex-shrink: 0;
+            color: var(--text-color) !important;
+        }
+
+        .chat-body {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 15px;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .message-row {
+            display: flex;
+            margin-bottom: 15px;
+            align-items: flex-start;
+        }
+
+        .message-row.me {
+            flex-direction: row-reverse;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            background-color: #ddd;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .avatar .v-img { width: 100%; height: 100%; }
+
+        .content-wrapper {
+            max-width: 75%;
+            margin: 0 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message-row.me .content-wrapper { align-items: flex-end; }
+
+        .nickname {
+            font-size: 12px;
+            color: var(--nickname-color);
+            margin-bottom: 2px;
+        }
+        
+        .message-row.me .nickname { display: none; }
+
+        .bubble {
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 15px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            position: relative;
+            text-align: left;
+            color: var(--text-color);
+        }
+
+        .bubble-left {
+            background-color: var(--bubble-left-bg);
+            border: 1px solid var(--bubble-left-border);
+        }
+
+        .bubble-right {
+            background-color: var(--bubble-right-bg);
+            border: 1px solid var(--bubble-right-border);
+            color: #000; 
+        }
+        [data-theme='dark'] .bubble-right { color: white; }
+
+        /* 贴图/图片表情样式 */
+        .sticker-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        .sticker-img {
+            max-width: 120px;
+            max-height: 120px;
+            border-radius: 4px;
+            cursor: zoom-in;
+        }
+        .gif-tag {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            font-size: 9px;
+            padding: 1px 3px;
+            border-radius: 2px;
+            font-weight: bold;
+            pointer-events: none;
+        }
+        /* 全屏预览时隐藏 GIF 标签 */
+        .zoom-container .gif-tag { display: none !important; }
+
+        .stolen-hint {
+            font-size: 10px;
+            color: #9e9e9e;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        /* 红包样式 */
+        .red-packet {
+            background-color: #fa9d3b;
+            color: white;
+            width: 220px;
+            border-radius: 6px;
+            overflow: hidden;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+        }
+        .red-packet.opened { opacity: 0.7; }
+        .rp-content {
+            padding: 15px 12px;
+            display: flex;
+            align-items: center;
+        }
+        .rp-icon { font-size: 32px; margin-right: 12px; color: #fceecb; }
+        .rp-text { font-size: 14px; font-weight: 500; text-align: left; line-height: 1.2;}
+        .rp-footer {
+            background-color: rgba(255,255,255,0.15);
+            color: rgba(255,255,255,0.9);
+            font-size: 10px;
+            padding: 5px 12px;
+            text-align: left;
+        }
+        .rp-received-label {
+            font-size: 11px;
+            color: #fa9d3b;
+            font-weight: bold;
+            margin-top: 2px;
+            margin-left: 2px;
+        }
+
+        .system-msg {
+            text-align: center;
+            margin: 10px 0;
+        }
+        .system-msg span {
+            background-color: rgba(0,0,0,0.1);
+            color: white;
+            font-size: 12px;
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+
+        .chat-footer {
+            background-color: var(--footer-bg);
+            padding: 8px 10px;
+            border-top: 1px solid rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+            padding-bottom: max(8px, env(safe-area-inset-bottom));
+        }
+
+        .v-input__details { display: none !important; }
+        .v-field__input { padding-top: 10px !important; min-height: 40px !important; }
+        
+        .emoji-container {
+            background: var(--footer-bg);
+            height: 200px;
+            display: flex;
+            flex-direction: column;
+            color: var(--text-color);
+        }
+        .emoji-tabs {
+            display: flex;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            background: var(--footer-bg);
+        }
+        .emoji-tab {
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .emoji-tab.active {
+            background: rgba(0,0,0,0.05);
+            font-weight: bold;
+        }
+        .emoji-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 5px;
+        }
+        .emoji-item {
+            font-size: 24px;
+            text-align: center;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            user-select: none;
+        }
+        .sticker-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .sticker-item {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #fff;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        .sticker-item img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        .add-sticker-btn {
+            font-size: 30px;
+            color: #999;
+            border: 2px dashed #ccc;
+        }
+        .sticker-delete-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            z-index: 2;
+        }
+        
+        /* 余额动画过渡 */
+        .balance-num {
+            transition: color 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <v-app :theme="themeMode">
+            <div class="chat-container" :data-theme="themeMode">
+                <!-- 顶部栏 -->
+                <v-toolbar density="compact" elevation="0" class="chat-header">
+                    <v-btn icon @click="resetChat">
+                        <v-icon>mdi-arrow-left</v-icon>
+                    </v-btn>
+                    
+                    <div class="d-flex flex-column" style="overflow: hidden;">
+                        <span class="text-body-1 font-weight-bold text-truncate">相亲相爱一家人 ({{ memberCount }})</span>
+                    </div>
+                    
+                    <v-spacer></v-spacer>
+                    
+                    <!-- 余额显示 (带滚动效果) -->
+                    <v-chip color="amber darken-2" variant="flat" size="small" class="mr-2">
+                        余额: <span class="balance-num ml-1">￥{{ displayBalance.toFixed(2) }}</span>
+                    </v-chip>
+
+                    <v-btn icon size="small" @click="toggleTheme" class="mr-1">
+                        <v-icon>{{ themeMode === 'light' ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
+                    </v-btn>
+
+                    <v-btn icon @click="settingsDialog = true">
+                        <v-icon>mdi-cog-outline</v-icon>
+                    </v-btn>
+                </v-toolbar>
+
+                <!-- 聊天内容区域 -->
+                <div class="chat-body" ref="chatBody">
+                    <div v-for="msg in messages" :key="msg.id">
+                        
+                        <div v-if="msg.type === 'system'" class="system-msg">
+                            <span>{{ msg.content }}</span>
+                        </div>
+
+                        <div v-else class="message-row" :class="{ 'me': msg.isMe }">
+                            <div class="avatar">
+                                <v-img :src="msg.user.avatar" cover>
+                                    <template v-slot:placeholder>
+                                        <div class="d-flex align-center justify-center fill-height">
+                                            <v-progress-circular indeterminate color="grey-lighten-2" size="20" width="2"></v-progress-circular>
+                                        </div>
+                                    </template>
+                                </v-img>
+                            </div>
+                            
+                            <div class="content-wrapper">
+                                <span class="nickname" v-if="!msg.isMe">{{ msg.user.name }}</span>
+                                
+                                <div v-if="msg.type === 'text'" class="bubble" :class="msg.isMe ? 'bubble-right' : 'bubble-left'">
+                                    {{ msg.content }}
+                                </div>
+
+                                <div v-if="msg.type === 'emoji'" class="text-h3">
+                                    {{ msg.content }}
+                                </div>
+                                
+                                <div v-if="msg.type === 'sticker'">
+                                    <div class="sticker-wrapper" @click="previewImage(msg.content)">
+                                        <img :src="msg.content" class="sticker-img">
+                                        <div v-if="msg.isGif" class="gif-tag">GIF</div>
+                                    </div>
+                                    <div v-if="msg.isStolen" class="stolen-hint">
+                                        <v-icon size="10" color="purple">mdi-eye-plus-outline</v-icon> 群友已收藏
+                                    </div>
+                                </div>
+
+                                <div v-if="msg.type === 'redpacket'">
+                                    <div class="red-packet" 
+                                         :class="{'opened': msg.isOpened}"
+                                         @click="handleRedPacketClick(msg)">
+                                        <div class="rp-content">
+                                            <v-icon class="rp-icon">mdi-email-outline</v-icon>
+                                            <div class="rp-text">
+                                                <div>{{ msg.content }}</div>
+                                                <div v-if="msg.isOpened" style="font-size: 11px; opacity: 0.8">已领取</div>
+                                            </div>
+                                        </div>
+                                        <div class="rp-footer">微信红包</div>
+                                    </div>
+                                    <!-- 领取金额详情 -->
+                                    <div v-if="msg.receivedAmount" class="rp-received-label">
+                                        +￥{{ msg.receivedAmount }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 底部输入 -->
+                <div class="chat-footer">
+                    <v-btn icon size="small" variant="text" @click="showEmoji = !showEmoji">
+                        <v-icon>mdi-emoticon-outline</v-icon>
+                    </v-btn>
+                    
+                    <v-btn icon size="small" variant="text" color="red" @click="openSendRpDialog">
+                        <v-icon>mdi-plus-circle-outline</v-icon>
+                    </v-btn>
+
+                    <v-text-field
+                        v-model="inputMessage"
+                        variant="outlined"
+                        density="compact"
+                        bg-color="white"
+                        hide-details
+                        placeholder="发消息..."
+                        @keyup.enter="sendMessage"
+                    ></v-text-field>
+
+                    <v-btn v-if="inputMessage.trim()" color="success" size="small" @click="sendMessage">发送</v-btn>
+                    <v-btn v-else icon size="small" variant="text"><v-icon>mdi-plus-circle-outline</v-icon></v-btn>
+                </div>
+                
+                <!-- 表情/贴图区域 -->
+                <v-expand-transition>
+                    <div v-if="showEmoji" class="emoji-container">
+                        <div class="emoji-tabs">
+                            <div class="emoji-tab" :class="{active: emojiTab === 'emoji'}" @click="emojiTab = 'emoji'">系统表情</div>
+                            <div class="emoji-tab" :class="{active: emojiTab === 'sticker'}" @click="emojiTab = 'sticker'">自定义表情</div>
+                        </div>
+                        
+                        <div v-if="emojiTab === 'emoji'" class="emoji-content">
+                            <div class="emoji-grid">
+                                <div v-for="em in emojis" :key="em" class="emoji-item" @click="sendEmoji(em)">{{ em }}</div>
+                            </div>
+                        </div>
+
+                        <div v-if="emojiTab === 'sticker'" class="emoji-content">
+                            <div class="sticker-grid">
+                                <div class="sticker-item add-sticker-btn" @click="triggerStickerUpload">
+                                    <v-icon size="30" color="grey">mdi-plus</v-icon>
+                                </div>
+                                <div v-for="(img, idx) in customStickers" :key="idx" class="sticker-item" @click="sendSticker(img)">
+                                    <img :src="img">
+                                </div>
+                            </div>
+                            <input type="file" ref="stickerInput" accept="image/*" style="display:none" @change="handleStickerUpload">
+                        </div>
+                    </div>
+                </v-expand-transition>
+            </div>
+
+            <!-- 图片预览对话框 -->
+            <v-dialog v-model="zoomDialog" fullscreen transition="fade-transition">
+                <div class="zoom-container" style="background: rgba(0,0,0,0.95); width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; position: relative;">
+                    <v-btn icon color="white" size="large" variant="text" style="position: absolute; top: 20px; right: 20px; z-index: 10;" @click="zoomDialog = false">
+                        <v-icon size="30">mdi-close-circle-outline</v-icon>
+                    </v-btn>
+                    <img :src="currentZoomImg" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                </div>
+            </v-dialog>
+
+            <!-- 设置对话框 -->
+            <v-dialog v-model="settingsDialog" fullscreen transition="dialog-bottom-transition">
+                <v-card :class="themeMode === 'dark' ? 'bg-grey-darken-4' : 'bg-grey-lighten-4'">
+                    <v-toolbar color="primary">
+                        <v-btn icon @click="settingsDialog = false"><v-icon>mdi-close</v-icon></v-btn>
+                        <v-toolbar-title>设置</v-toolbar-title>
+                        <v-spacer></v-spacer>
+                        <v-btn variant="text" @click="settingsDialog = false">完成</v-btn>
+                    </v-toolbar>
+                    
+                    <v-container>
+                        <v-expansion-panels v-model="settingsPanel">
+                            
+                            <!-- 1. 模拟参数 -->
+                            <v-expansion-panel title="模拟参数设置" value="general">
+                                <v-expansion-panel-text>
+                                    <v-list density="compact" bg-color="transparent">
+                                        <v-list-item>
+                                            <template v-slot:prepend><v-icon>mdi-account-group</v-icon></template>
+                                            <v-list-item-title>群人数: {{ memberCount }}</v-list-item-title>
+                                            <v-slider v-model.lazy="memberCount" min="2" max="200" step="1" color="primary" @end="updateMemberCount"></v-slider>
+                                        </v-list-item>
+                                        <v-list-item>
+                                            <template v-slot:prepend><v-icon>mdi-speedometer</v-icon></template>
+                                            <v-list-item-title>说话频率: {{ chatInterval }}s</v-list-item-title>
+                                            <v-slider v-model.lazy="chatInterval" min="0.5" max="8" step="0.5" color="primary"></v-slider>
+                                        </v-list-item>
+                                        <v-list-item>
+                                            <template v-slot:prepend><v-icon color="red">mdi-gift</v-icon></template>
+                                            <v-list-item-title>发红包概率: {{ (rpChance * 100).toFixed(0) }}%</v-list-item-title>
+                                            <v-slider v-model.lazy="rpChance" min="0" max="0.5" step="0.01" color="red"></v-slider>
+                                        </v-list-item>
+                                        
+                                        <v-list-item>
+                                            <v-list-item-title class="mb-2">群友红包金额范围 (元)</v-list-item-title>
+                                            <div class="d-flex align-center">
+                                                <v-text-field v-model.number="rpMin" label="最小" type="number" density="compact" variant="outlined" hide-details class="mr-2"></v-text-field>
+                                                <span class="mr-2">-</span>
+                                                <v-text-field v-model.number="rpMax" label="最大" type="number" density="compact" variant="outlined" hide-details></v-text-field>
+                                            </div>
+                                        </v-list-item>
+
+                                        <v-list-item>
+                                            <template v-slot:prepend><v-icon color="purple">mdi-sticker-check</v-icon></template>
+                                            <v-list-item-title>群友盗图概率: {{ (stickerLearnChance * 100).toFixed(0) }}%</v-list-item-title>
+                                            <v-slider v-model.lazy="stickerLearnChance" min="0" max="1" step="0.1" color="purple"></v-slider>
+                                        </v-list-item>
+                                        <v-list-item>
+                                            <v-list-item-title>自动发言</v-list-item-title>
+                                            <template v-slot:append><v-switch v-model="isAutoChatting" color="success" hide-details density="compact"></v-switch></template>
+                                        </v-list-item>
+
+                                        <!-- 音效开关 -->
+                                        <v-list-item>
+                                            <template v-slot:prepend><v-icon>mdi-volume-high</v-icon></template>
+                                            <v-list-item-title>提示音效</v-list-item-title>
+                                            <template v-slot:append><v-switch v-model="isSoundOn" color="primary" hide-details density="compact"></v-switch></template>
+                                        </v-list-item>
+                                    </v-list>
+                                </v-expansion-panel-text>
+                            </v-expansion-panel>
+
+                            <!-- 2. 自定义话题 (NEW) -->
+                            <v-expansion-panel title="自定义话题与回复" value="topics">
+                                <v-expansion-panel-text>
+                                    <v-list-item>
+                                        <v-list-item-title>启用智能话题</v-list-item-title>
+                                        <template v-slot:append><v-switch v-model="topicMode" color="blue" hide-details density="compact"></v-switch></template>
+                                    </v-list-item>
+                                    <div class="d-flex align-center mt-2">
+                                        <v-text-field v-model="newTopicKey" label="触发词 (如: 加班)" density="compact" variant="outlined" hide-details class="mr-2"></v-text-field>
+                                        <v-text-field v-model="newTopicVal" label="回复 (如: 辛苦了)" density="compact" variant="outlined" hide-details class="mr-2"></v-text-field>
+                                        <v-btn icon size="small" color="blue" @click="addUserTopic"><v-icon>mdi-plus</v-icon></v-btn>
+                                    </div>
+                                    <v-list density="compact" class="mt-2">
+                                        <v-list-item v-for="(val, key) in userTopics" :key="key">
+                                            <v-list-item-title>{{ key }} → {{ val }}</v-list-item-title>
+                                            <template v-slot:append><v-btn icon size="x-small" variant="text" color="grey" @click="deleteUserTopic(key)"><v-icon>mdi-close</v-icon></v-btn></template>
+                                        </v-list-item>
+                                    </v-list>
+                                </v-expansion-panel-text>
+                            </v-expansion-panel>
+
+                            <!-- 3. 个人信息 -->
+                            <v-expansion-panel title="个人信息设置" value="personal">
+                                <v-expansion-panel-text>
+                                    <div class="d-flex align-center mb-4">
+                                        <div class="mr-4" style="position: relative; width: 64px; height: 64px;" @click="triggerAvatarUpload('me')">
+                                            <v-avatar size="64" class="elevation-2">
+                                                <v-img :src="currentUser.avatar" cover>
+                                                    <template v-slot:placeholder><v-progress-circular indeterminate></v-progress-circular></template>
+                                                </v-img>
+                                            </v-avatar>
+                                            <v-icon size="small" style="position:absolute; bottom:0; right:0; background:white; border-radius:50%; z-index:2; color:black;">mdi-camera</v-icon>
+                                        </div>
+                                        <v-text-field v-model="currentUser.name" label="我的昵称" variant="underlined" hide-details></v-text-field>
+                                        <input type="file" ref="meAvatarInput" accept="image/*" style="display:none" @change="(e) => handleAvatarUpload(e, 'me')">
+                                    </div>
+                                </v-expansion-panel-text>
+                            </v-expansion-panel>
+
+                            <!-- 4. 成员管理 -->
+                            <v-expansion-panel title="群成员与头像" value="members">
+                                <v-expansion-panel-text>
+                                    <v-select
+                                        v-model="avatarStyle"
+                                        :items="avatarStyles"
+                                        item-title="label"
+                                        item-value="val"
+                                        label="随机头像风格源"
+                                        variant="outlined"
+                                        density="compact"
+                                        @update:modelValue="refreshAllAvatars"
+                                        class="mb-2"
+                                    ></v-select>
+                                    
+                                    <v-list density="compact" max-height="300" style="overflow-y:auto" bg-color="transparent">
+                                        <v-list-item v-for="(member, idx) in members" :key="member.id" @click="openMemberEdit(member)">
+                                            <template v-slot:prepend>
+                                                <v-avatar size="32"><v-img :src="member.avatar" cover></v-img></v-avatar>
+                                            </template>
+                                            <v-list-item-title>
+                                                {{ member.name }}
+                                                <v-icon v-if="member.active" size="x-small" color="orange" title="活跃分子">mdi-fire</v-icon>
+                                            </v-list-item-title>
+                                            <template v-slot:append><v-icon size="small">mdi-pencil</v-icon></template>
+                                        </v-list-item>
+                                    </v-list>
+                                </v-expansion-panel-text>
+                            </v-expansion-panel>
+
+                            <!-- 5. 库存管理 -->
+                            <v-expansion-panel title="群友表情库存管理" value="bot_stickers">
+                                <v-expansion-panel-text>
+                                    <v-list-item class="px-0">
+                                        <v-list-item-title>群友发送自定义表情概率</v-list-item-title>
+                                        <v-list-item-subtitle>{{ (botStickerChance * 100).toFixed(0) }}%</v-list-item-subtitle>
+                                        <v-slider v-model.lazy="botStickerChance" min="0" max="0.8" step="0.05" color="orange"></v-slider>
+                                    </v-list-item>
+                                    <v-switch v-model="filterGif" label="仅看动图" color="primary" density="compact"></v-switch>
+
+                                    <div class="sticker-grid">
+                                        <div class="sticker-item add-sticker-btn" @click="triggerBotStickerUpload">
+                                            <v-icon size="30" color="grey">mdi-plus</v-icon>
+                                        </div>
+                                        <template v-for="(img, idx) in botStickers" :key="idx">
+                                            <div v-if="!filterGif || img.startsWith('data:image/gif')" class="sticker-item">
+                                                <img :src="img">
+                                                <v-btn icon size="x-small" color="error" variant="flat" class="sticker-delete-btn" @click="removeBotSticker(idx)">
+                                                    <v-icon size="small">mdi-close</v-icon>
+                                                </v-btn>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <input type="file" ref="botStickerInput" accept="image/*" style="display:none" @change="handleBotStickerUpload">
+                                </v-expansion-panel-text>
+                            </v-expansion-panel>
+
+                            <!-- 6. 语录库 & 导出 -->
+                            <v-expansion-panel title="语录库与导出" value="library">
+                                <v-expansion-panel-text>
+                                    <v-text-field 
+                                        v-model="newLibText" 
+                                        placeholder="添加语录..." 
+                                        density="compact" 
+                                        variant="underlined"
+                                        append-inner-icon="mdi-send"
+                                        @click:append-inner="addToLib"
+                                        @keyup.enter="addToLib"
+                                    ></v-text-field>
+                                    <v-chip-group column>
+                                        <v-chip v-for="(text, index) in textLibrary" :key="index" closable @click:close="removeLib(index)" size="small">
+                                            {{ text }}
+                                        </v-chip>
+                                    </v-chip-group>
+                                    
+                                    <v-divider class="my-3"></v-divider>
+                                    
+                                    <div class="d-flex gap-2">
+                                        <v-btn class="flex-grow-1" color="blue-grey" variant="tonal" @click="exportChat" size="small">
+                                            <v-icon start>mdi-file-document-outline</v-icon> 导出文本
+                                        </v-btn>
+                                        <v-btn class="flex-grow-1" color="green" variant="tonal" @click="showToast('图片导出功能开发中...', 'grey')" size="small">
+                                            <v-icon start>mdi-image</v-icon> 导出图片
+                                        </v-btn>
+                                    </div>
+                                    <v-btn size="small" color="warning" variant="text" block @click="resetLib" class="mt-2">重置为默认语录</v-btn>
+                                </v-expansion-panel-text>
+                            </v-expansion-panel>
+
+                        </v-expansion-panels>
+                    </v-container>
+                </v-card>
+            </v-dialog>
+
+            <!-- 成员编辑 -->
+            <v-dialog v-model="memberEditDialog" max-width="300">
+                <v-card v-if="editingMember">
+                    <v-card-title>编辑成员</v-card-title>
+                    <v-card-text class="text-center">
+                        <div class="mb-4" @click="triggerAvatarUpload('member')" style="width: 80px; height: 80px; margin: 0 auto; position: relative;">
+                            <v-avatar size="80" class="elevation-2" style="cursor:pointer">
+                                <v-img :src="editingMember.avatar" cover></v-img>
+                            </v-avatar>
+                            <div class="text-caption mt-1 text-grey">点击更换头像</div>
+                        </div>
+                        <v-text-field v-model="editingMember.name" label="昵称" variant="outlined" density="compact"></v-text-field>
+                        <v-switch v-model="editingMember.active" label="设为活跃分子" color="orange" density="compact"></v-switch>
+                        <input type="file" ref="memberAvatarInput" accept="image/*" style="display:none" @change="(e) => handleAvatarUpload(e, 'member')">
+                    </v-card-text>
+                    <v-card-actions>
+                        <v-spacer></v-spacer>
+                        <v-btn color="primary" @click="saveMemberEdit">确定</v-btn>
+                    </v-card-actions>
+                </v-card>
+            </v-dialog>
+
+            <!-- 发红包 -->
+            <v-dialog v-model="sendRpDialog" max-width="300">
+                <v-card>
+                    <v-card-title>发红包</v-card-title>
+                    <v-card-text>
+                        <!-- 校验范围 -->
+                        <v-text-field v-model.number="sendAmount" label="金额 (元)" type="number" prefix="￥" variant="outlined" :hint="'余额: ' + balance.toFixed(2)" :rules="[v => (v >= 0.01 && v <= 200) || '0.01 - 200元']"></v-text-field>
+                        <v-text-field v-model="sendRpText" label="祝福语" variant="outlined" class="mt-2"></v-text-field>
+                    </v-card-text>
+                    <v-card-actions>
+                        <v-spacer></v-spacer>
+                        <v-btn color="grey" variant="text" @click="sendRpDialog = false">取消</v-btn>
+                        <v-btn color="red" variant="flat" @click="confirmSendRp">塞钱</v-btn>
+                    </v-card-actions>
+                </v-card>
+            </v-dialog>
+
+            <v-snackbar v-model="snackbar" :timeout="2000" :color="snackbarColor">{{ snackbarText }}</v-snackbar>
+        </v-app>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.x/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@3.x/dist/vuetify.min.js"></script>
+
+    <script>
+        const { createApp, ref, reactive, watch, nextTick, onMounted, onUnmounted } = Vue;
+        const { createVuetify } = Vuetify;
+
+        const vuetify = createVuetify({
+            theme: {
+                defaultTheme: 'light',
+                themes: {
+                    light: { colors: { primary: '#1867C0', secondary: '#5CBBF6' } },
+                    dark: { colors: { primary: '#2196F3', secondary: '#424242' } },
+                },
+            },
+        });
+
+        // 真实短促音效
+        const sndMsgSrc = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//uQZAAAAAAAABAAAAAAAAAAAAJInfoADEAAAAAAARAAAAR3V4bQAAAAA//uQZAAAAAAAABAAAAAAAAAAAAJInfoADEAAAAAAARAAAAR3V4bQAAAAA//uQZAAAAAAAABAAAAAAAAAAAAJInfoADEAAAAAAARAAAAR3V4bQAAAAA"; // 简短占位，实际需要更长的base64才能听到声音，这里为演示逻辑
+        const sndCoinSrc = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="; // 占位
+
+        // 为了不让代码太长，这里用 console.log 模拟真实触发，你可以替换上面的 base64 为真实音频
+        const playSound = (type) => {
+            console.log(`[音效触发] ${type}`);
+            // if(type === 'msg') new Audio(sndMsgSrc).play().catch(()=>{});
+        };
+
+        const defaultLibrary = ["哈哈哈哈", "真的假的？", "笑死我了", "收到", "大家早上好", "今晚吃什么？", "😂", "👍", "我不信", "快发红包！", "老板大气", "666", "摸鱼中...", "周末去哪玩？"];
+        const randomNames = ["小王", "李总", "陈经理", "Tony老师", "外卖小哥", "小美", "大壮", "快乐星球", "没头脑", "不高兴"];
+        
+        const defaultTopics = {
+            "吃": "火锅走起",
+            "玩": "上号打游戏",
+            "睡": "晚安",
+        };
+
+        const avatarStyles = [
+            { label: '卡通头像 (Avataaars)', val: 'avataaars' },
+            { label: '现代风 (Miniavs)', val: 'miniavs' },
+            { label: '可爱风 (Lorelei)', val: 'lorelei' },
+            { label: '机器人 (Bottts)', val: 'bottts' },
+            { label: '像素艺术 (Pixel Art)', val: 'pixel-art' },
+            { label: '缩写 (Initials)', val: 'initials' }
+        ];
+
+        createApp({
+            setup() {
+                // 核心数据
+                const messages = ref([]);
+                const members = ref([]);
+                const memberCount = ref(10);
+                const currentUser = reactive({ name: "我", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Me" });
+                
+                // 设置相关
+                const settingsDialog = ref(false);
+                const settingsPanel = ref('general');
+                const chatInterval = ref(2.0);
+                const isAutoChatting = ref(true);
+                const textLibrary = ref([...defaultLibrary]);
+                const newLibText = ref("");
+                const themeMode = ref('light');
+                const isSoundOn = ref(false); 
+                const topicMode = ref(false);
+                const userTopics = ref({...defaultTopics});
+                const newTopicKey = ref("");
+                const newTopicVal = ref("");
+                
+                const pendingTopics = ref([]); 
+
+                // 头像与编辑
+                const avatarStyle = ref('avataaars');
+                const memberEditDialog = ref(false);
+                const editingMember = ref(null);
+                const meAvatarInput = ref(null);
+                const memberAvatarInput = ref(null);
+
+                // 表情包与贴图
+                const showEmoji = ref(false);
+                const emojiTab = ref('emoji');
+                const inputMessage = ref("");
+                const stickerInput = ref(null);
+                const customStickers = ref([]); 
+                
+                // 图片预览
+                const zoomDialog = ref(false);
+                const currentZoomImg = ref("");
+
+                // 机器人贴图
+                const botStickers = ref([]); 
+                const botStickerChance = ref(0.2);
+                const stickerLearnChance = ref(0.3);
+                const botStickerInput = ref(null); 
+                const filterGif = ref(false);
+
+                const emojis = ["😀", "😁", "😂", "🤣", "😉", "😊", "😍", "😘", "🤔", "😐", "🙄", "😏", "😣", "😫", "😴", "😜", "🤤", "😓", "😭", "😱", "😡", "🥳", "🥺", "🤡", "👻", "👍", "👎", "🤝", "🙏", "💪", "💩"];
+
+                // 红包与余额
+                const balance = ref(100.00);
+                const displayBalance = ref(100.00); // 用于显示动画
+                const rpChance = ref(0.05);
+                const rpMin = ref(0.01); 
+                const rpMax = ref(5.00); 
+                const sendRpDialog = ref(false);
+                const sendAmount = ref(10);
+                const sendRpText = ref("恭喜发财");
+                const snackbar = ref(false);
+                const snackbarText = ref("");
+                const snackbarColor = ref("");
+
+                const chatBody = ref(null);
+                let timer = null;
+
+                // --- 逻辑部分 ---
+
+                const toggleTheme = () => {
+                    themeMode.value = themeMode.value === 'light' ? 'dark' : 'light';
+                };
+
+                // 余额动画
+                watch(balance, (newVal) => {
+                    const step = () => {
+                        const diff = newVal - displayBalance.value;
+                        if (Math.abs(diff) < 0.01) {
+                            displayBalance.value = newVal;
+                        } else {
+                            displayBalance.value += diff * 0.1; // 简单的缓动
+                            requestAnimationFrame(step);
+                        }
+                    };
+                    step();
+                });
+
+                // 持久化存储
+                const saveData = () => {
+                    localStorage.setItem('wechat_sim_members', JSON.stringify(members.value));
+                    localStorage.setItem('wechat_sim_user', JSON.stringify(currentUser));
+                    localStorage.setItem('wechat_sim_bot_stickers', JSON.stringify(botStickers.value));
+                    localStorage.setItem('wechat_sim_my_stickers', JSON.stringify(customStickers.value));
+                };
+
+                const getRandAvatar = (seed) => `https://api.dicebear.com/7.x/${avatarStyle.value}/svg?seed=${seed}`;
+
+                const initMembers = (keepExisting = false) => {
+                    if (!keepExisting) {
+                        // 尝试加载
+                        try {
+                            const savedM = JSON.parse(localStorage.getItem('wechat_sim_members'));
+                            if (savedM && savedM.length) { members.value = savedM; memberCount.value = savedM.length; }
+                            const savedU = JSON.parse(localStorage.getItem('wechat_sim_user'));
+                            if (savedU) Object.assign(currentUser, savedU);
+                            const savedBS = JSON.parse(localStorage.getItem('wechat_sim_bot_stickers'));
+                            if (savedBS) botStickers.value = savedBS;
+                            const savedMS = JSON.parse(localStorage.getItem('wechat_sim_my_stickers'));
+                            if (savedMS) customStickers.value = savedMS;
+                            
+                            if (members.value.length > 0) return;
+                        } catch(e) {}
+                    }
+
+                    const tempMembers = [];
+                    if (keepExisting) {
+                        for(let i=0; i<memberCount.value; i++) {
+                            if (members.value[i]) {
+                                tempMembers.push(members.value[i]);
+                            } else {
+                                const seed = Math.random().toString(36).substring(7);
+                                tempMembers.push({
+                                    id: Date.now() + i,
+                                    name: randomNames[Math.floor(Math.random() * randomNames.length)] + (i+1),
+                                    avatar: getRandAvatar(seed),
+                                    active: false // 默认非活跃
+                                });
+                            }
+                        }
+                    } else {
+                        for (let i = 0; i < memberCount.value; i++) {
+                            const seed = Math.random().toString(36).substring(7);
+                            tempMembers.push({
+                                id: i,
+                                name: randomNames[Math.floor(Math.random() * randomNames.length)] + (i > 0 ? i : ''),
+                                avatar: getRandAvatar(seed),
+                                active: false
+                            });
+                        }
+                    }
+                    members.value = tempMembers;
+                    saveData();
+                };
+
+                const refreshAllAvatars = () => {
+                    members.value.forEach(m => {
+                        if (m.avatar.includes('api.dicebear.com')) {
+                            const seed = m.name + m.id; 
+                            m.avatar = getRandAvatar(seed);
+                        }
+                    });
+                    saveData();
+                };
+
+                const updateMemberCount = () => {
+                    initMembers(true); 
+                    saveData();
+                    pushMessage({ type: 'system', content: `群成员调整为 ${memberCount.value} 人` });
+                };
+
+                const openMemberEdit = (member) => {
+                    editingMember.value = JSON.parse(JSON.stringify(member)); // deep copy
+                    memberEditDialog.value = true;
+                };
+
+                const saveMemberEdit = () => {
+                    const idx = members.value.findIndex(m => m.id === editingMember.value.id);
+                    if (idx !== -1) {
+                        members.value[idx] = editingMember.value;
+                        saveData();
+                    }
+                    memberEditDialog.value = false;
+                };
+
+                const pushMessage = async (msgObj) => {
+                    messages.value.push(msgObj);
+                    if (isSoundOn.value) playSound('msg');
+                    await nextTick();
+                    if (chatBody.value) chatBody.value.scrollTop = chatBody.value.scrollHeight;
+                };
+
+                const exportChat = () => {
+                    const lines = messages.value.slice(-100).map(m => {
+                        const time = new Date(m.id).toLocaleTimeString();
+                        if (m.type === 'system') return `[${time}] [系统] ${m.content}`;
+                        return `[${time}] ${m.user.name}: ${m.type === 'text' ? m.content : '['+m.type+']'}`;
+                    });
+                    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `chat_${Date.now()}.txt`;
+                    a.click();
+                    showToast("已导出", "success");
+                };
+
+                // 自定义话题
+                const addUserTopic = () => {
+                    if (newTopicKey.value && newTopicVal.value) {
+                        userTopics.value[newTopicKey.value] = newTopicVal.value;
+                        newTopicKey.value = "";
+                        newTopicVal.value = "";
+                    }
+                };
+                const deleteUserTopic = (key) => delete userTopics.value[key];
+
+                const sendMessage = () => {
+                    const txt = inputMessage.value.trim();
+                    if (!txt) return;
+
+                    // 指令系统
+                    if (txt.startsWith('/')) {
+                        const parts = txt.split(' ');
+                        const cmd = parts[0];
+                        if (cmd === '/clear') {
+                            messages.value = [];
+                            showToast("已清空屏幕", "info");
+                        } else if (cmd === '/balance') {
+                            const amt = parseFloat(parts[1]);
+                            if (!isNaN(amt)) {
+                                balance.value = amt;
+                                showToast(`余额已修改为 ${amt}`, "success");
+                            }
+                        } else if (cmd === '/help') {
+                            showToast("指令: /clear, /balance [数]", "info");
+                        } else {
+                            showToast("未知指令", "error");
+                        }
+                        inputMessage.value = "";
+                        return;
+                    }
+                    
+                    if (topicMode.value) {
+                        for (let key in userTopics.value) {
+                            if (txt.includes(key)) pendingTopics.value.push(userTopics.value[key]);
+                        }
+                    }
+
+                    pushMessage({
+                        id: Date.now(),
+                        type: 'text',
+                        content: txt,
+                        user: currentUser,
+                        isMe: true
+                    });
+                    inputMessage.value = "";
+                    showEmoji.value = false;
+                };
+
+                const sendEmoji = (emoji) => {
+                    pushMessage({ id: Date.now(), type: 'emoji', content: emoji, user: currentUser, isMe: true });
+                    showEmoji.value = false;
+                };
+
+                const sendSticker = (imgBase64) => {
+                    let isStolen = false;
+                    let isGif = imgBase64.startsWith('data:image/gif');
+
+                    if (Math.random() < stickerLearnChance.value) {
+                        if (!botStickers.value.includes(imgBase64)) {
+                            botStickers.value.push(imgBase64);
+                            saveData();
+                            isStolen = true; 
+                        }
+                    }
+
+                    pushMessage({ 
+                        id: Date.now(), 
+                        type: 'sticker', 
+                        content: imgBase64, 
+                        user: currentUser, 
+                        isMe: true,
+                        isStolen: isStolen,
+                        isGif: isGif
+                    });
+                    
+                    showEmoji.value = false;
+                };
+
+                const previewImage = (src) => {
+                    currentZoomImg.value = src;
+                    zoomDialog.value = true;
+                };
+
+                const handleFileUpload = (event, callback) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (e) => callback(e.target.result);
+                    reader.readAsDataURL(file);
+                    event.target.value = ''; 
+                };
+
+                const triggerAvatarUpload = (type) => {
+                    if (type === 'me') meAvatarInput.value.click();
+                    else memberAvatarInput.value.click();
+                };
+                const triggerStickerUpload = () => stickerInput.value.click();
+                const triggerBotStickerUpload = () => botStickerInput.value.click();
+
+                const handleAvatarUpload = (e, type) => {
+                    handleFileUpload(e, (res) => {
+                        if (type === 'me') {
+                            currentUser.avatar = res;
+                            saveData();
+                        } else if (editingMember.value) {
+                            editingMember.value.avatar = res;
+                        }
+                    });
+                };
+
+                const handleStickerUpload = (e) => {
+                    handleFileUpload(e, (res) => {
+                        customStickers.value.push(res);
+                        saveData();
+                        emojiTab.value = 'sticker';
+                    });
+                };
+
+                const handleBotStickerUpload = (e) => {
+                    handleFileUpload(e, (res) => {
+                        botStickers.value.push(res);
+                        saveData();
+                        showToast('已添加到群友库存', 'success');
+                    });
+                };
+
+                const removeBotSticker = (index) => {
+                    botStickers.value.splice(index, 1);
+                    saveData();
+                };
+
+                const openSendRpDialog = () => {
+                    sendRpDialog.value = true;
+                    sendAmount.value = Math.floor(Math.random() * 20) + 1;
+                    sendRpText.value = "恭喜发财";
+                };
+                
+                const confirmSendRp = () => {
+                    if (sendAmount.value < 0.01 || sendAmount.value > 200) return showToast("金额范围: 0.01 - 200", "error");
+                    if (balance.value < sendAmount.value) return showToast("余额不足", "error");
+                    
+                    balance.value -= sendAmount.value;
+                    pushMessage({
+                        id: Date.now(), type: 'redpacket', content: sendRpText.value,
+                        user: currentUser, isMe: true, isOpened: false, amount: sendAmount.value
+                    });
+                    sendRpDialog.value = false;
+                    showToast(`发送红包 -￥${sendAmount.value}`, "success");
+                };
+
+                const handleRedPacketClick = (msg) => {
+                    if (msg.isOpened) return;
+                    msg.isOpened = true;
+                    if (msg.isMe) return showToast("自己发的红包已被抢完", "info");
+                    
+                    const min = parseFloat(rpMin.value) || 0.01;
+                    const max = parseFloat(rpMax.value) || 5.00;
+                    let amount = (Math.random() * (max - min) + min).toFixed(2);
+                    
+                    // 记录该红包领取的金额，用于UI显示
+                    msg.receivedAmount = amount;
+                    
+                    balance.value += parseFloat(amount);
+                    showToast(`抢到红包 +￥${amount}`, "warning");
+                    
+                    if (isSoundOn.value) playSound('coin');
+
+                    setTimeout(() => pushMessage({ id: Date.now(), type: 'text', content: "谢谢老板", user: currentUser, isMe: true }), 800);
+                };
+
+                const showToast = (txt, color) => {
+                    snackbarText.value = txt;
+                    snackbarColor.value = color === 'error' ? 'red' : (color === 'warning' ? 'orange' : 'grey-darken-3');
+                    snackbar.value = true;
+                };
+
+                // 机器人核心逻辑
+                const botSpeak = () => {
+                    if (!isAutoChatting.value) return;
+                    
+                    // 活跃分子逻辑：随机抽一个人，如果是活跃的，直接通过；如果不是，50%概率重抽
+                    let member = members.value[Math.floor(Math.random() * members.value.length)];
+                    if (!member.active && Math.random() > 0.5) {
+                         // 重抽一次
+                         member = members.value[Math.floor(Math.random() * members.value.length)];
+                    }
+
+                    const roll = Math.random();
+                    
+                    // 1. 话题模式
+                    if (topicMode.value && pendingTopics.value.length > 0 && Math.random() < 0.7) {
+                        const reply = pendingTopics.value.shift();
+                        pushMessage({ id: Date.now(), type: 'text', content: reply, user: member, isMe: false });
+                        return;
+                    }
+
+                    let cumulative = 0;
+
+                    // 2. 红包
+                    cumulative += rpChance.value;
+                    if (roll < cumulative) {
+                        pushMessage({ id: Date.now(), type: 'redpacket', content: '恭喜发财', user: member, isMe: false, isOpened: false });
+                        return;
+                    }
+
+                    // 3. 普通 Emoji
+                    cumulative += 0.15;
+                    if (roll < cumulative) {
+                        pushMessage({ id: Date.now(), type: 'emoji', content: emojis[Math.floor(Math.random()*emojis.length)], user: member, isMe: false });
+                        return;
+                    }
+
+                    // 4. 自定义贴图
+                    cumulative += botStickerChance.value;
+                    if (roll < cumulative && botStickers.value.length > 0) {
+                         const stolenImg = botStickers.value[Math.floor(Math.random() * botStickers.value.length)];
+                         let isGif = stolenImg.startsWith('data:image/gif');
+                         pushMessage({ id: Date.now(), type: 'sticker', content: stolenImg, user: member, isMe: false, isGif: isGif });
+                         return;
+                    }
+
+                    // 5. 纯文本
+                    pushMessage({ id: Date.now(), type: 'text', content: textLibrary.value[Math.floor(Math.random()*textLibrary.value.length)], user: member, isMe: false });
+                };
+
+                const startLoop = () => {
+                    if (timer) clearInterval(timer);
+                    if (isAutoChatting.value) timer = setInterval(botSpeak, chatInterval.value * 1000);
+                };
+
+                watch([chatInterval, isAutoChatting], startLoop);
+                
+                const addToLib = () => { if(newLibText.value.trim()){ textLibrary.value.push(newLibText.value); newLibText.value=""; }};
+                const removeLib = (i) => textLibrary.value.splice(i, 1);
+                const resetLib = () => textLibrary.value = [...defaultLibrary];
+                const resetChat = () => { messages.value = []; pushMessage({ type: 'system', content: '您加入了群聊' }); };
+
+                onMounted(() => {
+                    initMembers();
+                    startLoop();
+                    pushMessage({ type: 'system', content: '您加入了群聊' });
+                });
+                onUnmounted(() => clearInterval(timer));
+
+                return {
+                    themeMode, toggleTheme, exportChat, isSoundOn, topicMode, userTopics, newTopicKey, newTopicVal, addUserTopic, deleteUserTopic,
+                    messages, members, memberCount, currentUser, balance, displayBalance,
+                    settingsDialog, settingsPanel, memberEditDialog, editingMember, saveMemberEdit,
+                    chatInterval, isAutoChatting, rpChance, stickerLearnChance,
+                    inputMessage, showEmoji, emojiTab, emojis, customStickers,
+                    textLibrary, newLibText, avatarStyle, avatarStyles,
+                    sendRpDialog, sendAmount, sendRpText, snackbar, snackbarText, snackbarColor,
+                    chatBody, meAvatarInput, memberAvatarInput, stickerInput,
+                    botStickers, botStickerChance, botStickerInput, rpMin, rpMax, zoomDialog, currentZoomImg, filterGif,
+                    triggerBotStickerUpload, handleBotStickerUpload, removeBotSticker, previewImage,
+                    sendMessage, sendEmoji, sendSticker,
+                    updateMemberCount, refreshAllAvatars, openMemberEdit,
+                    triggerAvatarUpload, handleAvatarUpload, triggerStickerUpload, handleStickerUpload,
+                    openSendRpDialog, confirmSendRp, handleRedPacketClick,
+                    addToLib, removeLib, resetLib, resetChat
+                };
+            }
+        }).use(vuetify).mount('#app');
+    </script>
+</body>
+</html>
