@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>真实擦玻璃模拟器 Ultimate</title>
+    <!-- 引入 Materialize CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <!-- 引入 Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            touch-action: none;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        #window-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* 底层背景 */
+        #bg-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            z-index: 1;
+        }
+
+        /* 顶层雾气 */
+        #fog-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2;
+            cursor: crosshair;
+        }
+
+        /* UI 控制面板 */
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 94%;
+            max-width: 420px;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: opacity 0.3s;
+        }
+
+        #controls.fade-out {
+            opacity: 0.1;
+            pointer-events: none;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .icon-label {
+            display: flex;
+            align-items: center;
+            color: #555;
+            min-width: 70px;
+            font-size: 13px;
+        }
+        
+        .icon-label i {
+            margin-right: 4px;
+            font-size: 18px;
+        }
+
+        .action-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 12px;
+            gap: 6px;
+        }
+        
+        .action-row .btn-small {
+            padding: 0 5px;
+            font-size: 11px;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .action-row .btn-small i {
+            font-size: 16px;
+            margin-right: 2px;
+        }
+
+        /* 开关样式调整 */
+        .switch label input[type=checkbox]:checked+.lever {
+            background-color: #2196f3;
+        }
+        .switch label input[type=checkbox]:checked+.lever:after {
+            background-color: #2196f3;
+        }
+
+        input[type=range]::-webkit-slider-thumb { background-color: #2196f3; }
+        input[type=range]::-moz-range-thumb { background: #2196f3; }
+
+        /* 加载遮罩 */
+        #loader {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            flex-direction: column;
+        }
+
+        .modal {
+            border-radius: 12px;
+            max-height: 80%;
+        }
+        .modal .modal-content { padding: 20px; }
+        
+        /* 设置弹窗里的每一行 */
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .setting-item:last-child { border-bottom: none; }
+        .setting-title { font-size: 16px; color: #333; }
+        .setting-desc { font-size: 12px; color: #888; margin-top: 2px; }
+    </style>
+</head>
+<body>
+
+    <!-- 雨声音频源 -->
+    <audio id="rain-audio" loop>
+        <source src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_3d18151745.mp3?filename=soft-rain-ambient-111154.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- 加载界面 -->
+    <div id="loader">
+        <div class="preloader-wrapper big active">
+            <div class="spinner-layer spinner-blue-only">
+              <div class="circle-clipper left"><div class="circle"></div></div>
+              <div class="gap-patch"><div class="circle"></div></div>
+              <div class="circle-clipper right"><div class="circle"></div></div>
+            </div>
+        </div>
+        <p id="loading-text" style="margin-top: 20px;">正在初始化物理引擎...</p>
+    </div>
+
+    <div id="window-container">
+        <!-- 背景层 -->
+        <div id="bg-image"></div>
+        <!-- 雾气层 -->
+        <canvas id="fog-canvas"></canvas>
+    </div>
+
+    <!-- UI 控制面板 -->
+    <div id="controls">
+        <!-- 温度 -->
+        <div class="control-row">
+            <div class="icon-label"><i class="material-icons">ac_unit</i> 温度</div>
+            <p class="range-field" style="width: 100%; margin: 0;">
+                <input type="range" id="temp-slider" min="0" max="100" value="20" />
+            </p>
+            <span id="temp-val" style="margin-left:8px; font-weight:bold; color:#2196f3; font-size:12px;">20°C</span>
+        </div>
+
+        <!-- 手指 -->
+        <div class="control-row">
+            <div class="icon-label"><i class="material-icons">fingerprint</i> 手指</div>
+            <p class="range-field" style="width: 100%; margin: 0;">
+                <input type="range" id="size-slider" min="10" max="120" value="40" />
+            </p>
+            <span id="size-val" style="margin-left:8px; font-weight:bold; color:#555; font-size:12px;">40px</span>
+        </div>
+        
+        <!-- 雨声开关 -->
+        <div class="control-row" style="margin-top: 5px; justify-content: space-between;">
+            <div class="icon-label"><i class="material-icons">music_note</i> 雨声</div>
+            <div class="switch">
+                <label>
+                  静音
+                  <input type="checkbox" id="audio-switch">
+                  <span class="lever"></span>
+                  开启
+                </label>
+            </div>
+        </div>
+
+        <!-- 功能按钮组 -->
+        <div class="action-row">
+            <a class="waves-effect waves-light btn-small blue" onclick="resetFog()">
+                <i class="material-icons">refresh</i>重置
+            </a>
+            <a class="waves-effect waves-light btn-small teal" onclick="loadRandomImage()">
+                <i class="material-icons">shuffle</i>换图
+            </a>
+            <a class="waves-effect waves-light btn-small orange modal-trigger" href="#modal-settings">
+                <i class="material-icons">image</i>自选
+            </a>
+            <a class="waves-effect waves-light btn-small purple" onclick="saveSnapshot()">
+                <i class="material-icons">camera_alt</i>保存
+            </a>
+            <!-- 新增：设置按钮 -->
+            <a class="waves-effect waves-light btn-small grey darken-1 modal-trigger" href="#modal-preferences">
+                <i class="material-icons">settings</i>设置
+            </a>
+        </div>
+    </div>
+
+    <!-- 换图模态框 -->
+    <div id="modal-settings" class="modal bottom-sheet">
+        <div class="modal-content">
+            <h5>更换背景</h5>
+            <div class="row">
+                <div class="col s12" style="margin-bottom: 15px;">
+                    <div class="file-field input-field">
+                        <div class="btn blue">
+                            <span>上传相册</span>
+                            <input type="file" id="upload-input" accept="image/*">
+                        </div>
+                        <div class="file-path-wrapper">
+                            <input class="file-path validate" type="text" placeholder="选择图片">
+                        </div>
+                    </div>
+                </div>
+                <div class="input-field col s9">
+                    <input id="url-input" type="text" class="validate">
+                    <label for="url-input">输入网络图片链接</label>
+                </div>
+                <div class="col s3">
+                    <a class="waves-effect waves-light btn orange" style="width:100%; margin-top:20px;" onclick="loadUrlImage()">确定</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增：偏好设置模态框 -->
+    <div id="modal-preferences" class="modal bottom-sheet">
+        <div class="modal-content">
+            <h5>设置</h5>
+            
+            <!-- 高斯模糊开关 -->
+            <div class="setting-item">
+                <div>
+                    <div class="setting-title">背景模糊 (高质量)</div>
+                    <div class="setting-desc">开启更真实，关闭更流畅。如果卡顿请关闭。</div>
+                </div>
+                <div class="switch">
+                    <label>
+                        <input type="checkbox" id="blur-switch" checked>
+                        <span class="lever"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    
+    <script>
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            var elems = document.querySelectorAll('.modal');
+            M.Modal.init(elems);
+        });
+
+        const canvas = document.getElementById('fog-canvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('window-container');
+        const bgDiv = document.getElementById('bg-image');
+        const loader = document.getElementById('loader');
+        const audio = document.getElementById('rain-audio');
+        
+        // UI 变量
+        const tempSlider = document.getElementById('temp-slider');
+        const tempVal = document.getElementById('temp-val');
+        const sizeSlider = document.getElementById('size-slider'); 
+        const sizeVal = document.getElementById('size-val'); 
+        const audioSwitch = document.getElementById('audio-switch');
+        const blurSwitch = document.getElementById('blur-switch'); // 新增
+
+        // 核心变量
+        let width, height;
+        let isDrawing = false;
+        // 注意：多指触控不再使用单一的 lastX/Y
+        let activeTouches = {}; // 用于存储多指坐标 { identifier: {x, y} }
+        
+        let temperature = 20;
+        let brushRadius = 40; 
+        let enableBlur = true; // 默认开启模糊
+        
+        let drips = []; 
+        let bgImageObj = new Image();
+        let currentObjectUrl = null;
+
+        const defaultSrc = 'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1080&q=80';
+
+        // 启动程序
+        init();
+        loadNewImage(defaultSrc);
+
+        // --- 图片加载逻辑 ---
+        
+        function loadNewImage(url) {
+            loader.style.display = 'flex';
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.blob();
+                })
+                .then(blob => {
+                    if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+                    currentObjectUrl = URL.createObjectURL(blob);
+                    
+                    let newImg = new Image();
+                    newImg.src = currentObjectUrl;
+                    newImg.onload = () => {
+                        bgImageObj = newImg;
+                        bgDiv.style.backgroundImage = `url('${currentObjectUrl}')`;
+                        resize(); 
+                        resetFog();
+                        loader.style.display = 'none';
+                    };
+                })
+                .catch(error => {
+                    console.error('Image load error:', error);
+                    M.toast({html: '图片加载失败 (跨域或网络问题)', classes: 'red'});
+                    loader.style.display = 'none';
+                });
+        }
+
+        function loadRandomImage() {
+            const randomId = Math.floor(Math.random() * 100000);
+            const url = `https://picsum.photos/1080/1920?random=${randomId}`;
+            loadNewImage(url);
+        }
+
+        function loadUrlImage() {
+            const url = document.getElementById('url-input').value;
+            if(url) {
+                loadNewImage(url); 
+                M.Modal.getInstance(document.getElementById('modal-settings')).close();
+            }
+        }
+
+        function saveSnapshot() {
+            const saveCanvas = document.createElement('canvas');
+            saveCanvas.width = width;
+            saveCanvas.height = height;
+            const sCtx = saveCanvas.getContext('2d');
+
+            const imgRatio = bgImageObj.width / bgImageObj.height;
+            const screenRatio = width / height;
+            let drawW, drawH, drawX, drawY;
+            if (screenRatio > imgRatio) {
+                drawW = width; drawH = width / imgRatio; drawX = 0; drawY = (height - drawH) / 2;
+            } else {
+                drawH = height; drawW = height * imgRatio; drawY = 0; drawX = (width - drawW) / 2;
+            }
+            sCtx.drawImage(bgImageObj, drawX, drawY, drawW, drawH);
+            sCtx.drawImage(canvas, 0, 0);
+
+            const link = document.createElement('a');
+            link.download = `glass-art-${Date.now()}.png`;
+            link.href = saveCanvas.toDataURL();
+            link.click();
+            M.toast({html: '已保存到相册', classes: 'green'});
+        }
+
+        document.getElementById('upload-input').addEventListener('change', function(e) {
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+                    currentObjectUrl = e.target.result; 
+                    let newImg = new Image();
+                    newImg.src = currentObjectUrl;
+                    newImg.onload = () => {
+                        bgImageObj = newImg;
+                        bgDiv.style.backgroundImage = `url('${currentObjectUrl}')`;
+                        resize();
+                        resetFog();
+                        M.Modal.getInstance(document.getElementById('modal-settings')).close();
+                    };
+                };
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+
+        // --- 核心引擎 ---
+
+        function init() {
+            resize();
+            window.addEventListener('resize', resize);
+            addInteractionEvents();
+            loop();
+        }
+
+        function resize() {
+            width = container.offsetWidth;
+            height = container.offsetHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+
+        // 修改：绘制雾气层 (支持模糊开关)
+        function drawFogLayer() {
+            if (!bgImageObj.src) return;
+
+            ctx.globalCompositeOperation = 'source-over';
+            
+            // 只有当开启模糊且性能允许时，才绘制模糊的背景图作为雾气底色
+            if (enableBlur) {
+                ctx.filter = 'blur(15px)';
+                const imgRatio = bgImageObj.width / bgImageObj.height;
+                const screenRatio = width / height;
+                let drawW, drawH, drawX, drawY;
+
+                if (screenRatio > imgRatio) {
+                    drawW = width; drawH = width / imgRatio; drawX = 0; drawY = (height - drawH) / 2;
+                } else {
+                    drawH = height; drawW = height * imgRatio; drawY = 0; drawX = (width - drawW) / 2;
+                }
+                
+                ctx.drawImage(bgImageObj, drawX, drawY, drawW, drawH);
+            } else {
+                // 如果关闭模糊，就不要画背景图了，直接用纯色填充，省去大量GPU计算
+                // 直接进入下一步 fillRect
+            }
+            
+            // 叠加白雾
+            ctx.filter = 'none';
+            // 如果开启模糊，叠加层透明度低一点(0.6)，让模糊背景透出来
+            // 如果关闭模糊，叠加层不透明度高一点(0.9)，模拟纯白雾气
+            ctx.fillStyle = enableBlur ? 'rgba(220, 230, 240, 0.6)' : 'rgba(230, 240, 250, 0.9)';
+            ctx.fillRect(0, 0, width, height);
+        }
+
+        function resetFog() {
+            drawFogLayer();
+            drips = [];
+        }
+
+        // --- 交互 (更新：多指触控) ---
+
+        function addInteractionEvents() {
+            // Touch Start (支持多指)
+            canvas.addEventListener('touchstart', (e) => {
+                // 阻止默认滚动
+                e.preventDefault();
+                isDrawing = true;
+                
+                // 遍历所有新按下的手指
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    let touch = e.changedTouches[i];
+                    // 记录该手指的坐标
+                    activeTouches[touch.identifier] = {
+                        x: touch.clientX,
+                        y: touch.clientY
+                    };
+                    // 立即擦除当前点
+                    wipe(touch.clientX, touch.clientY);
+                }
+                hideControlsTemp();
+            }, { passive: false });
+
+            // Touch Move (支持多指)
+            canvas.addEventListener('touchmove', (e) => {
+                if (!isDrawing) return;
+                e.preventDefault();
+                
+                // 遍历所有变化的手指
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    let touch = e.changedTouches[i];
+                    let id = touch.identifier;
+                    
+                    // 如果我们记录过这个手指的前一个位置
+                    if (activeTouches[id]) {
+                        let lastPos = activeTouches[id];
+                        // 从上一个位置划线到当前位置
+                        wipeFromTo(lastPos.x, lastPos.y, touch.clientX, touch.clientY);
+                        
+                        // 更新位置记录
+                        activeTouches[id] = {
+                            x: touch.clientX,
+                            y: touch.clientY
+                        };
+                    }
+                }
+            }, { passive: false });
+
+            // Touch End / Cancel
+            const endHandler = (e) => {
+                // 移除离开的手指记录
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    delete activeTouches[e.changedTouches[i].identifier];
+                }
+                // 如果屏幕上没有手指了，显示UI
+                if (e.touches.length === 0) {
+                    isDrawing = false;
+                    showControlsTemp();
+                }
+            };
+            
+            canvas.addEventListener('touchend', endHandler);
+            canvas.addEventListener('touchcancel', endHandler);
+
+            // 鼠标 (保持单点，方便PC调试)
+            let isMouseDown = false;
+            let lastMouseX = 0, lastMouseY = 0;
+            canvas.addEventListener('mousedown', (e) => {
+                isMouseDown = true;
+                isDrawing = true;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                wipe(lastMouseX, lastMouseY);
+            });
+            canvas.addEventListener('mousemove', (e) => {
+                if (!isMouseDown) return;
+                wipeFromTo(lastMouseX, lastMouseY, e.clientX, e.clientY);
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+            });
+            canvas.addEventListener('mouseup', () => { isMouseDown = false; isDrawing = false; });
+        }
+
+        function wipe(x, y) {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.beginPath();
+            ctx.arc(x, y, brushRadius, 0, Math.PI * 2); 
+            ctx.fill();
+        }
+
+        function wipeFromTo(x1, y1, x2, y2) {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.lineWidth = brushRadius * 2; 
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            if (Math.random() > 0.95) createDrip(x2, y2);
+        }
+
+        // --- 物理循环 ---
+
+        function createDrip(x, y) {
+            if(temperature > 80) return; 
+            drips.push({
+                x: x,
+                y: y + brushRadius/2,
+                velocity: Math.random() * 2 + 1,
+                size: Math.random() * 5 + 2,
+                life: 100 + Math.random() * 50
+            });
+        }
+
+        function loop() {
+            if (!isDrawing) {
+                // 1. 冷凝逻辑 (凝结) - 当温度 < 40
+                if (temperature < 40) {
+                    const speedFactor = (40 - temperature) / 40; 
+                    const alphaInc = 0.003 * speedFactor; 
+                    
+                    ctx.globalCompositeOperation = 'source-over';
+                    
+                    // 颜色计算
+                    const r = 200 + (20 * (temperature/40));
+                    const g = 220 + (10 * (temperature/40));
+                    const b = 255 - (15 * (temperature/40));
+
+                    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alphaInc})`;
+                    ctx.fillRect(0, 0, width, height);
+                } 
+                // 2. 蒸发逻辑 (消散) - 当温度 > 60
+                else if (temperature > 60) {
+                    const speedFactor = (temperature - 60) / 40;
+                    const alphaDec = 0.005 * speedFactor; 
+
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.fillStyle = `rgba(0, 0, 0, ${alphaDec})`;
+                    ctx.fillRect(0, 0, width, height);
+                }
+            }
+
+            if (drips.length > 0) {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.lineCap = 'round';
+                
+                for (let i = drips.length - 1; i >= 0; i--) {
+                    let d = drips[i];
+                    ctx.beginPath();
+                    ctx.moveTo(d.x, d.y);
+                    d.y += d.velocity;
+                    d.x += (Math.random() - 0.5) * 1.5;
+                    ctx.lineTo(d.x, d.y);
+                    ctx.lineWidth = d.size;
+                    ctx.stroke();
+
+                    d.life--;
+                    if (d.life < 50) d.size *= 0.96; 
+                    if (temperature > 60) d.life -= 5;
+                    if (d.y > height || d.life <= 0 || d.size < 0.2) drips.splice(i, 1);
+                }
+            }
+            
+            if (temperature < 5 && Math.random() > 0.985) {
+                createDrip(Math.random() * width, Math.random() * height / 4);
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        // --- UI 事件 ---
+        
+        tempSlider.addEventListener('input', (e) => {
+            temperature = parseInt(e.target.value);
+            tempVal.innerText = temperature + "°C";
+            if(temperature < 15) {
+                tempVal.style.color = '#2196f3'; 
+                tempVal.innerText += " (结霜)";
+            }
+            else if(temperature > 60) {
+                tempVal.style.color = '#ff9800'; 
+                tempVal.innerText += " (蒸发)";
+            }
+            else {
+                tempVal.style.color = '#4caf50'; 
+            }
+        });
+
+        sizeSlider.addEventListener('input', (e) => {
+            brushRadius = parseInt(e.target.value);
+            sizeVal.innerText = brushRadius + "px";
+        });
+
+        audioSwitch.addEventListener('change', (e) => {
+            if(e.target.checked) {
+                audio.play().catch(e => M.toast({html: '请先与页面交互才能播放声音', classes: 'orange'}));
+            } else {
+                audio.pause();
+            }
+        });
+        
+        // 新增：高斯模糊切换监听
+        blurSwitch.addEventListener('change', (e) => {
+            enableBlur = e.target.checked;
+            // 切换时需要重绘背景才能看到效果
+            resetFog();
+            // 关闭设置弹窗
+            // M.Modal.getInstance(document.getElementById('modal-preferences')).close(); // 可选：自动关闭
+            M.toast({html: enableBlur ? '画质优先模式' : '性能流畅模式', classes: 'grey darken-3'});
+        });
+
+        const controlsDiv = document.getElementById('controls');
+        let hideTimeout;
+        function hideControlsTemp() {
+            controlsDiv.classList.add('fade-out');
+            clearTimeout(hideTimeout);
+        }
+        function showControlsTemp() {
+            hideTimeout = setTimeout(() => {
+                controlsDiv.classList.remove('fade-out');
+            }, 800);
+        }
+
+    </script>
+</body>
+</html>
