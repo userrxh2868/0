@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>👻 童年最怕的事 👻</title>
+    
+    <!-- MDUI CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mdui@1.0.2/dist/css/mdui.min.css"/>
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* 禁止滚动 */
+            font-family: 'Roboto', sans-serif;
+            background-color: #f5f5f5;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #app {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* --- 主页样式 --- */
+        .home-screen {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            background: #FAFAFA;
+            padding-bottom: 40px;
+        }
+
+        .level-card-item {
+            margin-bottom: 15px;
+            transition: transform 0.2s;
+        }
+        .level-card-item:active {
+            transform: scale(0.98);
+        }
+
+        .level-emoji {
+            font-size: 48px;
+            text-align: center;
+            display: block;
+            margin: 10px 0;
+        }
+
+        /* --- 游戏区域 --- */
+        .game-area {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-color: #81C784; 
+            transition: background-color 2s;
+            overflow: hidden;
+            transform: translateZ(0); 
+        }
+
+        .game-area.night {
+            background-color: #1a237e; 
+        }
+        
+        /* 夜晚遮罩 */
+        .night-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            display: none;
+            will-change: background;
+        }
+        .night-overlay.quality-low { background: rgba(0, 0, 0, 0.85) !important; }
+        .game-area.night .night-overlay { display: block; }
+
+        /* 游戏元素通用 */
+        .sprite {
+            position: absolute;
+            width: 40px; height: 40px;
+            font-size: 30px; line-height: 40px;
+            text-align: center;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            transform-style: preserve-3d;
+        }
+
+        /* 房子 */
+        .house {
+            position: absolute;
+            background-color: #795548;
+            border: 2px solid #3E2723;
+            transform: translate(-50%, -50%);
+            z-index: 4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            box-shadow: 5px 5px 10px rgba(0,0,0,0.3);
+        }
+        .house::after { content: "🏠"; font-size: 50px; }
+        .house-roof {
+            position: absolute; top: -20px; width: 100%; text-align: center;
+            color: #fff; font-size: 12px; background: rgba(0,0,0,0.5);
+            padding: 2px; border-radius: 4px;
+        }
+        /* 房子也有投影 */
+        .house-shadow {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; opacity: 0.3; z-index: -1;
+            transform-origin: bottom center; pointer-events: none;
+            filter: blur(4px); /* 房子阴影也加模糊 */
+        }
+
+        /* 邻居 */
+        .neighbor { z-index: 8; filter: grayscale(0.2); font-size: 25px; }
+        .chat-bubble {
+            position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
+            background: white; color: black; padding: 2px 6px; border-radius: 8px;
+            font-size: 10px; white-space: nowrap; opacity: 0.8; pointer-events: none; z-index: 15;
+        }
+
+        /* 锁定框 */
+        .lock-box {
+            position: absolute; top: -20%; left: -20%; width: 140%; height: 140%;
+            border: 2px dashed #FF5252; border-radius: 50%; z-index: 12;
+            pointer-events: none; animation: rotate-lock 4s linear infinite;
+        }
+        .lock-corner { position: absolute; width: 10px; height: 10px; border: 2px solid #FF5252; }
+        .lc-tl { top: -5px; left: -5px; border-right: none; border-bottom: none; }
+        .lc-tr { top: -5px; right: -5px; border-left: none; border-bottom: none; }
+        .lc-bl { bottom: -5px; left: -5px; border-right: none; border-top: none; }
+        .lc-br { bottom: -5px; right: -5px; border-left: none; border-top: none; }
+        @keyframes rotate-lock { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* --- 真实投影阴影 (优化版) --- */
+        .shadow-projection {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            
+            /* 关键修改：强制全黑 + 模糊 */
+            filter: brightness(0) blur(4px); 
+            opacity: 0.3; /* 半透明 */
+            
+            transform-origin: bottom center;
+            pointer-events: none;
+            z-index: -1;
+            transition: transform 0.1s linear;
+        }
+        
+        .boss-hp-bar {
+            position: absolute; top: -10px; left: -10px;
+            width: 60px; height: 5px; background: red; border: 1px solid white;
+        }
+        
+        .collectible {
+            position: absolute; width: 30px; height: 30px;
+            font-size: 20px; line-height: 30px; text-align: center; z-index: 8;
+            transform: translate(-50%, -50%); animation: bounce 1s infinite alternate;
+        }
+        @keyframes bounce { from { transform: translate(-50%, -50%); } to { transform: translate(-50%, -60%); } }
+        
+        .bullet { font-size: 10px; width: 10px; height: 10px; background: yellow; border-radius: 50%; z-index: 9; }
+
+        /* HUD */
+        .hud {
+            position: absolute; top: 0; left: 0; width: 100%;
+            padding: 10px; box-sizing: border-box; z-index: 20;
+            display: flex; justify-content: space-between;
+            color: white; text-shadow: 1px 1px 2px black; pointer-events: none;
+        }
+        .hud-left, .hud-right { display: flex; flex-direction: column; gap: 10px; pointer-events: auto; }
+        .status-bar {
+            background: rgba(0,0,0,0.5); padding: 5px 10px;
+            border-radius: 15px; font-size: 12px; line-height: 1.5; color: #fff; pointer-events: none;
+        }
+        .status-safe { color: #69F0AE; font-weight: bold; }
+
+        .pause-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 50;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;
+        }
+
+        /* 摇杆固定 */
+        #joystick-zone {
+            position: fixed !important; bottom: 30px; left: 30px; width: 120px; height: 120px;
+            z-index: 9999; touch-action: none;
+        }
+
+        .combat-controls {
+            position: absolute; bottom: 40px; right: 30px;
+            display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 30;
+        }
+
+        .action-btn {
+            width: 70px; height: 70px; border-radius: 50%;
+            background: #f44336; color: white; border: none; font-size: 30px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center; position: relative;
+        }
+        .action-btn:active { transform: scale(0.95); background: #d32f2f; }
+
+        .switch-btn {
+            width: 50px; height: 50px; border-radius: 50%;
+            background: #2196F3; color: white; border: none; font-size: 24px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .switch-btn:active { transform: rotate(180deg); transition: transform 0.2s; }
+
+        .shop-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+    </style>
+</head>
+<body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
+
+<div id="app">
+    
+    <!-- 1. 新版主页 -->
+    <div v-if="!gameStarted" class="home-screen">
+        <div class="mdui-appbar mdui-appbar-fixed mdui-color-indigo">
+            <div class="mdui-toolbar mdui-text-color-white">
+                <span class="mdui-typo-title">👻 童年最怕的事</span>
+                <div class="mdui-toolbar-spacer"></div>
+                <button class="mdui-btn mdui-btn-icon"><i class="mdui-icon material-icons">more_vert</i></button>
+            </div>
+        </div>
+        
+        <div class="mdui-container" style="margin-top: 80px;">
+            <div class="mdui-typo-headline mdui-m-b-2">选择副本</div>
+            <div class="mdui-row">
+                <div v-for="level in levels" :key="level.name" class="mdui-col-xs-6 mdui-col-sm-4">
+                    <div class="mdui-card level-card-item mdui-ripple" @click="startGame(level)">
+                        <div class="mdui-card-media">
+                            <span class="level-emoji">{{ level.icon }}</span>
+                            <div class="mdui-card-media-covered mdui-card-media-covered-transparent">
+                                <div class="mdui-card-primary-title" style="font-size: 16px;">{{ level.name }}</div>
+                            </div>
+                        </div>
+                        <div class="mdui-card-content" style="padding: 10px; font-size: 12px; color: #666;">
+                            <div class="mdui-chip mdui-m-b-1">
+                                <span class="mdui-chip-title">{{ getLevelTagName(level.type) }}</span>
+                            </div>
+                            <div>{{ level.desc }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 游戏主界面 -->
+    <div v-else class="game-area" :class="{ 'night': isNight }">
+        
+        <div class="night-overlay" 
+             :class="{ 'quality-low': settings.quality === 'low' }"
+             :style="getOverlayStyle"></div>
+
+        <div v-if="isPaused" class="pause-overlay">
+            <h1>已暂停</h1>
+            <p v-if="pausedReason" style="font-size: 14px; opacity: 0.8">({{ pausedReason }})</p>
+            <div style="display: flex; gap: 20px; margin-top: 20px;">
+                <button class="mdui-btn mdui-btn-raised mdui-color-green mdui-ripple" @click="resumeGame">继续游戏</button>
+                <button class="mdui-btn mdui-btn-raised mdui-color-red mdui-ripple" @click="exitToHome">返回主页</button>
+            </div>
+        </div>
+
+        <div class="hud">
+            <div class="hud-left">
+                <button class="mdui-btn mdui-btn-icon mdui-color-grey-800 mdui-ripple" @click="manualPause">
+                    <i class="mdui-icon material-icons">pause</i>
+                </button>
+                <div class="status-bar">
+                    <div>❤️ 生命: {{ Math.floor(player.hp) }}</div>
+                    <div>🧠 理智: {{ Math.floor(player.sanity) }}</div>
+                    <div>💰 金币: {{ player.money }}</div>
+                    <div>🎯 目标: {{ task.progress }} / {{ task.goal }}</div>
+                    <div v-if="player.isSafe" class="status-safe">🛡️ 已进入安全屋</div>
+                </div>
+            </div>
+            
+            <div class="hud-right">
+                <button class="mdui-btn mdui-btn-icon mdui-color-grey-700 mdui-ripple" @click="openSettings">
+                    <i class="mdui-icon material-icons">settings</i>
+                </button>
+                <button class="mdui-btn mdui-btn-icon mdui-color-blue mdui-ripple" @click="openTask">
+                    <i class="mdui-icon material-icons">assignment</i>
+                </button>
+                <button class="mdui-btn mdui-btn-icon mdui-color-orange mdui-ripple" @click="openShop">
+                    <i class="mdui-icon material-icons">store</i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 房子 -->
+        <div v-for="(h, i) in houses" :key="'h'+i" class="house"
+             :style="{ top: h.y + 'px', left: h.x + 'px', width: h.w + 'px', height: h.h + 'px' }">
+             <div class="house-roof">安全屋</div>
+             <!-- 房子的阴影 -->
+             <div v-if="settings.quality !== 'low'" class="house-shadow" :style="shadowStyle"></div>
+        </div>
+
+        <!-- 邻居 -->
+        <div v-for="(n, i) in neighbors" :key="'n'+i" class="sprite neighbor"
+             :style="{ top: n.y + 'px', left: n.x + 'px' }">
+             {{ n.icon }}
+             <div v-if="n.msg" class="chat-bubble">{{ n.msg }}</div>
+             <!-- 邻居的投影阴影 -->
+             <div v-if="settings.quality !== 'low'" class="shadow-projection" :style="shadowStyle">{{ n.icon }}</div>
+        </div>
+
+        <!-- 玩家 -->
+        <div class="sprite player" :style="{ top: player.y + 'px', left: player.x + 'px', opacity: player.isSafe ? 0.7 : 1 }">
+            🧍‍♂️
+            <!-- 玩家的投影阴影 -->
+            <div v-if="settings.quality !== 'low'" class="shadow-projection" :style="shadowStyle">🧍‍♂️</div>
+            <div style="font-size: 10px; position: absolute; top: -15px; width: 100%; color: white;">我</div>
+        </div>
+
+        <!-- 收集物 -->
+        <div v-for="(item, index) in collectibles" :key="'c'+index" class="collectible"
+             :style="{ top: item.y + 'px', left: item.x + 'px' }">
+            🍬
+            <div v-if="settings.quality !== 'low'" class="shadow-projection" :style="shadowStyle">🍬</div>
+        </div>
+
+        <!-- 敌人 -->
+        <div v-for="(enemy, index) in enemies" :key="'e'+enemy.id" class="sprite enemy" 
+             :style="{ top: enemy.y + 'px', left: enemy.x + 'px', width: enemy.isBoss ? '80px' : '40px', height: enemy.isBoss ? '80px' : '40px', fontSize: enemy.isBoss ? '60px' : '30px' }">
+            
+            <div v-if="lockedEnemyId === enemy.id" class="lock-box">
+                <div class="lock-corner lc-tl"></div><div class="lock-corner lc-tr"></div>
+                <div class="lock-corner lc-bl"></div><div class="lock-corner lc-br"></div>
+            </div>
+
+            {{ currentLevelIcon }}
+            <!-- 敌人的投影阴影 -->
+            <div v-if="settings.quality !== 'low'" class="shadow-projection" :style="shadowStyle">{{ currentLevelIcon }}</div>
+            <div v-if="enemy.isBoss" class="boss-hp-bar">
+                <div :style="{ width: (enemy.hp / enemy.maxHp * 100) + '%', background: '#00E676', height: '100%' }"></div>
+            </div>
+        </div>
+
+        <!-- 子弹 -->
+        <div v-for="(bullet, index) in bullets" :key="'b'+bullet.id" class="sprite bullet"
+             :style="{ top: bullet.y + 'px', left: bullet.x + 'px' }">
+        </div>
+
+        <div class="combat-controls" v-if="!isPaused">
+            <button class="switch-btn" @click="toggleWeapon" v-if="inventory.gun">🔄</button>
+            <button class="action-btn" @click="performAttack">
+                <span v-if="currentWeapon === 'gun'">🔫</span>
+                <span v-else>👊</span>
+                <span v-if="inventory.ammo > 0" style="font-size:10px; position:absolute; bottom: 5px;">{{ inventory.ammo }}</span>
+            </button>
+        </div>
+
+    </div>
+    
+    <div id="joystick-zone" v-show="gameStarted"></div>
+
+    <!-- 弹窗 -->
+    <div class="mdui-dialog" id="dialog-task">
+        <div class="mdui-dialog-title">当前任务</div>
+        <div class="mdui-dialog-content">
+            <p><strong>模式：</strong> {{ getLevelTagName(currentLevelType) }}</p>
+            <p><strong>说明：</strong> {{ task.description }}</p>
+            <p><strong>进度：</strong> {{ task.progress }} / {{ task.goal }}</p>
+            <hr>
+            <p class="mdui-text-color-grey-600">💡 提示：进入房子可以躲避追击。</p>
+        </div>
+        <div class="mdui-dialog-actions">
+            <button class="mdui-btn mdui-ripple" @click="closeDialog('task')">继续游戏</button>
+        </div>
+    </div>
+
+    <!-- 商店 -->
+    <div class="mdui-dialog" id="dialog-shop">
+        <div class="mdui-dialog-title">小卖部</div>
+        <div class="mdui-dialog-content">
+            <div class="shop-item">
+                <div><div>🔫 玩具枪</div><small>自动追踪子弹</small></div>
+                <button class="mdui-btn mdui-btn-raised mdui-color-green" :disabled="inventory.gun || player.money < 100" @click="buy('gun', 100)">100$ {{ inventory.gun ? '已拥有' : '购买' }}</button>
+            </div>
+            <div class="shop-item">
+                <div><div>💊 强效子弹 (x10)</div><small>手扔或枪用</small></div>
+                <button class="mdui-btn mdui-btn-raised mdui-color-green" :disabled="player.money < 20" @click="buy('ammo', 20)">20$ 购买</button>
+            </div>
+            <div class="shop-item">
+                <div><div>💉 镇定剂</div><small>恢复 30点 HP/理智</small></div>
+                <button class="mdui-btn mdui-btn-raised mdui-color-green" :disabled="player.money < 50" @click="buy('heal', 50)">50$ 购买</button>
+            </div>
+        </div>
+        <div class="mdui-dialog-actions">
+            <button class="mdui-btn mdui-ripple" @click="closeDialog('shop')">离开</button>
+        </div>
+    </div>
+
+    <div class="mdui-dialog" id="dialog-settings">
+        <div class="mdui-dialog-title">设置</div>
+        <div class="mdui-dialog-content">
+            <p>画质与阴影：</p>
+            <form>
+                <label class="mdui-radio mdui-m-b-1 mdui-d-block"><input type="radio" name="quality" value="low" v-model="settings.quality"/><i class="mdui-radio-icon"></i> 最低</label>
+                <label class="mdui-radio mdui-m-b-1 mdui-d-block"><input type="radio" name="quality" value="medium" v-model="settings.quality"/><i class="mdui-radio-icon"></i> 普通</label>
+                <label class="mdui-radio mdui-m-b-1 mdui-d-block"><input type="radio" name="quality" value="high" v-model="settings.quality"/><i class="mdui-radio-icon"></i> 最高</label>
+            </form>
+            <div class="mdui-divider mdui-m-y-2"></div>
+            <button class="mdui-btn mdui-btn-block mdui-color-red mdui-ripple" @click="exitToHome">退出当前游戏</button>
+        </div>
+        <div class="mdui-dialog-actions">
+            <button class="mdui-btn mdui-ripple" @click="closeDialog('settings')">确定</button>
+        </div>
+    </div>
+
+    <div class="mdui-dialog" id="dialog-gameover">
+        <div class="mdui-dialog-title">游戏结束 👻</div>
+        <div class="mdui-dialog-content">{{ gameOverReason }}</div>
+        <div class="mdui-dialog-actions">
+            <button class="mdui-btn mdui-ripple mdui-text-color-red" @click="exitToHome">返回主页</button>
+            <button class="mdui-btn mdui-ripple mdui-text-color-green" @click="retryGame">再来一次</button>
+        </div>
+    </div>
+
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mdui@1.0.2/dist/js/mdui.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.9.0/nipplejs.min.js"></script>
+
+<script>
+    new Vue({
+        el: '#app',
+        data: {
+            gameStarted: false,
+            isPaused: false,
+            pausedReason: '',
+            
+            currentLevelName: '',
+            currentLevelIcon: '',
+            currentLevelType: 'kill',
+            currentLevelData: null,
+            gameOverReason: '',
+            
+            lockedEnemyId: null,
+
+            levels: [
+                { name: '老变婆', icon: '🧙‍♀️', type: 'kill', goal: 5, desc: '消灭 5 只变婆' },
+                { name: '辣抓哪吒', icon: '🔥', type: 'survive', goal: 60, desc: '存活 60 秒 (敌人密集)' },
+                { name: '熊嘎婆', icon: '🐻', type: 'boss', goal: 1, desc: '击败熊外婆 (BOSS)' },
+                { name: '古井贞子', icon: '🧟‍♀️', type: 'boss', goal: 1, desc: '击败井里的怨灵 (高难度)' },
+                { name: '老背背', icon: '🧓', type: 'collect', goal: 5, desc: '收集地图上的 5 个糖果' },
+                { name: '绣花鞋', icon: '👠', type: 'collect', goal: 8, desc: '找出 8 只散落的红鞋' },
+                { name: '床底下的手', icon: '✋', type: 'kill', goal: 8, desc: '消灭 8 只鬼手' },
+                { name: '僵尸', icon: '🧟', type: 'kill', goal: 10, desc: '消灭 10 只僵尸' },
+                { name: '年兽', icon: '🦁', type: 'boss', goal: 1, desc: '击败年兽 (BOSS)' },
+                { name: '打针护士', icon: '💉', type: 'survive', goal: 90, desc: '存活 90 秒' }
+            ],
+            
+            // 默认最低画质
+            settings: { quality: 'low' },
+
+            player: { x: 0, y: 0, hp: 100, sanity: 100, money: 50, speed: 3.5, isSafe: false },
+            joystickData: { active: false, angle: 0, force: 0 },
+            
+            inventory: { gun: false, ammo: 0 },
+            currentWeapon: 'fist',
+            
+            gameTime: 18 * 60, 
+            enemies: [],
+            bullets: [],
+            collectibles: [],
+            houses: [],
+            neighbors: [],
+            objCounter: 0, 
+            
+            task: { description: "", goal: 5, progress: 0, reward: 200, completed: false },
+            
+            dialogTask: null, dialogShop: null, dialogSettings: null, dialogGameOver: null,
+            gameLoopId: null, timeLoopId: null
+        },
+        computed: {
+            timeDisplay() {
+                let h = Math.floor(this.gameTime / 60) % 24;
+                let m = Math.floor(this.gameTime % 60);
+                return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+            },
+            isNight() {
+                let h = Math.floor(this.gameTime / 60) % 24;
+                return h >= 20 || h < 6;
+            },
+            getOverlayStyle() {
+                if (this.settings.quality === 'low') return {};
+                const px = Math.round(this.player.x);
+                const py = Math.round(this.player.y);
+                let rInner = this.player.isSafe ? 120 : 60;
+                let rOuter = this.player.isSafe ? 300 : 200;
+                
+                if (this.settings.quality === 'medium') 
+                    return { background: `radial-gradient(circle at ${px}px ${py}px, transparent ${rInner}px, rgba(0,0,0,0.9) ${rOuter}px)` };
+                if (this.settings.quality === 'high') 
+                    return { background: `radial-gradient(circle at ${px}px ${py}px, transparent ${rInner + 10}px, rgba(0,0,0,0.8) ${rOuter}px, rgba(0,0,0,0.95) ${rOuter + 50}px)` };
+                return {};
+            },
+            // 计算动态阴影样式 (根据时间变化斜度)
+            shadowStyle() {
+                if (this.settings.quality === 'low') return {};
+                
+                let t = this.gameTime % (24 * 60);
+                if (t < 12 * 60) t += 24 * 60; 
+                
+                let centerTime = 1440;
+                let diff = t - centerTime; 
+                let skewDeg = (diff / 360) * 45; 
+                skewDeg = Math.max(-60, Math.min(60, skewDeg));
+
+                let scaleY = 0.5 - (Math.abs(diff) / 1000); 
+                scaleY = Math.max(0.3, scaleY);
+
+                return {
+                    transform: `scale(1, ${scaleY}) skewX(${skewDeg}deg)`
+                };
+            }
+        },
+        methods: {
+            getLevelTagName(type) {
+                const map = { 'kill': '猎杀', 'survive': '生存', 'boss': 'BOSS', 'collect': '收集' };
+                return map[type] || '普通';
+            },
+
+            startGame(level) {
+                this.currentLevelData = level;
+                this.currentLevelIcon = level.icon;
+                this.currentLevelType = level.type;
+                
+                if(this.gameLoopId) cancelAnimationFrame(this.gameLoopId);
+                if(this.timeLoopId) clearInterval(this.timeLoopId);
+                
+                this.resetGameData();
+                this.task.description = level.desc;
+                this.task.goal = level.goal;
+                this.task.progress = 0;
+                
+                this.spawnEnvironment(); 
+                
+                if (level.type === 'collect') this.spawnCollectibles(level.goal);
+                else if (level.type === 'boss') this.spawnBoss();
+
+                this.gameStarted = true;
+                
+                this.$nextTick(() => {
+                    this.initJoystick(); 
+                    const opts = { modal: true, closeOnEsc: false, closeOnClick: false };
+                    this.dialogTask = new mdui.Dialog('#dialog-task', opts);
+                    this.dialogShop = new mdui.Dialog('#dialog-shop', opts);
+                    this.dialogSettings = new mdui.Dialog('#dialog-settings', opts);
+                    this.dialogGameOver = new mdui.Dialog('#dialog-gameover', opts);
+                    
+                    this.startGameLoop();
+                    mdui.snackbar(`模式：${this.getLevelTagName(level.type)}`);
+                });
+            },
+            
+            resetGameData() {
+                this.isPaused = false;
+                this.pausedReason = '';
+                this.player.x = window.innerWidth / 2;
+                this.player.y = window.innerHeight / 2;
+                this.player.hp = 100;
+                this.player.sanity = 100;
+                this.player.isSafe = false;
+                this.inventory = { gun: false, ammo: 0 };
+                this.currentWeapon = 'fist'; 
+                this.gameTime = 18 * 60;
+                this.enemies = [];
+                this.bullets = [];
+                this.collectibles = [];
+                this.houses = [];
+                this.neighbors = [];
+                this.task.completed = false;
+                this.lockedEnemyId = null; 
+            },
+
+            spawnEnvironment() {
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                
+                // 安全屋生成 (分散算法)
+                this.houses = [];
+                let attempts = 0;
+                let houseCount = 3 + Math.floor(Math.random() * 2);
+                
+                while(this.houses.length < houseCount && attempts < 100) {
+                    attempts++;
+                    let nx = 50 + Math.random() * (w - 100);
+                    let ny = 50 + Math.random() * (h - 100);
+                    let valid = true;
+                    
+                    for(let house of this.houses) {
+                        let dist = Math.sqrt((nx - house.x)**2 + (ny - house.y)**2);
+                        if(dist < 200) { valid = false; break; }
+                    }
+                    if (Math.sqrt((nx - w/2)**2 + (ny - h/2)**2) < 100) valid = false;
+
+                    if(valid) {
+                        this.houses.push({ x: nx, y: ny, w: 80, h: 80 });
+                    }
+                }
+                
+                // 邻居
+                let neighborCount = 2 + Math.floor(Math.random() * 3);
+                const neighborIcons = ['🙋‍♂️', '🙋‍♀️', '👴', '👵'];
+                const phrases = ['晚上别乱跑', '你有看到我的猫吗？', '快回家去', '今天好黑啊'];
+                for(let i=0; i<neighborCount; i++) {
+                    this.neighbors.push({
+                        x: Math.random() * w,
+                        y: Math.random() * h,
+                        icon: neighborIcons[Math.floor(Math.random()*neighborIcons.length)],
+                        dx: (Math.random()-0.5) * 0.5,
+                        dy: (Math.random()-0.5) * 0.5,
+                        msg: phrases[Math.floor(Math.random()*phrases.length)],
+                        state: 'wander',
+                        speed: 0.5
+                    });
+                }
+            },
+
+            toggleWeapon() {
+                if (this.inventory.gun) {
+                    this.currentWeapon = this.currentWeapon === 'gun' ? 'fist' : 'gun';
+                    mdui.snackbar(`切换到: ${this.currentWeapon === 'gun' ? '玩具枪 🔫' : '拳头 👊'}`);
+                }
+            },
+
+            performAttack() {
+                if (this.isPaused) return;
+
+                let targetAngle = 0;
+                let targetId = null;
+                
+                if (this.lockedEnemyId !== null) {
+                    const enemy = this.enemies.find(e => e.id === this.lockedEnemyId);
+                    if (enemy) {
+                        targetAngle = Math.atan2(enemy.y - this.player.y, enemy.x - this.player.x);
+                        targetId = enemy.id;
+                    } else {
+                        targetAngle = this.joystickData.active ? this.joystickData.angle : 0;
+                    }
+                } else {
+                    targetAngle = this.joystickData.active ? this.joystickData.angle : 0;
+                }
+
+                if (this.currentWeapon === 'gun') {
+                    if (this.inventory.ammo > 0) {
+                        this.inventory.ammo--;
+                        this.spawnBullet(targetAngle, 10, 800, targetId); 
+                    } else {
+                        mdui.snackbar('没子弹了，用拳头吧！');
+                        this.currentWeapon = 'fist';
+                    }
+                } else {
+                    if (this.inventory.ammo > 0) {
+                         this.inventory.ammo--;
+                         this.spawnBullet(targetAngle, 5, 200, null);
+                    } else {
+                        this.spawnBullet(targetAngle, 6, 60, null); 
+                    }
+                }
+            },
+
+            spawnBullet(angle, speed, maxDist, targetId) {
+                this.bullets.push({
+                    id: this.objCounter++,
+                    x: this.player.x, y: this.player.y,
+                    startX: this.player.x, startY: this.player.y, 
+                    vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                    speed: speed,
+                    maxDist: maxDist,
+                    targetId: targetId
+                });
+            },
+
+            initJoystick() {
+                const zone = document.getElementById('joystick-zone');
+                if(!zone) return;
+                zone.innerHTML = ''; 
+                const manager = nipplejs.create({
+                    zone: zone, mode: 'static', position: { left: '50%', top: '50%' }, color: 'white'
+                });
+                manager.on('move', (evt, data) => {
+                    this.joystickData.active = true;
+                    this.joystickData.angle = data.angle.radian;
+                    this.joystickData.force = Math.min(data.force, 1);
+                });
+                manager.on('end', () => { this.joystickData.active = false; });
+            },
+
+            spawnCollectibles(count) {
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                for(let i=0; i<count; i++) {
+                    this.collectibles.push({ x: 50 + Math.random() * (w - 100), y: 50 + Math.random() * (h - 100) });
+                }
+            },
+
+            spawnBoss() {
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                this.enemies.push({
+                    id: 999, x: w/2, y: -100, speed: 0.8, isBoss: true, hp: 500, maxHp: 500
+                });
+            },
+
+            retryGame() {
+                this.dialogGameOver.close();
+                this.startGame(this.currentLevelData);
+            },
+
+            exitToHome() {
+                this.closeAllDialogs();
+                this.isPaused = false;
+                this.gameStarted = false;
+                if(this.gameLoopId) cancelAnimationFrame(this.gameLoopId);
+                if(this.timeLoopId) clearInterval(this.timeLoopId);
+            },
+            
+            closeAllDialogs() {
+                if(this.dialogSettings) this.dialogSettings.close();
+                if(this.dialogTask) this.dialogTask.close();
+                if(this.dialogShop) this.dialogShop.close();
+                if(this.dialogGameOver) this.dialogGameOver.close();
+            },
+
+            manualPause() { this.isPaused = true; this.pausedReason = ''; },
+            resumeGame() { this.isPaused = false; },
+            
+            openTask() { this.isPaused = true; this.pausedReason = '查看任务'; this.dialogTask.open(); },
+            openShop() { this.isPaused = true; this.pausedReason = '商店购物'; this.dialogShop.open(); },
+            openSettings() { this.isPaused = true; this.pausedReason = '设置'; this.dialogSettings.open(); },
+            
+            closeDialog(name) {
+                if(name === 'task') this.dialogTask.close();
+                if(name === 'shop') this.dialogShop.close();
+                if(name === 'settings') this.dialogSettings.close();
+                this.isPaused = false;
+            },
+            
+            buy(item, cost) {
+                if (this.player.money >= cost) {
+                    this.player.money -= cost;
+                    if (item === 'gun') {
+                        this.inventory.gun = true;
+                        mdui.snackbar('获得玩具枪！点击刷新按钮切换武器');
+                    }
+                    if (item === 'ammo') this.inventory.ammo += 10;
+                    if (item === 'heal') {
+                        this.player.hp = Math.min(100, this.player.hp + 30);
+                        this.player.sanity = Math.min(100, this.player.sanity + 30);
+                    }
+                    mdui.snackbar('购买成功');
+                }
+            },
+            
+            startGameLoop() {
+                const loop = () => {
+                    if (this.gameStarted) {
+                        if (!this.isPaused) {
+                            this.updateGame();
+                        }
+                        this.gameLoopId = requestAnimationFrame(loop);
+                    }
+                };
+                this.gameLoopId = requestAnimationFrame(loop);
+                
+                this.timeLoopId = setInterval(() => {
+                    if(!this.gameStarted || this.isPaused) return;
+                    this.gameTime += 1;
+                    if (this.currentLevelType === 'survive') {
+                        if(this.gameTime % 10 === 0) {
+                             this.task.progress++;
+                             if(this.task.progress >= this.task.goal && !this.task.completed) this.completeTask();
+                        }
+                    }
+                }, 100);
+            },
+            
+            updateGame() {
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+
+                // 1. 移动
+                if (this.joystickData.active) {
+                    this.player.x += Math.cos(this.joystickData.angle) * this.player.speed;
+                    this.player.y -= Math.sin(this.joystickData.angle) * this.player.speed;
+                    this.player.x = Math.max(20, Math.min(w - 20, this.player.x));
+                    this.player.y = Math.max(20, Math.min(h - 20, this.player.y));
+                }
+                
+                // 2. 房子互动
+                let insideHouse = false;
+                this.houses.forEach(house => {
+                    if (this.player.x > house.x - house.w/2 && this.player.x < house.x + house.w/2 &&
+                        this.player.y > house.y - house.h/2 && this.player.y < house.y + house.h/2) {
+                        insideHouse = true;
+                    }
+                });
+                this.player.isSafe = insideHouse;
+
+                // 3. 邻居 AI (逃跑逻辑)
+                this.neighbors.forEach(n => {
+                    let flee = false;
+                    let fleeDx = 0, fleeDy = 0;
+                    
+                    let nearestEnemyDist = 9999;
+                    for (let enemy of this.enemies) {
+                        let dx = n.x - enemy.x;
+                        let dy = n.y - enemy.y;
+                        let d = Math.sqrt(dx*dx + dy*dy);
+                        if(d < 150) { 
+                            flee = true;
+                            fleeDx += dx; 
+                            fleeDy += dy;
+                        }
+                    }
+
+                    if (flee) {
+                        n.state = 'flee';
+                        n.msg = "啊啊啊鬼啊！";
+                        let len = Math.sqrt(fleeDx*fleeDx + fleeDy*fleeDy);
+                        if(len > 0) {
+                            n.x += (fleeDx / len) * 2;
+                            n.y += (fleeDy / len) * 2;
+                        }
+                    } else {
+                        if (n.state === 'flee') {
+                            n.state = 'wander';
+                            n.msg = "呼...吓死我了";
+                            setTimeout(() => n.msg = "", 2000);
+                        }
+                        n.x += n.dx; n.y += n.dy;
+                        if(Math.random() < 0.02) { n.dx = (Math.random()-0.5)*0.5; n.dy = (Math.random()-0.5)*0.5; }
+                    }
+
+                    if(n.x < 10) { n.x=10; n.dx*=-1; } 
+                    if(n.x > w-10) { n.x=w-10; n.dx*=-1; }
+                    if(n.y < 10) { n.y=10; n.dy*=-1; }
+                    if(n.y > h-10) { n.y=h-10; n.dy*=-1; }
+                });
+
+                // 4. 收集
+                if (this.currentLevelType === 'collect') {
+                    for (let i = this.collectibles.length - 1; i >= 0; i--) {
+                        let item = this.collectibles[i];
+                        if ((this.player.x - item.x)**2 + (this.player.y - item.y)**2 < 900) {
+                            this.collectibles.splice(i, 1);
+                            this.player.money += 20;
+                            this.task.progress++;
+                            mdui.snackbar('收集到 +20$');
+                            if(this.task.progress >= this.task.goal) this.completeTask();
+                        }
+                    }
+                }
+
+                // 5. 敌人生成与AI
+                let maxEnemies = 15;
+                let spawnRate = 0.02;
+                if (this.currentLevelType === 'survive') { spawnRate = 0.05; maxEnemies = 25; } 
+                else if (this.currentLevelType === 'boss') { spawnRate = 0; } 
+                else if (this.currentLevelType === 'collect') { spawnRate = 0.015; }
+
+                if (this.isNight && !this.player.isSafe && Math.random() < spawnRate && this.enemies.length < maxEnemies) {
+                    let ex, ey;
+                    if (Math.random() > 0.5) {
+                        ex = Math.random() > 0.5 ? -30 : w + 30; ey = Math.random() * h;
+                    } else {
+                        ex = Math.random() * w; ey = Math.random() > 0.5 ? -30 : h + 30;
+                    }
+                    this.enemies.push({ 
+                        id: this.objCounter++, x: ex, y: ey, speed: 1.2 + Math.random() * 0.6,
+                        hp: 10, isBoss: false 
+                    });
+                }
+
+                let minDist = 999999;
+                let nearestEnemyId = null;
+
+                for (let i = this.enemies.length - 1; i >= 0; i--) {
+                    let enemy = this.enemies[i];
+                    let dx = this.player.x - enemy.x;
+                    let dy = this.player.y - enemy.y;
+                    let distSq = dx*dx + dy*dy;
+                    
+                    if (distSq < minDist) { minDist = distSq; nearestEnemyId = enemy.id; }
+
+                    if (!this.player.isSafe && distSq > 100) {
+                        let dist = Math.sqrt(distSq);
+                        enemy.x += (dx / dist) * enemy.speed;
+                        enemy.y += (dy / dist) * enemy.speed;
+                    } else if (this.player.isSafe) {
+                        enemy.x += (Math.random()-0.5); enemy.y += (Math.random()-0.5);
+                    }
+                    
+                    let hitDist = enemy.isBoss ? 2500 : 900;
+                    if (!this.player.isSafe && distSq < hitDist) {
+                        this.player.hp -= enemy.isBoss ? 1.0 : 0.5;
+                        this.player.sanity -= 0.2;
+                    }
+                }
+                
+                this.lockedEnemyId = nearestEnemyId;
+                
+                if (!this.isNight && this.enemies.length > 0 && this.currentLevelType !== 'boss') {
+                     if(Math.random() < 0.05) this.enemies.shift();
+                }
+
+                // 6. 子弹更新
+                for (let i = this.bullets.length - 1; i >= 0; i--) {
+                    let b = this.bullets[i];
+                    
+                    if (b.targetId) {
+                        const target = this.enemies.find(e => e.id === b.targetId);
+                        if (target) {
+                            const targetAngle = Math.atan2(target.y - b.y, target.x - b.x);
+                            b.vx = Math.cos(targetAngle) * b.speed;
+                            b.vy = Math.sin(targetAngle) * b.speed;
+                        } else {
+                            b.targetId = null;
+                        }
+                    }
+
+                    b.x += b.vx; b.y -= b.vy; 
+                    
+                    if ((b.x - b.startX)**2 + (b.y - b.startY)**2 > b.maxDist**2) {
+                        this.bullets.splice(i, 1); continue;
+                    }
+                    
+                    if (b.x < -50 || b.x > w + 50 || b.y < -50 || b.y > h + 50) {
+                        this.bullets.splice(i, 1); continue;
+                    }
+                    
+                    let bulletHit = false;
+                    for (let j = this.enemies.length - 1; j >= 0; j--) {
+                        let e = this.enemies[j];
+                        let hitR = e.isBoss ? 2500 : 900;
+                        if ((b.x - e.x)**2 + (b.y - e.y)**2 < hitR) {
+                            bulletHit = true;
+                            if (e.isBoss) {
+                                e.hp -= 10;
+                                if (e.hp <= 0) {
+                                    this.enemies.splice(j, 1); this.task.progress = 1; this.completeTask();
+                                }
+                            } else {
+                                this.enemies.splice(j, 1); this.player.money += 10;
+                                if (this.currentLevelType === 'kill') {
+                                    this.task.progress++;
+                                    if(this.task.progress >= this.task.goal) this.completeTask();
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    if(bulletHit) this.bullets.splice(i, 1);
+                }
+
+                // 7. 结束判定
+                if (this.player.hp <= 0) this.triggerGameOver("你被抓走了，变成了晚餐...");
+                else if (this.player.sanity <= 0) this.triggerGameOver("你被吓疯了，在黑夜中迷失...");
+            },
+            
+            completeTask() {
+                if(this.task.completed) return;
+                this.task.completed = true; this.player.money += this.task.reward; this.isPaused = true;
+                mdui.dialog({
+                    title: '恭喜通关! 🎉',
+                    content: `你完成了任务：${this.task.description}。获得奖金 ${this.task.reward}$`,
+                    buttons: [ { text: '返回主页', onClick: () => this.exitToHome() } ],
+                    modal: true, closeOnEsc: false
+                });
+            },
+            
+            triggerGameOver(reason) {
+                if(this.isPaused && this.gameOverReason) return;
+                this.isPaused = true; this.gameOverReason = reason;
+                this.dialogGameOver.open();
+            }
+        }
+    });
+</script>
+</body>
+</html>
