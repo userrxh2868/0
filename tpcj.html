@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MDUI Vue 图片裁剪工具 Pro</title>
+    
+    <!-- MDUI CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/mdui@1.0.2/dist/css/mdui.min.css"/>
+    <!-- Cropper.js CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"/>
+    
+    <style>
+        body {
+            background-color: #f5f5f5;
+            overflow-x: hidden;
+        }
+        /* Page Transitions */
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.3s ease;
+        }
+        .fade-enter-from, .fade-leave-to {
+            opacity: 0;
+        }
+
+        /* Editor Layout */
+        .editor-layout {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .crop-area-wrapper {
+            flex: 1;
+            background-color: #212121;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        img#image {
+            max-width: 100%;
+            display: block;
+        }
+        
+        /* Warning Overlay */
+        #browser-warning {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 9999;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+        }
+        .arrow-guide {
+            position: absolute;
+            top: 20px; right: 20px;
+            font-size: 40px;
+            animation: bounce 1s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Controls */
+        .control-panel {
+            background: white;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 10;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .preview-img {
+            max-width: 100%;
+            max-height: 300px;
+            border: 1px solid #ddd;
+            background-image: url('data:image/svg+xml;utf8,<svg width="20" height="20" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="10" height="10" fill="%23eee"/><rect x="10" y="10" width="10" height="10" fill="%23eee"/></svg>'); 
+        }
+        
+        /* Home Layout */
+        .home-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .upload-card {
+            width: 100%;
+            max-width: 500px;
+        }
+    </style>
+</head>
+<body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
+
+<div id="app">
+
+    <!-- Browser Warning Overlay -->
+    <div id="browser-warning" v-if="showWarning">
+        
+        <!-- Normal Warning Mode -->
+        <div v-if="!quizMode">
+            <div class="arrow-guide">↗</div>
+            <i class="mdui-icon material-icons mdui-text-color-yellow" style="font-size: 64px;">warning</i>
+            <h2 class="mdui-m-t-2">浏览器不支持</h2>
+            <p class="mdui-typo-subheading">检测到您使用的浏览器内核可能受限（如微信/QQ内置浏览器）。</p>
+            <p>请点击右上角菜单，选择 <b>"在浏览器打开"</b> (Chrome/Edge/Firefox)。</p>
+            
+            <div class="mdui-m-t-4">
+                <button class="mdui-btn mdui-text-color-white-secondary" @click="showSystemInfo">查看系统信息</button>
+            </div>
+            <div class="mdui-m-t-2">
+                <button class="mdui-btn mdui-btn-outlined mdui-text-color-white" @click="enterQuizMode">
+                    疑难解答 / 我使用的是正常浏览器
+                </button>
+            </div>
+        </div>
+
+        <!-- Quiz/Bypass Mode -->
+        <div v-else style="max-width: 300px;">
+            <h3>身份验证</h3>
+            <p>为了防止不兼容的浏览器内核导致功能异常，请输入下方问题的答案以继续使用：</p>
+            <div class="mdui-typo-headline mdui-text-color-pink mdui-m-y-2">{{ quizQuestion }} = ?</div>
+            
+            <div class="mdui-textfield mdui-textfield-floating-label">
+                <label class="mdui-textfield-label" style="color: #bbb;">请输入答案</label>
+                <input class="mdui-textfield-input" type="number" v-model="quizInput" style="color: white; border-bottom-color: white;">
+            </div>
+            
+            <div class="mdui-row mdui-m-t-2">
+                <div class="mdui-col-xs-6">
+                    <button class="mdui-btn mdui-btn-block mdui-text-color-white-secondary" @click="quizMode = false">返回</button>
+                </div>
+                <div class="mdui-col-xs-6">
+                    <button class="mdui-btn mdui-btn-block mdui-btn-raised mdui-color-pink" @click="checkQuizAnswer">验证</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW 1: HOME (Upload Page) -->
+    <transition name="fade">
+        <div class="home-container" v-if="currentPage === 'home'">
+            <div class="mdui-card upload-card mdui-shadow-4">
+                <div class="mdui-card-primary">
+                    <div class="mdui-card-primary-title">图片裁剪 Pro</div>
+                    <div class="mdui-card-primary-subtitle">请先选择一张图片</div>
+                </div>
+                <div class="mdui-card-content">
+                    <button class="mdui-btn mdui-btn-block mdui-btn-raised mdui-btn-lg mdui-color-theme-accent mdui-ripple mdui-m-b-2" onclick="document.getElementById('homeFileInput').click()">
+                        <i class="mdui-icon material-icons">add_photo_alternate</i> 选择本地图片
+                    </button>
+                    <input type="file" id="homeFileInput" accept="image/*" @change="handleFileUpload" style="display: none;">
+                    
+                    <div class="mdui-divider mdui-m-y-2"></div>
+                    
+                    <div class="mdui-textfield">
+                        <i class="mdui-icon material-icons">link</i>
+                        <input class="mdui-textfield-input" type="text" v-model="inputUrl" placeholder="或者输入图片链接"/>
+                    </div>
+                    <button class="mdui-btn mdui-btn-block mdui-text-color-theme mdui-m-t-1" @click="loadFromUrl">加载网络图片</button>
+                </div>
+                <div class="mdui-card-actions">
+                    <button class="mdui-btn mdui-btn-icon mdui-float-right" @click="showSystemInfo"><i class="mdui-icon material-icons">info_outline</i></button>
+                </div>
+            </div>
+        </div>
+    </transition>
+
+    <!-- VIEW 2: EDITOR (Crop Page) -->
+    <transition name="fade">
+        <div class="editor-layout" v-if="currentPage === 'editor'">
+            <!-- Editor Toolbar -->
+            <div class="mdui-appbar mdui-shadow-0">
+                <div class="mdui-toolbar mdui-color-white">
+                    <button class="mdui-btn mdui-btn-icon mdui-text-color-theme" @click="goHome">
+                        <i class="mdui-icon material-icons">arrow_back</i>
+                    </button>
+                    <div class="mdui-toolbar-spacer"></div>
+                    <!-- Upload inside editor -->
+                    <button class="mdui-btn mdui-text-color-theme" onclick="document.getElementById('editorFileInput').click()">
+                        <i class="mdui-icon material-icons mdui-icon-left">image</i>更换图片
+                    </button>
+                    <input type="file" id="editorFileInput" accept="image/*" @change="handleFileUpload" style="display: none;">
+                    
+                    <button class="mdui-btn mdui-btn-icon mdui-text-color-grey" @click="showSystemInfo">
+                        <i class="mdui-icon material-icons">settings</i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Crop Area -->
+            <div class="crop-area-wrapper">
+                <img id="image" src="" alt="Source">
+            </div>
+
+            <!-- Bottom Controls -->
+            <div class="control-panel">
+                <div class="mdui-container-fluid mdui-p-y-1">
+                    <!-- Shapes -->
+                    <div class="mdui-row-xs-5 mdui-text-center">
+                        <div class="mdui-col" @click="setRatio(NaN)"><i class="mdui-icon material-icons mdui-text-color-theme">crop_free</i><br><small>自由</small></div>
+                        <div class="mdui-col" @click="setRatio(1)"><i class="mdui-icon material-icons mdui-text-color-theme">crop_square</i><br><small>1:1</small></div>
+                        <div class="mdui-col" @click="setRatio(16/9)"><i class="mdui-icon material-icons mdui-text-color-theme">crop_landscape</i><br><small>16:9</small></div>
+                        <div class="mdui-col" @click="setRatio(4/3)"><i class="mdui-icon material-icons mdui-text-color-theme">crop_original</i><br><small>4:3</small></div>
+                        <div class="mdui-col" @click="setCircle"><i class="mdui-icon material-icons mdui-text-color-pink">radio_button_unchecked</i><br><small>圆形</small></div>
+                    </div>
+                    
+                    <div class="mdui-divider mdui-m-y-1"></div>
+
+                    <!-- Actions -->
+                    <div class="mdui-row">
+                        <div class="mdui-col-xs-6">
+                            <button class="mdui-btn mdui-btn-icon" @click="rotate(-90)"><i class="mdui-icon material-icons">rotate_left</i></button>
+                            <button class="mdui-btn mdui-btn-icon" @click="rotate(90)"><i class="mdui-icon material-icons">rotate_right</i></button>
+                            <button class="mdui-btn mdui-btn-icon" @click="zoom(0.1)"><i class="mdui-icon material-icons">zoom_in</i></button>
+                            <button class="mdui-btn mdui-btn-icon" @click="zoom(-0.1)"><i class="mdui-icon material-icons">zoom_out</i></button>
+                        </div>
+                        <div class="mdui-col-xs-6 mdui-text-right">
+                             <button class="mdui-btn mdui-btn-raised mdui-color-theme-accent mdui-ripple" @click="doCrop">
+                                <i class="mdui-icon material-icons">done</i> 完成并下载
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </transition>
+
+    <!-- Result Dialog -->
+    <div class="mdui-dialog" id="resultDialog">
+        <div class="mdui-dialog-title">裁剪完成</div>
+        <div class="mdui-dialog-content mdui-text-center">
+            <img :src="resultImage" class="preview-img" alt="Result"/>
+            <p class="mdui-text-color-grey-500 mdui-m-t-1" v-if="isMobile">长按图片保存，或点击下方下载</p>
+        </div>
+        <div class="mdui-dialog-actions">
+            <a :href="resultImage" download="cropped-image.png" class="mdui-btn mdui-ripple mdui-text-color-theme mdui-btn-raised">
+                <i class="mdui-icon material-icons mdui-icon-left">file_download</i>下载图片
+            </a>
+            <button class="mdui-btn mdui-ripple" mdui-dialog-close>关闭</button>
+        </div>
+    </div>
+
+    <!-- System Info Dialog -->
+    <div class="mdui-dialog" id="infoDialog">
+        <div class="mdui-dialog-title">关于</div>
+        <div class="mdui-dialog-content">
+            <p><b>当前环境：</b></p>
+            <ul class="mdui-list">
+                <li class="mdui-list-item mdui-ripple">OS: {{ sysInfo.os }}</li>
+                <li class="mdui-list-item mdui-ripple">Browser: {{ sysInfo.browser }}</li>
+            </ul>
+        </div>
+        <div class="mdui-dialog-actions">
+            <button class="mdui-btn mdui-ripple" mdui-dialog-close>OK</button>
+        </div>
+    </div>
+
+</div>
+
+<!-- Libraries -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://unpkg.com/mdui@1.0.2/dist/js/mdui.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/UAParser.js/1.0.35/ua-parser.min.js"></script>
+
+<script>
+    const { createApp, ref, reactive, onMounted, nextTick } = Vue;
+
+    createApp({
+        setup() {
+            // App State
+            const currentPage = ref('home'); // 'home' or 'editor'
+            const showWarning = ref(false);
+            const inputUrl = ref('');
+            const isMobile = ref(window.innerWidth < 600);
+            
+            // Cropper Related
+            const cropper = ref(null);
+            const resultImage = ref('');
+            const isCircle = ref(false);
+
+            // Quiz/Bypass Logic
+            const quizMode = ref(false);
+            const quizQuestion = ref('');
+            const quizInput = ref('');
+            const quizAnswer = ref(0);
+
+            // System Info
+            const sysInfo = reactive({ os: '', browser: '', engine: '' });
+
+            // 1. Browser Detection
+            const checkBrowser = () => {
+                const parser = new UAParser();
+                const result = parser.getResult();
+                sysInfo.os = `${result.os.name} ${result.os.version}`;
+                sysInfo.browser = `${result.browser.name} ${result.browser.version}`;
+                sysInfo.engine = result.engine.name;
+
+                const ua = navigator.userAgent.toLowerCase();
+                const name = result.browser.name || '';
+
+                // Strictly White-listed: Chrome, Firefox, Edge, Safari (for iOS)
+                const isChrome = /Chrome|Chromium/i.test(name);
+                const isFirefox = /Firefox/i.test(name);
+                const isEdge = /Edge/i.test(name);
+                const isSafari = /Safari|Mobile Safari/i.test(name) && !/Chrome/i.test(name);
+
+                // Black-listed: WeChat, QQ
+                const isWeChat = /micromessenger/i.test(ua);
+                const isQQ = /qq\//i.test(ua);
+
+                if (isWeChat || isQQ) {
+                    showWarning.value = true;
+                } else if (!isChrome && !isFirefox && !isEdge && !isSafari) {
+                    showWarning.value = true;
+                }
+            };
+
+            // 2. Quiz Logic
+            const enterQuizMode = () => {
+                quizMode.value = true;
+                const a = Math.floor(Math.random() * 10) + 1;
+                const b = Math.floor(Math.random() * 10) + 1;
+                quizQuestion.value = `${a} + ${b}`;
+                quizAnswer.value = a + b;
+                quizInput.value = '';
+            };
+
+            const checkQuizAnswer = () => {
+                if (parseInt(quizInput.value) === quizAnswer.value) {
+                    showWarning.value = false;
+                    mdui.snackbar({message: '验证通过，已解除限制', position: 'top'});
+                } else {
+                    mdui.snackbar({message: '答案错误，请重试', position: 'top'});
+                    enterQuizMode(); // Generate new question
+                }
+            };
+
+            // 3. Image Loading Logic
+            const initCropper = () => {
+                const image = document.getElementById('image');
+                if (cropper.value) cropper.value.destroy();
+
+                cropper.value = new Cropper(image, {
+                    viewMode: 1, // Restrict to canvas
+                    dragMode: 'move',
+                    autoCropArea: 0.8,
+                    restore: false,
+                    guides: true,
+                    center: true,
+                    background: false, // Dark theme in editor
+                    highlight: false,
+                    cropBoxMovable: true,
+                    cropBoxResizable: true,
+                    toggleDragModeOnDblclick: false,
+                });
+            };
+
+            const transitionToEditor = (src) => {
+                currentPage.value = 'editor';
+                nextTick(() => {
+                    const img = document.getElementById('image');
+                    img.src = src;
+                    img.onload = () => {
+                        initCropper();
+                    };
+                    // Fallback if onload doesn't fire (cached)
+                    setTimeout(initCropper, 100);
+                });
+            };
+
+            const handleFileUpload = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    transitionToEditor(event.target.result);
+                };
+                reader.readAsDataURL(file);
+                // Reset input value so same file can be selected again
+                e.target.value = ''; 
+            };
+
+            const loadFromUrl = () => {
+                if (!inputUrl.value) return;
+                // Just pass the URL, handling CORS is tricky on client side without proxy
+                // But we assume user knows what they are doing or using localhost
+                transitionToEditor(inputUrl.value);
+            };
+
+            const goHome = () => {
+                if(confirm('确定要返回首页吗？当前未保存的裁剪将丢失。')) {
+                    if (cropper.value) cropper.value.destroy();
+                    currentPage.value = 'home';
+                    inputUrl.value = '';
+                }
+            };
+
+            // 4. Cropper Controls
+            const setRatio = (ratio) => {
+                isCircle.value = false;
+                if(cropper.value) cropper.value.setAspectRatio(ratio);
+            };
+            const setCircle = () => {
+                isCircle.value = true;
+                if(cropper.value) cropper.value.setAspectRatio(1);
+            };
+            const rotate = (deg) => { if(cropper.value) cropper.value.rotate(deg); };
+            const zoom = (ratio) => { if(cropper.value) cropper.value.zoom(ratio); };
+
+            const doCrop = () => {
+                if (!cropper.value) return;
+                
+                // Use higher resolution for output
+                let canvas = cropper.value.getCroppedCanvas({
+                    maxWidth: 2048,
+                    maxHeight: 2048,
+                    imageSmoothingEnabled: true,
+                    imageSmoothingQuality: 'high',
+                });
+
+                if (isCircle.value) {
+                    const roundedCanvas = document.createElement('canvas');
+                    const ctx = roundedCanvas.getContext('2d');
+                    const w = canvas.width;
+                    const h = canvas.height;
+                    roundedCanvas.width = w;
+                    roundedCanvas.height = h;
+                    ctx.drawImage(canvas, 0, 0);
+                    ctx.globalCompositeOperation = 'destination-in';
+                    ctx.beginPath();
+                    ctx.arc(w/2, h/2, Math.min(w,h)/2, 0, 2*Math.PI);
+                    ctx.fill();
+                    canvas = roundedCanvas;
+                }
+
+                resultImage.value = canvas.toDataURL('image/png');
+                new mdui.Dialog('#resultDialog').open();
+            };
+
+            const showSystemInfo = () => {
+                new mdui.Dialog('#infoDialog').open();
+            };
+
+            onMounted(() => {
+                checkBrowser();
+            });
+
+            return {
+                currentPage, showWarning, quizMode, quizQuestion, quizInput,
+                isMobile, resultImage, inputUrl, sysInfo,
+                handleFileUpload, loadFromUrl, goHome,
+                setRatio, setCircle, rotate, zoom, doCrop,
+                checkQuizAnswer, enterQuizMode, showSystemInfo
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
