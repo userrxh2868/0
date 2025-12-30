@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>微信模拟器 v1.0</title>
+    
+    <!-- 引入字体和图标 -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.x/css/materialdesignicons.min.css" rel="stylesheet">
+    <!-- 引入 Vuetify CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/vuetify@3.4.0/dist/vuetify.min.css" rel="stylesheet">
+
+    <style>
+        /* --- 基础样式 --- */
+        :root { --user-color: #95ec69; }
+
+        body {
+            font-family: 'Roboto', Helvetica, Arial, sans-serif;
+            background-color: #ededed;
+            overflow: hidden;
+            margin: 0; padding: 0;
+            user-select: none; -webkit-user-select: none;
+        }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 2px; }
+
+        .status-bar {
+            height: 24px; background-color: #333333; color: #ffffff;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 12px; font-size: 12px; font-weight: 500; z-index: 2000;
+        }
+
+        .chat-area {
+            height: calc(100vh - 24px - 64px - 70px);
+            overflow-y: auto; padding: 15px; padding-bottom: 20px;
+            transition: height 0.3s, background-color 0.3s;
+        }
+
+        .message-row { display: flex; margin-bottom: 16px; align-items: flex-start; }
+        .message-row.user { flex-direction: row-reverse; }
+        .message-row.center { justify-content: center; margin-bottom: 10px; }
+
+        .avatar { cursor: pointer; transition: transform 0.2s; flex-shrink: 0; }
+        .avatar:active { transform: scale(0.9); }
+
+        .bubble {
+            max-width: 70%; padding: 10px 14px; border-radius: 6px; position: relative;
+            font-size: 15px; line-height: 1.5; word-wrap: break-word;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.05); cursor: pointer; transition: filter 0.2s;
+        }
+        .bubble:active { filter: brightness(0.9); }
+
+        .reaction-badge {
+            position: absolute; bottom: -10px; right: -5px; background-color: white;
+            border-radius: 10px; padding: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            font-size: 12px; display: flex; align-items: center; justify-content: center;
+            z-index: 5; min-width: 20px; height: 20px;
+        }
+        .message-row.user .reaction-badge { right: auto; left: -5px; }
+
+        .system-msg {
+            background-color: rgba(0,0,0,0.1); color: white; padding: 3px 8px;
+            border-radius: 4px; font-size: 12px; max-width: 85%; text-align: center; display: inline-block;
+        }
+        .system-msg.rejection { background-color: transparent; color: #b0b0b0; font-size: 13px; padding: 0; }
+
+        .bubble.is-image { padding: 0; background-color: transparent !important; box-shadow: none; }
+        .bubble.is-image::before { display: none; }
+        .bubble-img { max-width: 100%; max-height: 200px; border-radius: 6px; cursor: zoom-in; display: block; }
+
+        .bubble.red-packet {
+            background-color: #fa9d3b; color: white; padding: 0; width: 230px;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .rp-content { display: flex; align-items: center; padding: 15px 12px; }
+        .rp-icon { font-size: 36px; margin-right: 12px; color: #ffeeb3; }
+        .rp-text { font-size: 15px; font-weight: 500; }
+        .rp-footer { background-color: white; color: #999; font-size: 11px; padding: 4px 12px; opacity: 0.9; }
+
+        .bubble.bot:not(.is-image):not(.red-packet) { background-color: white; color: black; margin-left: 10px; }
+        .bubble.bot:not(.is-image):not(.red-packet)::before {
+            content: ""; position: absolute; left: -6px; top: 12px; width: 0; height: 0;
+            border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-right: 6px solid white;
+        }
+
+        .bubble.user:not(.is-image):not(.red-packet) {
+            background-color: var(--user-color) !important; color: black; margin-right: 10px;
+        }
+        .bubble.user:not(.is-image):not(.red-packet)::before {
+            content: ""; position: absolute; right: -6px; top: 12px; width: 0; height: 0;
+            border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 6px solid var(--user-color) !important;
+        }
+        
+        .bubble.user.red-packet { margin-right: 10px; }
+        .bubble.user.red-packet::before {
+            content: ""; position: absolute; right: -6px; top: 12px; width: 0; height: 0;
+            border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 6px solid #fa9d3b;
+        }
+
+        .input-area {
+            position: fixed; bottom: 0; width: 100%; background-color: #f7f7f7; padding: 10px;
+            display: flex; align-items: center; border-top: 1px solid #dcdcdc; height: 70px; z-index: 100;
+        }
+        .input-area.panel-open { bottom: 250px; }
+
+        .extension-panel {
+            position: fixed; bottom: 0; width: 100%; height: 250px; background-color: #f7f7f7;
+            border-top: 1px solid #dcdcdc; z-index: 101; padding: 15px; overflow-y: auto;
+            transform: translateY(100%); transition: transform 0.3s ease-out;
+        }
+        .extension-panel.open { transform: translateY(0); }
+
+        .loading-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #2c2c2c; z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; color: white;
+        }
+        .earth-icon { font-size: 80px; margin-bottom: 20px; opacity: 0.8; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 0.8; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } 100% { opacity: 0.8; transform: scale(1); } }
+        
+        .image-viewer {
+            display: flex; justify-content: center; align-items: center; background-color: black;
+            width: 100%; height: 100%;
+        }
+        .image-viewer img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+        .theme-circle {
+            width: 40px; height: 40px; border-radius: 50%; border: 2px solid #ddd; cursor: pointer; transition: transform 0.2s;
+        }
+        .theme-circle:active { transform: scale(0.9); }
+        .theme-circle.active { border-color: #333; border-width: 3px; }
+        
+        .stolen-emoji-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .stolen-emoji-item { position: relative; aspect-ratio: 1; border: 1px solid #eee; border-radius: 4px; overflow: hidden; }
+        .stolen-emoji-item img { width: 100%; height: 100%; object-fit: cover; }
+        .delete-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center;
+            opacity: 0; transition: opacity 0.2s; cursor: pointer;
+        }
+        .stolen-emoji-item:hover .delete-overlay { opacity: 1; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <v-app :style="{ '--user-color': accentColor }">
+        <!-- 隐藏文件输入 -->
+        <div style="display: none;">
+            <input type="file" ref="fileInput" accept="image/*" @change="handleImageUpload">
+            <input type="file" ref="importInput" accept=".json" @change="handleImport">
+            <input type="file" ref="avatarInput" accept="image/*" @change="handleAvatarUpload">
+        </div>
+
+        <!-- 加载层 -->
+        <div v-if="isLoading" class="loading-screen">
+            <v-icon class="earth-icon" icon="mdi-earth" color="grey-lighten-1"></v-icon>
+            <h2 class="mb-5 font-weight-light">WeChat Simulator <span class="text-caption text-grey">v1.0</span></h2>
+            <div style="width: 70%; max-width: 300px;">
+                <v-progress-linear color="green" height="6" rounded indeterminate></v-progress-linear>
+                <div class="text-center mt-2 text-caption text-grey">正在载入资源...</div>
+            </div>
+        </div>
+
+        <!-- 主界面 -->
+        <div v-else style="height: 100%; display: flex; flex-direction: column;">
+            
+            <div class="status-bar">
+                <span>{{ currentTime }}</span>
+                <div class="d-flex align-center">
+                    <v-icon size="x-small" icon="mdi-signal" class="mr-1"></v-icon>
+                    <v-icon size="x-small" icon="mdi-wifi" class="mr-1"></v-icon>
+                    <v-icon size="x-small" icon="mdi-battery-70"></v-icon>
+                </div>
+            </div>
+
+            <v-app-bar color="#333333" density="compact" elevation="1" theme="dark" flat style="position: relative;">
+                <template v-slot:prepend>
+                    <v-btn icon="mdi-chevron-left"></v-btn>
+                    <span class="text-body-1 ml-1" style="font-size: 16px;">微信</span>
+                </template>
+                <!-- 标题显示逻辑：如果机器人在输入，显示“对方正在输入...” -->
+                <v-app-bar-title class="text-center text-body-1 font-weight-bold">
+                    {{ isBotTyping ? '对方正在输入...' : chatTitle }}
+                </v-app-bar-title>
+                <template v-slot:append>
+                    <v-btn icon="mdi-dots-horizontal" @click="openSettingsDialog"></v-btn>
+                </template>
+            </v-app-bar>
+
+            <v-main style="flex: 1; min-height: 0; padding: 0;" @click="closePanels">
+                <div class="chat-area" id="chatContainer" :style="{ height: panelOpen ? 'calc(100vh - 24px - 64px - 70px - 250px)' : '', backgroundColor: currentTheme }">
+                    <div v-for="msg in messages" :key="msg.id" class="message-row" :class="{ user: msg.isUser, center: msg.type === 'system' || msg.type === 'time' }">
+                        
+                        <div v-if="msg.type === 'time'" class="system-msg">{{ msg.text }}</div>
+                        <div v-else-if="msg.type === 'system'" class="system-msg" :class="{ rejection: msg.isRejection }">
+                            <span v-if="msg.isRejection"><v-icon color="red" size="small" class="mr-1">mdi-alert-circle</v-icon></span>
+                            {{ msg.text }}
+                        </div>
+
+                        <template v-else>
+                            <!-- 头像支持双击“拍一拍” -->
+                            <v-avatar 
+                                :image="msg.isUser ? userAvatar : botAvatar" 
+                                size="40" 
+                                class="avatar elevation-1" 
+                                @click.stop="openAvatarDialog(msg.isUser ? 'user' : 'bot')"
+                                @dblclick.stop="handleNudge(msg.isUser)"
+                            ></v-avatar>
+                            
+                            <div 
+                                class="bubble-wrapper" 
+                                style="position: relative;"
+                                @touchstart="handlePressStart(msg)" 
+                                @touchend="handlePressEnd(msg, msg.type==='image')" 
+                                @mousedown="handlePressStart(msg)" 
+                                @mouseup="handlePressEnd(msg, msg.type==='image')"
+                                @mouseleave="handlePressCancel"
+                            >
+                                <div 
+                                    :id="'bubble-' + msg.id"
+                                    class="bubble" 
+                                    :class="{ user: msg.isUser, bot: !msg.isUser, 'is-image': msg.type === 'image', 'red-packet': msg.type === 'redpacket' }"
+                                >
+                                    <span v-if="msg.type === 'text'" style="white-space: pre-wrap;">{{ msg.text }}</span>
+                                    <img v-if="msg.type === 'image'" :src="msg.content" class="bubble-img" />
+                                    <div v-if="msg.type === 'redpacket'">
+                                        <div class="rp-content">
+                                            <v-icon icon="mdi-email-outline" class="rp-icon"></v-icon>
+                                            <div class="d-flex flex-column">
+                                                <span class="rp-text">{{ msg.text }}</span>
+                                                <span class="text-caption text-white opacity-80" v-if="msg.amount">查看红包</span>
+                                            </div>
+                                        </div>
+                                        <div class="rp-footer">微信红包</div>
+                                    </div>
+                                    <div v-if="msg.reaction" class="reaction-badge">{{ msg.reaction }}</div>
+                                </div>
+
+                                <v-menu 
+                                    v-model="msg.showMenu" 
+                                    :target="'#bubble-' + msg.id" 
+                                    location="top center"
+                                    :close-on-content-click="false"
+                                >
+                                    <v-sheet class="pa-2 rounded-lg d-flex flex-column">
+                                        <div class="d-flex justify-space-between mb-2">
+                                            <v-btn v-for="icon in reactionIcons" :key="icon" variant="text" density="compact" icon size="small" @click="reactToMessage(msg.id, icon)">
+                                                <span style="font-size: 18px;">{{ icon }}</span>
+                                            </v-btn>
+                                        </div>
+                                        <v-divider v-if="msg.isUser" class="mb-1"></v-divider>
+                                        <v-btn v-if="msg.isUser" variant="text" size="small" color="red" block @click="recallMessage(msg.id)">撤回消息</v-btn>
+                                    </v-sheet>
+                                </v-menu>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </v-main>
+
+            <div class="input-area" :class="{ 'panel-open': panelOpen }">
+                <v-btn icon="mdi-voice" variant="text" color="grey-darken-1" class="mr-1"></v-btn>
+                <v-text-field v-model="inputText" variant="solo" density="compact" hide-details placeholder="" bg-color="white" class="rounded-lg elevation-0 border" @keyup.enter="sendMessage" @focus="closePanels"></v-text-field>
+                <v-btn :icon="activePanel === 'emoji' ? 'mdi-keyboard' : 'mdi-emoticon-outline'" variant="text" color="grey-darken-1" class="mx-1" @click.stop="togglePanel('emoji')"></v-btn>
+                <v-btn v-if="inputText.trim().length > 0" color="#95ec69" size="small" class="text-black font-weight-bold px-4" @click="sendMessage">发送</v-btn>
+                <v-btn v-else icon="mdi-plus-circle-outline" variant="text" color="grey-darken-1" @click.stop="togglePanel('more')"></v-btn>
+            </div>
+
+            <div class="extension-panel" :class="{ open: panelOpen }">
+                <div v-if="activePanel === 'emoji'">
+                    <v-row no-gutters><v-col v-for="emoji in emojis" :key="emoji" cols="2" sm="1" class="text-center pa-2"><span style="font-size: 24px; cursor: pointer;" @click="appendEmoji(emoji)">{{ emoji }}</span></v-col></v-row>
+                </div>
+                <div v-if="activePanel === 'more'">
+                    <v-row>
+                        <v-col cols="3" class="text-center"><div class="d-flex flex-column align-center" @click="triggerImageUpload"><div style="width: 60px; height: 60px; background: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid #ddd; cursor: pointer;"><v-icon icon="mdi-image" size="30" color="grey-darken-1"></v-icon></div><span class="text-caption mt-2 text-grey-darken-2">照片</span></div></v-col>
+                        <v-col cols="3" class="text-center"><div class="d-flex flex-column align-center" @click="openRedPacketDialog"><div style="width: 60px; height: 60px; background: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid #ddd; cursor: pointer;"><v-icon icon="mdi-email-outline" size="30" color="orange"></v-icon></div><span class="text-caption mt-2 text-grey-darken-2">红包</span></div></v-col>
+                        <!-- 公告按钮 -->
+                        <v-col cols="3" class="text-center"><div class="d-flex flex-column align-center" @click="announcementDialog = true"><div style="width: 60px; height: 60px; background: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid #ddd; cursor: pointer;"><v-icon icon="mdi-bullhorn-outline" size="30" color="blue"></v-icon></div><span class="text-caption mt-2 text-grey-darken-2">公告</span></div></v-col>
+                    </v-row>
+                </div>
+            </div>
+        </div>
+
+        <v-dialog v-model="viewerDialog" fullscreen transition="dialog-bottom-transition"><div class="image-viewer" @click="viewerDialog = false"><img :src="viewingImageSrc" /></div></v-dialog>
+        
+        <!-- 公告弹窗 -->
+        <v-dialog v-model="announcementDialog" max-width="400">
+            <v-card>
+                <v-card-title class="text-center font-weight-bold text-h6 py-4">系统公告</v-card-title>
+                <v-card-text class="text-body-2">
+                    <p class="mb-3 font-weight-bold">🎉 微信模拟器 v1.0 正式版发布！</p>
+                    <p class="mb-2">这是本项目的最终版本，包含了以下更新：</p>
+                    <ul class="pl-4 mb-3 text-caption text-grey-darken-2">
+                        <li>新增“拍一拍”功能：双击头像试试！</li>
+                        <li>新增“对方正在输入...”状态显示</li>
+                        <li>完善了机器人管理与表情包偷取功能</li>
+                        <li>修复了所有已知问题，体验更丝滑</li>
+                    </ul>
+                    <p class="text-caption text-red">注意：聊天记录不保存，请善用导出功能备份！</p>
+                </v-card-text>
+                <v-card-actions>
+                    <v-btn block color="green" variant="elevated" @click="announcementDialog = false">我已知晓</v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
+
+        <!-- 设置弹窗 -->
+        <v-dialog v-model="settingsDialog" max-width="500" scrollable>
+            <v-card style="height: 600px;">
+                <v-toolbar color="grey-lighten-3" density="compact"><v-toolbar-title class="text-body-1 font-weight-bold">设置</v-toolbar-title><v-spacer></v-spacer><v-btn icon="mdi-close" variant="text" @click="settingsDialog = false"></v-btn></v-toolbar>
+                <v-tabs v-model="settingsTab" color="green" density="compact" grow>
+                    <v-tab value="general">常规</v-tab>
+                    <v-tab value="rules">规则</v-tab>
+                    <v-tab value="robot">机器人</v-tab>
+                    <v-tab value="safety">安全</v-tab>
+                    <v-tab value="data">数据</v-tab>
+                    <v-tab value="about">关于</v-tab> <!-- 新增关于Tab -->
+                </v-tabs>
+
+                <v-card-text class="pa-4" style="overflow-y: auto;">
+                    <v-window v-model="settingsTab">
+                        <v-window-item value="general">
+                            <h3 class="text-subtitle-2 mb-2">对方信息</h3>
+                            <v-text-field v-model="chatTitle" label="对方昵称" variant="outlined" density="compact"></v-text-field>
+                            <h3 class="text-subtitle-2 mb-2 mt-4">聊天背景主题</h3>
+                            <div class="d-flex gap-2 mb-4">
+                                <div class="theme-circle mr-3" v-for="c in ['#ededed', '#f5f5f5', '#ffebee', '#e3f2fd', '#263238']" :key="c" :class="{ active: currentTheme === c }" :style="{ backgroundColor: c }" @click="currentTheme = c"></div>
+                            </div>
+                            <h3 class="text-subtitle-2 mb-2">我的气泡颜色</h3>
+                            <div class="d-flex gap-2">
+                                <div class="theme-circle mr-3" v-for="c in ['#95ec69', '#90caf9', '#f48fb1', '#ce93d8', '#ffcc80']" :key="c" :class="{ active: accentColor === c }" :style="{ backgroundColor: c }" @click="accentColor = c"></div>
+                            </div>
+                        </v-window-item>
+
+                        <v-window-item value="rules">
+                            <h3 class="text-subtitle-2 mb-2">红包概率</h3>
+                            <div class="d-flex justify-space-between"><span class="text-caption">领取概率</span><span class="text-caption font-weight-bold">{{ redPacketProb }}%</span></div>
+                            <v-slider v-model="redPacketProb" color="orange" thumb-label max="100" min="0" step="5" hide-details></v-slider>
+                            <v-divider class="my-4"></v-divider>
+                            <div class="d-flex justify-space-between align-center mb-2"><h3 class="text-subtitle-2">自动回复规则</h3><v-btn size="x-small" color="green" variant="tonal" prepend-icon="mdi-plus" @click="addRule">添加</v-btn></div>
+                            <div v-for="(rule, index) in customRules" :key="index" class="d-flex align-center mb-2">
+                                <v-text-field v-model="rule.trigger" density="compact" hide-details variant="outlined" class="mr-2" placeholder="问"></v-text-field>
+                                <v-icon icon="mdi-arrow-right" size="small" class="mr-2 text-grey"></v-icon>
+                                <v-text-field v-model="rule.reply" density="compact" hide-details variant="outlined" class="mr-2" placeholder="答"></v-text-field>
+                                <v-btn icon="mdi-delete" size="small" variant="text" color="red" @click="removeRule(index)"></v-btn>
+                            </div>
+                        </v-window-item>
+
+                        <v-window-item value="robot">
+                            <h3 class="text-subtitle-2 mb-2 text-deep-purple-darken-1">随机人类聊天模式</h3>
+                            <v-switch v-model="randomChatMode" color="deep-purple" label="开启随机聊天" density="compact" hide-details></v-switch>
+                            <div v-if="randomChatMode" class="mt-2 pa-3 bg-grey-lighten-4 rounded">
+                                <v-textarea v-model="randomChatLibraryRaw" label="语言库配置 (一行一句)" variant="outlined" rows="4" density="compact" bg-color="white" placeholder="你好啊&#10;今天天气不错"></v-textarea>
+                                <div class="d-flex justify-space-between mt-2"><span class="text-caption">触发频率</span><span class="text-caption font-weight-bold">{{ randomChatProb }}%</span></div>
+                                <v-slider v-model="randomChatProb" color="deep-purple-lighten-2" max="100" min="0" step="5" hide-details></v-slider>
+                            </div>
+                            <v-divider class="my-4"></v-divider>
+                            <h3 class="text-subtitle-2 mb-2">机器人表情包库 ({{ robotStolenEmojis.length }})</h3>
+                            <div v-if="robotStolenEmojis.length === 0" class="text-caption text-grey">机器人还没偷到表情包...</div>
+                            <div class="stolen-emoji-grid" v-else>
+                                <div v-for="(img, idx) in robotStolenEmojis" :key="idx" class="stolen-emoji-item">
+                                    <img :src="img" /><div class="delete-overlay" @click="removeStolenEmoji(idx)"><v-icon color="white">mdi-delete</v-icon></div>
+                                </div>
+                            </div>
+                        </v-window-item>
+
+                        <v-window-item value="safety">
+                            <h3 class="text-subtitle-2 mb-2 text-red-darken-1">黑名单控制</h3>
+                            <v-switch v-model="userBlocksBot" color="red" label="我拉黑机器人" density="compact" hide-details></v-switch>
+                            <v-divider class="my-4"></v-divider>
+                            <div class="d-flex justify-space-between mt-2"><span class="text-caption">机器人拉黑概率</span><span class="text-caption font-weight-bold">{{ botBlockProb }}%</span></div>
+                            <v-slider v-model="botBlockProb" color="red-lighten-2" max="100" min="0" step="1" hide-details></v-slider>
+                            <div class="d-flex justify-space-between mt-4"><span class="text-caption">机器人解封概率</span><span class="text-caption font-weight-bold">{{ botUnblockProb }}%</span></div>
+                            <v-slider v-model="botUnblockProb" color="green-lighten-2" max="100" min="0" step="1" hide-details></v-slider>
+                        </v-window-item>
+
+                        <v-window-item value="data">
+                            <v-alert type="info" variant="tonal" density="compact" class="mb-4 text-caption">数据暂存内存中，刷新丢失。</v-alert>
+                            <v-row dense>
+                                <v-col cols="12"><v-btn block color="blue-grey-lighten-4" variant="flat" prepend-icon="mdi-export" @click="exportData">导出聊天数据</v-btn></v-col>
+                                <v-col cols="12"><v-btn block color="blue-grey-lighten-4" variant="flat" prepend-icon="mdi-import" @click="triggerImport">导入聊天数据</v-btn></v-col>
+                                <v-col cols="12"><v-btn block color="amber-lighten-4" variant="flat" size="small" class="text-amber-darken-4" @click="clearChatOnly">清空聊天记录</v-btn></v-col>
+                                <v-col cols="12"><v-btn block color="red-lighten-4" variant="flat" size="small" class="text-red" @click="clearAll">重置所有</v-btn></v-col>
+                            </v-row>
+                        </v-window-item>
+
+                        <!-- 关于 Tab (新增) -->
+                        <v-window-item value="about">
+                            <div class="d-flex flex-column align-center mt-4">
+                                <v-icon icon="mdi-wechat" color="green" size="64"></v-icon>
+                                <h2 class="text-h6 font-weight-bold mt-2">微信模拟器</h2>
+                                <p class="text-caption text-grey">Version 1.0 Formal</p>
+                            </div>
+                            <v-list density="compact" class="mt-4">
+                                <v-list-item title="项目状态" subtitle="已完结 (Final Release)"></v-list-item>
+                                <v-list-item title="当前版本" subtitle="1.0 正式版"></v-list-item>
+                                <v-list-item title="功能说明" subtitle="支持改名、换头像、发红包、表情包互动、随机聊天、黑名单系统等。"></v-list-item>
+                            </v-list>
+                            <div class="text-center text-caption text-grey-lighten-1 mt-8">
+                                WeChat Simulator © 2023 <br> For entertainment purposes only
+                            </div>
+                        </v-window-item>
+                    </v-window>
+                </v-card-text>
+                <v-card-actions><v-spacer></v-spacer><v-btn color="primary" @click="settingsDialog = false">完成</v-btn></v-card-actions>
+            </v-card>
+        </v-dialog>
+
+        <v-dialog v-model="redPacketDialog" max-width="320">
+            <v-card color="#f7f7f7">
+                <div style="background-color: #fa9d3b; padding: 20px; text-align: center; color: white;"><div class="text-h6">发红包</div></div>
+                <v-card-text class="pt-6">
+                    <v-text-field v-model="rpAmount" label="金额" prefix="￥" type="number" variant="outlined" bg-color="white"></v-text-field>
+                    <v-textarea v-model="rpText" label="祝福语" variant="outlined" bg-color="white" rows="2" no-resize></v-textarea>
+                    <div class="text-h4 text-center font-weight-bold mt-2">￥{{ rpAmount || '0.00' }}</div>
+                </v-card-text>
+                <v-card-actions class="pb-4 justify-center"><v-btn color="#fa9d3b" variant="flat" size="large" class="text-white px-8" @click="sendRedPacket">塞钱进红包</v-btn></v-card-actions>
+            </v-card>
+        </v-dialog>
+
+        <v-dialog v-model="avatarDialog" max-width="400">
+            <v-card>
+                <v-card-title class="text-h6">选择头像</v-card-title>
+                <v-card-text>
+                    <v-tabs v-model="avatarTab" density="compact" color="green"><v-tab value="preset">内置</v-tab><v-tab value="custom">自定义</v-tab></v-tabs>
+                    <v-window v-model="avatarTab" class="mt-4">
+                        <v-window-item value="preset"><v-row><v-col cols="3" v-for="(avatar, index) in availableAvatars" :key="index"><v-avatar :image="avatar" size="60" class="cursor-pointer elevation-1" @click="selectAvatar(avatar)"></v-avatar></v-col></v-row></v-window-item>
+                        <v-window-item value="custom">
+                            <v-text-field v-model="customAvatarUrl" label="链接" variant="outlined" density="compact" clearable></v-text-field>
+                            <div class="text-center my-2 text-caption">或</div>
+                            <v-btn block prepend-icon="mdi-upload" color="grey-lighten-3" @click="triggerAvatarUpload">上传</v-btn>
+                            <div class="d-flex justify-center mt-4" v-if="customAvatarUrl"><v-avatar :image="customAvatarUrl" size="80" class="elevation-2"></v-avatar></div>
+                            <v-btn block color="green" class="mt-4 text-white" @click="confirmCustomAvatar" :disabled="!customAvatarUrl">确定</v-btn>
+                        </v-window-item>
+                    </v-window>
+                </v-card-text>
+                <v-card-actions><v-btn block color="primary" @click="avatarDialog = false">关闭</v-btn></v-card-actions>
+            </v-card>
+        </v-dialog>
+
+    </v-app>
+</div>
+
+<!-- Scripts -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/vuetify@3.4.0/dist/vuetify.min.js" crossorigin="anonymous"></script>
+
+<script>
+    const { createApp, ref, onMounted, nextTick, computed } = Vue;
+    const { createVuetify } = Vuetify;
+
+    const vuetify = createVuetify();
+
+    createApp({
+        setup() {
+            // Refs
+            const fileInput = ref(null);
+            const importInput = ref(null);
+            const avatarInput = ref(null);
+
+            // State
+            const version = "v1.0 Formal";
+            const isLoading = ref(true);
+            const currentTime = ref("12:00");
+            const chatTitle = ref("微信模拟器");
+            const currentTheme = ref("#ededed");
+            const accentColor = ref("#95ec69");
+            const settingsDialog = ref(false);
+            const settingsTab = ref("general");
+            const announcementDialog = ref(false); // 公告弹窗
+            const isBotTyping = ref(false); // 机器人正在输入状态
+
+            const avatarDialog = ref(false);
+            const currentSide = ref("user"); 
+            const avatarTab = ref("preset");
+            const customAvatarUrl = ref("");
+            const userAvatar = ref("https://api.dicebear.com/7.x/avataaars/svg?seed=Felix");
+            const botAvatar = ref("https://api.dicebear.com/7.x/bottts/svg?seed=Robot");
+
+            const inputText = ref("");
+            const messages = ref([
+                { id: 0, type: 'time', text: "下午 2:30", showMenu: false },
+                { id: 1, type: 'text', text: "欢迎来到 1.0 正式版！", isUser: false, showMenu: false },
+                { id: 2, type: 'text', text: "试试双击头像“拍一拍”吧。", isUser: false, showMenu: false }
+            ]);
+
+            const activePanel = ref(null);
+            const panelOpen = computed(() => activePanel.value !== null);
+            const viewerDialog = ref(false);
+            const viewingImageSrc = ref("");
+
+            const customRules = ref([{ trigger: "暗号", reply: "天王盖地虎！" }]);
+            const redPacketProb = ref(50);
+            const userBlocksBot = ref(false); 
+            const botBlocksUser = ref(false); 
+            const botBlockProb = ref(5);      
+            const botUnblockProb = ref(10);   
+
+            // Robot Features
+            const randomChatMode = ref(false);
+            const randomChatLibraryRaw = ref("");
+            const randomChatProb = ref(100);
+            const robotStolenEmojis = ref([]); 
+
+            const redPacketDialog = ref(false);
+            const rpAmount = ref("1.00");
+            const rpText = ref("恭喜发财，大吉大利");
+
+            const reactionIcons = ['👍', '❤️', '😂', '😮', '😢', '😡'];
+            const emojis = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','😘','🥰','😗','😙','😚','🙂','🤗','🤩','🤔','🤨','😐','😑','😶','🙄','😏','😣','😥','😮','🤐','😯','😪','😫','😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','☹️','🙁','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','😷','🤒','🤕','🤢','🤮','🤧','😇','🤠','🤡','🥳','🥴','🥺','🤥','🤫','🤭','🧐','🤓','😈','👿','👹','👺','💀','👻','👽','🤖','💩'];
+            const availableAvatars = ["https://api.dicebear.com/7.x/avataaars/svg?seed=Felix", "https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka", "https://api.dicebear.com/7.x/avataaars/svg?seed=Bob", "https://api.dicebear.com/7.x/bottts/svg?seed=Robot", "https://api.dicebear.com/7.x/bottts/svg?seed=C3PO", "https://api.dicebear.com/7.x/bottts/svg?seed=R2D2", "https://api.dicebear.com/7.x/adventurer/svg?seed=Nala", "https://api.dicebear.com/7.x/adventurer/svg?seed=King"];
+
+            // --- Nudge (拍一拍) Function ---
+            const handleNudge = (isUserTarget) => {
+                const targetName = isUserTarget ? "我" : (chatTitle.value || "对方");
+                const text = isUserTarget ? `你拍了拍"${targetName}"` : `你拍了拍"${targetName}"`;
+                
+                messages.value.push({ id: Date.now(), type: 'system', text: text });
+                scrollToBottom();
+
+                // 机器人被拍的反击逻辑
+                if (!isUserTarget && !userBlocksBot.value && !botBlocksUser.value) {
+                    if (Math.random() < 0.2) { // 20% 概率回复
+                        setTimeout(() => {
+                            isBotTyping.value = true;
+                            setTimeout(() => {
+                                isBotTyping.value = false;
+                                messages.value.push({ id: Date.now(), type: 'text', text: "别拍了，头晕😵", isUser: false, showMenu: false });
+                                scrollToBottom();
+                            }, 1000);
+                        }, 500);
+                    }
+                }
+            };
+
+            // --- Long Press Logic ---
+            const longPressTimer = ref(null);
+            const handlePressStart = (msg) => {
+                longPressTimer.value = setTimeout(() => { msg.showMenu = true; longPressTimer.value = null; }, 600);
+            };
+            const handlePressEnd = (msg, isImage) => {
+                if (longPressTimer.value) { clearTimeout(longPressTimer.value); longPressTimer.value = null; if (isImage) viewImage(msg.content); }
+            };
+            const handlePressCancel = () => { if (longPressTimer.value) { clearTimeout(longPressTimer.value); longPressTimer.value = null; } };
+
+            // --- Export/Import ---
+            const exportData = () => {
+                const data = {
+                    chatTitle: chatTitle.value, userAvatar: userAvatar.value, botAvatar: botAvatar.value,
+                    messages: messages.value, customRules: customRules.value, redPacketProb: redPacketProb.value,
+                    userBlocksBot: userBlocksBot.value, botBlocksUser: botBlocksUser.value,
+                    botBlockProb: botBlockProb.value, botUnblockProb: botUnblockProb.value,
+                    currentTheme: currentTheme.value, accentColor: accentColor.value,
+                    robotStolenEmojis: robotStolenEmojis.value, randomChatLibraryRaw: randomChatLibraryRaw.value, randomChatMode: randomChatMode.value, randomChatProb: randomChatProb.value
+                };
+                const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a"); a.href = url; a.download = `wechat_backup_${Date.now()}.json`; a.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const triggerImport = () => { if(importInput.value) importInput.value.click(); };
+            const handleImport = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try { 
+                        const data = JSON.parse(ev.target.result); 
+                        chatTitle.value = data.chatTitle || "微信模拟器";
+                        if(data.userAvatar) userAvatar.value = data.userAvatar;
+                        if(data.botAvatar) botAvatar.value = data.botAvatar;
+                        messages.value = Array.isArray(data.messages) ? data.messages : [];
+                        customRules.value = Array.isArray(data.customRules) ? data.customRules : [];
+                        redPacketProb.value = data.redPacketProb ?? 50;
+                        userBlocksBot.value = data.userBlocksBot ?? false;
+                        botBlocksUser.value = data.botBlocksUser ?? false;
+                        botBlockProb.value = data.botBlockProb ?? 5;
+                        botUnblockProb.value = data.botUnblockProb ?? 10;
+                        if(data.currentTheme) currentTheme.value = data.currentTheme;
+                        if(data.accentColor) accentColor.value = data.accentColor;
+                        if(data.robotStolenEmojis) robotStolenEmojis.value = data.robotStolenEmojis;
+                        if(data.randomChatLibraryRaw) randomChatLibraryRaw.value = data.randomChatLibraryRaw;
+                        if(data.randomChatMode !== undefined) randomChatMode.value = data.randomChatMode;
+                        if(data.randomChatProb !== undefined) randomChatProb.value = data.randomChatProb;
+
+                        alert("导入成功"); settingsDialog.value = false; setTimeout(scrollToBottom, 300);
+                    } catch { alert("文件错误"); }
+                };
+                reader.readAsText(file); e.target.value = '';
+            };
+
+            const clearChatOnly = () => { if(confirm("确定清空记录？")) messages.value = []; };
+            const clearAll = () => { if(confirm("确定重置所有状态？")) location.reload(); };
+
+            const scrollToBottom = async () => { await nextTick(); const c = document.getElementById('chatContainer'); if (c) c.scrollTop = c.scrollHeight; };
+            const recallMessage = (id) => { const idx = messages.value.findIndex(m => m.id === id); if (idx !== -1) { messages.value[idx] = { id, type: 'system', text: "你撤回了一条消息" }; messages.value[idx].showMenu = false; } };
+            const reactToMessage = (id, icon) => { const msg = messages.value.find(m => m.id === id); if (msg) { msg.reaction = msg.reaction === icon ? null : icon; msg.showMenu = false; } };
+
+            const sendMessage = () => {
+                if (!inputText.value.trim()) return;
+                const txt = inputText.value;
+                messages.value.push({ id: Date.now(), type: 'text', text: txt, isUser: true, showMenu: false });
+                inputText.value = ""; activePanel.value = null; scrollToBottom();
+
+                if (botBlocksUser.value) {
+                    if (Math.random()*100 < botUnblockProb.value) botBlocksUser.value = false;
+                    else { setTimeout(() => { messages.value.push({ id: Date.now()+1, type: 'system', text: "消息已发出，但被对方拒收了。", isRejection: true }); scrollToBottom(); }, 200); return; }
+                } else if (Math.random()*100 < botBlockProb.value) { botBlocksUser.value = true; return; }
+                if (userBlocksBot.value) return;
+
+                // Simulate Typing
+                setTimeout(() => {
+                    isBotTyping.value = true;
+                    
+                    setTimeout(() => {
+                        isBotTyping.value = false;
+                        
+                        let reply = null;
+                        let replyType = 'text';
+
+                        if (robotStolenEmojis.value.length > 0 && Math.random() < 0.1) {
+                            reply = robotStolenEmojis.value[Math.floor(Math.random() * robotStolenEmojis.value.length)];
+                            replyType = 'image';
+                        } 
+                        else if (randomChatMode.value && Math.random() * 100 < randomChatProb.value) {
+                            const lines = randomChatLibraryRaw.value.split('\n').filter(l => l.trim() !== '');
+                            if (lines.length > 0) reply = lines[Math.floor(Math.random() * lines.length)];
+                            else reply = "【系统】请在设置中配置随机聊天语言库，否则我无法说话。";
+                        }
+                        else {
+                            reply = "收到: " + txt;
+                            const rule = customRules.value.find(r => r.trigger && txt.includes(r.trigger));
+                            if (rule) reply = rule.reply;
+                            else {
+                                if (txt.includes("图片")) reply = "请点击 + 号发送图片。";
+                                if (txt.includes("红包")) reply = "发个红包试试？";
+                            }
+                        }
+
+                        messages.value.push({ id: Date.now()+1, type: replyType, [replyType === 'image' ? 'content' : 'text']: reply, isUser: false, showMenu: false });
+                        scrollToBottom();
+                    }, 1000); // 1 second "typing" time
+                }, 500); // 0.5s delay before typing starts
+            };
+
+            const sendImageMessage = (src) => {
+                messages.value.push({ id: Date.now(), type: 'image', content: src, isUser: true, showMenu: false });
+                if (Math.random() < 0.3) { if (!robotStolenEmojis.value.includes(src)) robotStolenEmojis.value.push(src); }
+                if (botBlocksUser.value) setTimeout(() => { messages.value.push({ id: Date.now()+1, type: 'system', text: "消息已发出，但被对方拒收了。", isRejection: true }); scrollToBottom(); }, 200);
+                activePanel.value = null; scrollToBottom();
+            };
+
+            const sendRedPacket = () => {
+                messages.value.push({ id: Date.now(), type: 'redpacket', text: rpText.value||"恭喜发财", amount: rpAmount.value, isUser: true, showMenu: false });
+                redPacketDialog.value = false; scrollToBottom();
+                if (botBlocksUser.value) { setTimeout(() => { messages.value.push({ id: Date.now()+1, type: 'system', text: "消息已发出，但被对方拒收了。", isRejection: true }); scrollToBottom(); }, 200); return; }
+                if (userBlocksBot.value) return;
+                setTimeout(() => {
+                    if (Math.random()*100 < redPacketProb.value) {
+                        messages.value.push({ id: Date.now()+1, type: 'system', text: "机器人 领取了你的红包" });
+                        setTimeout(() => { messages.value.push({ id: Date.now()+2, type: 'text', text: "谢谢老板！", isUser: false, showMenu: false }); scrollToBottom(); }, 500);
+                    }
+                    scrollToBottom();
+                }, 2000);
+            };
+
+            const removeStolenEmoji = (idx) => { robotStolenEmojis.value.splice(idx, 1); };
+            const triggerImageUpload = () => fileInput.value && fileInput.value.click();
+            const handleImageUpload = (e) => { const f=e.target.files[0]; if(f){ const r=new FileReader(); r.onload=(ev)=>sendImageMessage(ev.target.result); r.readAsDataURL(f); } e.target.value=''; };
+            const triggerAvatarUpload = () => avatarInput.value && avatarInput.value.click();
+            const handleAvatarUpload = (e) => { const f=e.target.files[0]; if(f){ const r=new FileReader(); r.onload=(ev)=>customAvatarUrl.value=ev.target.result; r.readAsDataURL(f); } e.target.value=''; };
+            const confirmCustomAvatar = () => { if(customAvatarUrl.value) { if(currentSide.value==='user') userAvatar.value=customAvatarUrl.value; else botAvatar.value=customAvatarUrl.value; avatarDialog.value=false; }};
+            const selectAvatar = (url) => { if(currentSide.value==='user') userAvatar.value=url; else botAvatar.value=url; avatarDialog.value=false; };
+            const togglePanel = (p) => { if(activePanel.value===p) activePanel.value=null; else { activePanel.value=p; setTimeout(scrollToBottom, 300); }};
+            const appendEmoji = (e) => inputText.value += e;
+            const viewImage = (src) => { viewingImageSrc.value=src; viewerDialog.value=true; };
+            
+            setInterval(() => {
+                const d = new Date();
+                currentTime.value = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+            }, 1000);
+
+            onMounted(() => {
+                const checkLoad = () => {
+                    if (document.readyState === 'complete') {
+                        setTimeout(() => { 
+                            isLoading.value = false; 
+                            nextTick(scrollToBottom);
+                            // Show announcement after loading
+                            setTimeout(() => { announcementDialog.value = true; }, 500);
+                        }, 800);
+                    } else { window.addEventListener('load', checkLoad); }
+                };
+                checkLoad();
+            });
+
+            return {
+                fileInput, importInput, avatarInput,
+                isLoading, currentTime, chatTitle, currentTheme, accentColor,
+                settingsDialog, settingsTab, openSettingsDialog: () => settingsDialog.value = true,
+                inputText, messages, sendMessage, userAvatar, botAvatar, avatarDialog, availableAvatars, selectAvatar, currentSide, 
+                activePanel, panelOpen, togglePanel, closePanels: ()=>activePanel.value=null, emojis, appendEmoji, 
+                viewerDialog, viewImage, viewingImageSrc, avatarTab, customAvatarUrl, triggerAvatarUpload, handleAvatarUpload, confirmCustomAvatar,
+                customRules, addRule: ()=>customRules.value.push({}), removeRule: (i)=>customRules.value.splice(i,1),
+                redPacketProb, redPacketDialog, openRedPacketDialog: ()=>redPacketDialog.value=true, rpAmount, rpText, sendRedPacket,
+                userBlocksBot, botBlocksUser, botBlockProb, botUnblockProb, 
+                exportData, triggerImport, handleImport, clearChatOnly, clearAll, recallMessage, triggerImageUpload, handleImageUpload, 
+                openAvatarDialog: (s)=>{currentSide.value=s;avatarDialog.value=true;},
+                reactToMessage, reactionIcons,
+                handlePressStart, handlePressEnd, handlePressCancel,
+                randomChatMode, randomChatLibraryRaw, randomChatProb, robotStolenEmojis, removeStolenEmoji,
+                // New
+                announcementDialog, isBotTyping, handleNudge
+            };
+        }
+    })
+    .use(vuetify)
+    .mount('#app');
+</script>
+
+</body>
+</html>
