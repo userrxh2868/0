@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>动态战场：创世版</title>
+    
+    <!-- MDUI CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/mdui@1.0.2/dist/css/mdui.min.css"/>
+    
+    <!-- 自定义样式 -->
+    <style>
+        body {
+            background-color: #303030;
+            color: #fff;
+            overflow: hidden;
+            margin: 0;
+            user-select: none;
+            font-family: 'Segoe UI', Roboto, Noto, Helvetica, Arial, sans-serif;
+        }
+
+        /* --- 加载界面 --- */
+        #loading-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #212121;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s;
+        }
+        
+        .loading-logo {
+            font-size: 64px;
+            margin-bottom: 20px;
+            color: #FF4081;
+            animation: pulse 1.5s infinite;
+        }
+
+        .loading-bar-container {
+            width: 70%;
+            max-width: 300px;
+            height: 4px;
+            background: #424242;
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .loading-bar-fill {
+            height: 100%;
+            background: #00E676;
+            width: 0%;
+            transition: width 0.2s linear;
+        }
+
+        .loading-text {
+            margin-top: 10px;
+            color: #757575;
+            font-size: 12px;
+            font-family: monospace;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* --- 游戏界面样式 --- */
+
+        #fps-counter {
+            position: fixed;
+            top: 110px; left: 10px;
+            color: #00E676;
+            font-family: monospace;
+            font-size: 14px;
+            background: rgba(0,0,0,0.6);
+            padding: 4px 8px;
+            border-radius: 4px;
+            pointer-events: none;
+            z-index: 500;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .header-container {
+            position: fixed;
+            top: 0; left: 0; width: 100%;
+            z-index: 1000;
+            background-color: #212121;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .category-bar {
+            display: flex;
+            align-items: center;
+            height: 48px;
+            padding: 0 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .item-scroll-bar {
+            height: 56px;
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            background-color: #424242;
+        }
+        .item-scroll-bar::-webkit-scrollbar { display: none; }
+
+        .category-tab {
+            flex: 1;
+            text-align: center;
+            padding: 0 4px;
+            line-height: 48px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: all 0.3s;
+            font-size: 13px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        .category-tab.active {
+            opacity: 1; color: #FF4081; border-bottom: 2px solid #FF4081;
+        }
+
+        .tool-btn {
+            margin: 0 6px;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            width: 42px; 
+            height: 42px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; 
+            padding: 0;
+        }
+        .tool-btn.active {
+            background-color: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.6);
+            transform: scale(1.05);
+        }
+        
+        .eraser-active {
+            background-color: rgba(255, 235, 59, 0.2) !important;
+            border-color: rgba(255, 235, 59, 1) !important;
+            color: #FFEB3B !important;
+        }
+
+        #game-canvas {
+            position: relative;
+            width: 100vw; height: 100vh;
+            padding-top: 104px; 
+            box-sizing: border-box;
+            cursor: crosshair;
+            overflow: hidden;
+            background-position: center top;
+        }
+
+        .canvas-item {
+            position: absolute;
+            width: 50px; height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform: translate(-50%, -50%);
+            pointer-events: none; 
+            will-change: transform, left, top;
+        }
+
+        /* 攻击范围圈 (新增) */
+        .range-circle {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            border: 1px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* 核心图标样式 */
+        .game-icon {
+            font-size: 24px; 
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            transition: transform 0.1s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            font-style: normal;
+            line-height: 1; 
+            user-select: none;
+        }
+        .canvas-item .game-icon {
+            font-size: 32px;
+            text-shadow: 0 3px 6px rgba(0,0,0,0.6);
+        }
+
+        .icon-loading-anim {
+            animation: iconSwitchPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes iconSwitchPop {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .pixel-font {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 22px; 
+        }
+        .canvas-item .pixel-font {
+            font-size: 28px;
+        }
+
+        .fighting .game-icon { transform: scale(1.1); }
+
+        .hp-bar-bg {
+            position: absolute;
+            top: -12px; left: 50%;
+            transform: translateX(-50%);
+            width: 32px; height: 5px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 3px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .hp-bar-fill {
+            height: 100%;
+            background: #00E676;
+            border-radius: 2px;
+            transition: width 0.1s;
+        }
+        .hp-low { background: #FF1744; }
+        .hp-shield { background: #FFD700; box-shadow: 0 0 5px #FFD700; } 
+
+        .damage-text {
+            position: absolute;
+            top: -25px;
+            color: #ff5252;
+            font-weight: 900;
+            font-size: 14px;
+            white-space: nowrap;
+            animation: floatUp 0.8s ease-out forwards;
+            text-shadow: 1px 1px 0 #000;
+            z-index: 20;
+        }
+        
+        .name-text {
+            position: absolute;
+            bottom: -20px;
+            width: 100px;
+            text-align: center;
+            font-size: 10px;
+            color: rgba(255,255,255,0.8);
+            text-shadow: 1px 1px 1px #000;
+            pointer-events: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .explosion-effect {
+            position: absolute;
+            pointer-events: none;
+            font-size: 48px;
+            animation: explodeAnim 0.5s ease-out forwards;
+            transform: translate(-50%, -50%);
+            z-index: 50;
+        }
+
+        @keyframes explodeAnim {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-40px) scale(1.2); }
+        }
+
+        .empty-hint {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #757575;
+            font-size: 1.1rem;
+            pointer-events: none;
+            text-align: center;
+            line-height: 1.6;
+        }
+        
+        .cursor-eraser {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23FFEB3B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13l-5-5 5-5"/><path d="M4 19h16"/><path d="M14 19l6-6-8-8L6 11l8 8"/></svg>') 12 12, auto !important;
+        }
+
+        /* 选中提示 Toast 样式 */
+        .selection-toast {
+            position: fixed;
+            top: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.85);
+            padding: 10px 20px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 2000;
+            pointer-events: none;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+        
+        .selection-toast i { font-size: 32px; }
+        .selection-toast-text { font-size: 16px; font-weight: bold; color: #fff; }
+
+        .toast-enter-active, .toast-leave-active { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(-50%) translateY(20px) scale(0.8); }
+    </style>
+</head>
+<body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
+
+    <div id="app" :style="{ filter: 'brightness(' + settings.brightness + '%)' }">
+        
+        <!-- 加载界面 -->
+        <div id="loading-screen" v-if="isLoading" :style="{ opacity: loadingDone ? 0 : 1 }">
+            <i class="mdui-icon material-icons loading-logo">gamepad</i>
+            <div class="loading-bar-container">
+                <div class="loading-bar-fill" :style="{ width: loadProgress + '%' }"></div>
+            </div>
+            <div class="loading-text">正在初始化物理引擎... {{ loadProgress }}%</div>
+        </div>
+
+        <!-- FPS -->
+        <div v-if="settings.showFps" id="fps-counter">FPS: {{ fps }}</div>
+
+        <!-- 选中提示 Toast -->
+        <transition name="toast">
+            <div v-if="currentSelectionToast.visible" class="selection-toast">
+                <span 
+                    class="game-icon" 
+                    :class="getIconClass()"
+                    style="width:auto; height:auto; font-size:32px;"
+                    :style="settings.iconStyle === 'default' ? { color: currentSelectionToast.color } : {}">
+                    {{ currentSelectionToast.icon }}
+                </span>
+                <div class="selection-toast-text">
+                    {{ currentSelectionToast.name }}
+                    <span style="font-size:12px; font-weight:normal; opacity:0.7; margin-left:5px;">
+                        ({{ getTeamName(currentSelectionToast.team) }})
+                    </span>
+                </div>
+            </div>
+        </transition>
+
+        <!-- 导航栏 -->
+        <header class="header-container">
+            <div class="category-bar">
+                <button class="mdui-btn mdui-btn-icon mdui-text-color-white mdui-ripple" @click="openSettings">
+                    <i class="mdui-icon material-icons">settings</i>
+                </button>
+                <button class="mdui-btn mdui-btn-icon mdui-text-color-red mdui-ripple" style="margin-right: 5px;" @click="clearCanvas">
+                    <i class="mdui-icon material-icons">delete_forever</i>
+                </button>
+                <button 
+                    class="mdui-btn mdui-btn-icon mdui-text-color-yellow mdui-ripple" 
+                    :class="{ 'eraser-active': isEraserMode }"
+                    style="margin-right: 15px;"
+                    @click="toggleEraser"
+                    mdui-tooltip="{content: '橡皮擦: 点击删除'}">
+                    <i class="mdui-icon material-icons">backspace</i>
+                </button>
+
+                <!-- 分类 -->
+                <div class="category-tab" :class="{ active: currentCategory === 'creature' }" @click="switchCategory('creature')">生物</div>
+                <div class="category-tab" :class="{ active: currentCategory === 'building' }" @click="switchCategory('building')">建筑</div>
+                <div class="category-tab" :class="{ active: currentCategory === 'nature' }" @click="switchCategory('nature')">自然</div>
+                <div class="category-tab" :class="{ active: currentCategory === 'item' }" @click="switchCategory('item')">物品</div>
+            </div>
+
+            <!-- 物品栏 -->
+            <div class="item-scroll-bar">
+                <button 
+                    v-for="(role, index) in currentDisplayList" 
+                    :key="role.name"
+                    class="mdui-btn mdui-btn-icon mdui-text-color-white mdui-ripple tool-btn"
+                    :class="{ 'active': !isEraserMode && selectedRole.name === role.name }"
+                    @click="selectRole(role)">
+                    <span 
+                        class="game-icon" 
+                        :class="[getIconClass(), { 'icon-loading-anim': isIconSwitching }]"
+                        :style="settings.iconStyle === 'default' ? { color: role.color } : {}">
+                        {{ getDisplayIcon(role) }}
+                    </span>
+                </button>
+                <span class="mdui-typo-caption mdui-text-color-white-secondary mdui-m-l-2" style="white-space: nowrap;">
+                    {{ isEraserMode ? '模式: 橡皮擦' : ('已选: ' + selectedRole.name) }}
+                </span>
+            </div>
+        </header>
+
+        <!-- 设置弹窗 -->
+        <div class="mdui-dialog" id="settings-dialog">
+            <div class="mdui-dialog-title">系统设置</div>
+            <div class="mdui-dialog-content">
+                
+                <div class="mdui-m-b-2">
+                    <div class="mdui-typo-subheading">图标显示风格</div>
+                    <label class="mdui-radio mdui-m-r-2"><input type="radio" name="iconStyle" value="default" v-model="settings.iconStyle"/><i class="mdui-radio-icon"></i>默认</label>
+                    <label class="mdui-radio mdui-m-r-2"><input type="radio" name="iconStyle" value="emoji" v-model="settings.iconStyle"/><i class="mdui-radio-icon"></i>Emoji</label>
+                    <label class="mdui-radio"><input type="radio" name="iconStyle" value="pixel" v-model="settings.iconStyle"/><i class="mdui-radio-icon"></i>像素</label>
+                </div>
+                <div class="mdui-divider mdui-m-y-2"></div>
+
+                <!-- 游戏速度 -->
+                <div class="mdui-m-t-2">
+                    <label>游戏速度: {{ settings.gameSpeed }}x</label>
+                    <label class="mdui-slider mdui-slider-discrete">
+                        <input type="range" step="0.1" min="0.5" max="2.0" v-model.number="settings.gameSpeed"/>
+                    </label>
+                </div>
+
+                <!-- 各种开关 -->
+                <div class="mdui-row mdui-valign mdui-m-t-2">
+                    <div class="mdui-col-xs-8">显示实时 FPS</div>
+                    <div class="mdui-col-xs-4 mdui-text-right"><label class="mdui-switch"><input type="checkbox" v-model="settings.showFps"/><i class="mdui-switch-icon"></i></label></div>
+                </div>
+                <div class="mdui-row mdui-valign mdui-m-t-1">
+                    <div class="mdui-col-xs-8">显示伤害数字</div>
+                    <div class="mdui-col-xs-4 mdui-text-right"><label class="mdui-switch"><input type="checkbox" v-model="settings.showDamage"/><i class="mdui-switch-icon"></i></label></div>
+                </div>
+                <div class="mdui-row mdui-valign mdui-m-t-1">
+                    <div class="mdui-col-xs-8">显示爆炸特效</div>
+                    <div class="mdui-col-xs-4 mdui-text-right"><label class="mdui-switch"><input type="checkbox" v-model="settings.showExplosion"/><i class="mdui-switch-icon"></i></label></div>
+                </div>
+                <div class="mdui-row mdui-valign mdui-m-t-1">
+                    <div class="mdui-col-xs-8">显示单位名称</div>
+                    <div class="mdui-col-xs-4 mdui-text-right"><label class="mdui-switch"><input type="checkbox" v-model="settings.showNames"/><i class="mdui-switch-icon"></i></label></div>
+                </div>
+                
+                <!-- 新增：显示攻击范围 -->
+                <div class="mdui-row mdui-valign mdui-m-t-1">
+                    <div class="mdui-col-xs-8">显示攻击范围</div>
+                    <div class="mdui-col-xs-4 mdui-text-right"><label class="mdui-switch"><input type="checkbox" v-model="settings.showRange"/><i class="mdui-switch-icon"></i></label></div>
+                </div>
+
+                <div class="mdui-m-t-2">
+                    <label>全局亮度: {{ settings.brightness }}%</label>
+                    <label class="mdui-slider mdui-slider-discrete"><input type="range" step="10" min="10" max="200" v-model.number="settings.brightness"/></label>
+                </div>
+                <div class="mdui-m-t-2">
+                    <label>背景网格大小: {{ settings.gridSize }}px</label>
+                    <label class="mdui-slider mdui-slider-discrete"><input type="range" step="10" min="0" max="100" v-model.number="settings.gridSize"/></label>
+                </div>
+            </div>
+            <div class="mdui-dialog-actions">
+                <button class="mdui-btn mdui-ripple" mdui-dialog-close>关闭</button>
+            </div>
+        </div>
+
+        <!-- 游戏画布 -->
+        <div id="game-canvas" @click="handleCanvasClick" :class="{ 'cursor-eraser': isEraserMode }" :style="gridStyle">
+            <div v-if="placedItems.length === 0" class="empty-hint">
+                <i class="mdui-icon material-icons" style="font-size: 48px; display:block; margin:0 auto 10px auto;">touch_app</i>
+                资源加载完毕<br>请点击上方选择单位放置
+            </div>
+
+            <!-- 爆炸特效 -->
+            <div v-for="exp in explosions" :key="exp.id" class="explosion-effect" :style="{ left: exp.x + 'px', top: exp.y + 'px', color: exp.color }"><i class="mdui-icon material-icons">{{ exp.icon }}</i></div>
+
+            <!-- 实体 -->
+            <div 
+                v-for="item in placedItems" 
+                :key="item.id" 
+                class="canvas-item"
+                :class="{ 'fighting': item.isAttacking, 'item-invisible': item.invisible > 0 }"
+                :style="{ left: item.x + 'px', top: item.y + 'px', opacity: item.invisible > 0 ? 0.4 : 1 }">
+                
+                <!-- 攻击范围圈 (新增) -->
+                <div v-if="settings.showRange && (item.range || 0) > 0" 
+                     class="range-circle" 
+                     :style="{ width: (item.range*2)+'px', height: (item.range*2)+'px' }">
+                </div>
+
+                <!-- 血条 -->
+                <div v-if="item.maxHp > 0 && item.category !== 'item'" class="hp-bar-bg">
+                    <div class="hp-bar-fill" 
+                         :class="{ 'hp-low': (item.hp / item.maxHp) < 0.3, 'hp-shield': item.invulnerable > 0 }"
+                         :style="{ width: (item.hp / item.maxHp * 100) + '%' }">
+                    </div>
+                </div>
+
+                <!-- 名字 -->
+                <div v-if="settings.showNames && item.category !== 'item'" class="name-text">{{ item.name }}</div>
+
+                <!-- 飘字 -->
+                <div v-for="dmg in item.damageTexts" :key="dmg.id" class="damage-text">
+                    <template v-if="typeof dmg.val === 'number'">
+                        <span v-if="dmg.val > 0">-{{ dmg.val }}</span>
+                        <span v-else style="color:#00E676">+{{ Math.abs(dmg.val) }}</span>
+                    </template>
+                    <template v-else><span style="color:#FFFF00; font-size:12px;">{{ dmg.val }}</span></template>
+                </div>
+
+                <!-- 图标 -->
+                <span 
+                    class="game-icon"
+                    :class="[getIconClass(), { 'icon-loading-anim': isIconSwitching }]"
+                    :style="settings.iconStyle === 'default' ? { color: item.color } : {}">
+                    {{ getDisplayIcon(item) }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/mdui@1.0.2/dist/js/mdui.min.js"></script>
+
+    <script>
+        const { createApp, nextTick } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    isLoading: true,
+                    loadProgress: 0,
+                    loadingDone: false,
+                    // 新增 showRange
+                    settings: { 
+                        showFps: false, brightness: 100, gridSize: 40, iconStyle: 'default',
+                        gameSpeed: 1.0, showNames: false, showDamage: true, showExplosion: true,
+                        showRange: false
+                    },
+                    fps: 0,
+                    lastFrameTime: Date.now(),
+                    frameCount: 0,
+                    currentCategory: 'creature',
+                    dialogInstance: null,
+                    isEraserMode: false,
+                    isIconSwitching: false, 
+                    currentSelectionToast: { visible: false, name: '', icon: '', color: '', team: 0, timer: null },
+                    explosions: [],
+
+                    allRoles: [
+                        // --- 生物 ---
+                        { name: '战士', category: 'creature', icon: 'accessibility', emoji: '⚔️', pixel: 'W', color: '#FFCDD2', team: 1, hp: 100, atk: 10, speed: 2, range: 50 },
+                        { name: '法师', category: 'creature', icon: 'face', emoji: '🧙‍♂️', pixel: 'M', color: '#E1BEE7', team: 1, hp: 60, atk: 25, speed: 1.5, range: 120 },
+                        { name: '弓手', category: 'creature', icon: 'gps_fixed', emoji: '🏹', pixel: 'A', color: '#C8E6C9', team: 1, hp: 80, atk: 15, speed: 2.5, range: 150 },
+                        { name: '骑士', category: 'creature', icon: 'security', emoji: '🛡️', pixel: 'K', color: '#3F51B5', team: 1, hp: 180, atk: 8, speed: 1.2, range: 50 },
+                        { name: '忍者', category: 'creature', icon: 'star', emoji: '🥷', pixel: 'N', color: '#212121', team: 1, hp: 65, atk: 35, speed: 4.0, range: 45 },
+                        { name: '圣骑士', category: 'creature', icon: 'verified_user', emoji: '⚜️', pixel: 'P', color: '#FFD700', team: 1, hp: 200, atk: 12, speed: 1.0, range: 50 },
+                        { name: '牧师', category: 'creature', icon: 'accessibility_new', emoji: '⚕️', pixel: '+', color: '#FFF59D', team: 1, hp: 80, atk: 5, speed: 1.8, range: 100 }, 
+                        { name: '凤凰', category: 'creature', icon: 'flight', emoji: '🦅', pixel: 'PH', color: '#FF5722', team: 1, hp: 150, atk: 25, speed: 2.0, range: 60, rebirth: true },
+                        { name: '狙击手', category: 'creature', icon: 'center_focus_strong', emoji: '🎯', pixel: 'SN', color: '#795548', team: 1, hp: 70, atk: 80, speed: 0.8, range: 300, attackDelay: 80 },
+                        // 新增
+                        { name: '女巫', category: 'creature', icon: 'face_retouching_natural', emoji: '🧙‍♀️', pixel: 'Wi', color: '#6A1B9A', team: 1, hp: 80, atk: 15, speed: 1.4, range: 130, poison: true },
+
+                        { name: '兽人', category: 'creature', icon: 'android', emoji: '👹', pixel: 'O', color: '#FF5252', team: 2, hp: 120, atk: 12, speed: 1.8, range: 50 },
+                        { name: '幽灵', category: 'creature', icon: 'adb', emoji: '👻', pixel: 'G', color: '#B2EBF2', team: 2, hp: 50, atk: 30, speed: 3, range: 50 },
+                        { name: '刺客', category: 'creature', icon: 'flash_on', emoji: '🗡️', pixel: 'S', color: '#FFEB3B', team: 2, hp: 70, atk: 40, speed: 3.5, range: 40 },
+                        { name: '史莱姆', category: 'creature', icon: 'bug_report', emoji: '🦠', pixel: 'sl', color: '#76FF03', team: 2, hp: 40, atk: 5, speed: 1.0, range: 40 },
+                        { name: '巨魔', category: 'creature', icon: 'directions_walk', emoji: '🦍', pixel: 'T', color: '#5D4037', team: 2, hp: 400, atk: 25, speed: 0.8, range: 60 },
+                        { name: '死灵', category: 'creature', icon: 'sentiment_very_dissatisfied', emoji: '💀', pixel: 'D', color: '#9C27B0', team: 2, hp: 60, atk: 35, speed: 1.5, range: 140 },
+                        { name: '恶魔', category: 'creature', icon: 'whatshot', emoji: '👿', pixel: 'DM', color: '#D50000', team: 2, hp: 300, atk: 45, speed: 1.1, range: 55 },
+                        { name: '吸血鬼', category: 'creature', icon: 'invert_colors', emoji: '🧛', pixel: 'V', color: '#880E4F', team: 2, hp: 150, atk: 20, speed: 2.2, range: 50, lifesteal: true },
+                        { name: '机甲', category: 'creature', icon: 'directions_car', emoji: '🤖', pixel: 'RB', color: '#607D8B', team: 1, hp: 400, atk: 15, speed: 0.8, range: 180 },
+                        { name: '蜘蛛', category: 'creature', icon: 'bug_report', emoji: '🕷️', pixel: 'SP', color: '#212121', team: 2, hp: 40, atk: 15, speed: 4.5, range: 35 },
+                        { name: '自爆虫', category: 'creature', icon: 'pest_control', emoji: '💣', pixel: 'BB', color: '#BF360C', team: 2, hp: 30, atk: 200, speed: 3.5, range: 20, suicide: true },
+                        // 新增
+                        { name: '狼人', category: 'creature', icon: 'pets', emoji: '🐺', pixel: 'WW', color: '#3E2723', team: 2, hp: 180, atk: 15, speed: 2.5, range: 50, rage: true },
+
+                        // --- 建筑 (isTarget: false 表示不被怪物优先攻击) ---
+                        { name: '房子', category: 'building', icon: 'home', emoji: '🏠', pixel: 'H', color: '#FFE0B2', team: 0, hp: 200, atk: 0, speed: 0, isTarget: false },
+                        { name: '塔楼', category: 'building', icon: 'location_city', emoji: '🏯', pixel: 'TW', color: '#B3E5FC', team: 0, hp: 300, atk: 0, speed: 0, isTarget: true },
+                        { name: '城墙', category: 'building', icon: 'grid_on', emoji: '🧱', pixel: '#', color: '#9E9E9E', team: 0, hp: 500, atk: 0, speed: 0, isTarget: true },
+                        { name: '水晶', category: 'building', icon: 'filter_drama', emoji: '💎', pixel: '*', color: '#E040FB', team: 0, hp: 150, atk: 0, speed: 0, isTarget: true },
+                        { name: '栅栏', category: 'building', icon: 'dns', emoji: '🚧', pixel: '=', color: '#795548', team: 0, hp: 100, atk: 0, speed: 0, isTarget: true },
+                        { name: '图腾', category: 'building', icon: 'looks', emoji: '🗿', pixel: 'I', color: '#00BCD4', team: 0, hp: 250, atk: 0, speed: 0, isTarget: true },
+                        { name: '石柱', category: 'building', icon: 'view_column', emoji: '🏛️', pixel: '||', color: '#90A4AE', team: 0, hp: 600, atk: 0, speed: 0, isTarget: false },
+                        { name: '地刺', category: 'building', icon: 'texture', emoji: '📌', pixel: '^', color: '#3E2723', team: 0, hp: 150, atk: 5, speed: 0, isTarget: false },
+                        { name: '方尖碑', category: 'building', icon: 'change_history', emoji: '⚰️', pixel: 'A', color: '#009688', team: 0, hp: 400, atk: 0, speed: 0, isTarget: true },
+                        { name: '炮塔', category: 'building', icon: 'album', emoji: '🔫', pixel: 'GT', color: '#607D8B', team: 0, hp: 200, atk: 20, speed: 0, isTarget: true },
+                        { name: '路障', category: 'building', icon: 'remove_circle', emoji: '⛔', pixel: 'X', color: '#FFC107', team: 0, hp: 800, atk: 0, speed: 0, isTarget: true },
+                        { name: '治疗塔', category: 'building', icon: 'local_pharmacy', emoji: '🏩', pixel: 'HP', color: '#69F0AE', team: 0, hp: 250, atk: -10, speed: 0, isTarget: true }, 
+                        { name: '冷冻塔', category: 'building', icon: 'ac_unit', emoji: '❄️', pixel: 'ICE', color: '#80DEEA', team: 0, hp: 300, atk: 0, speed: 0, slowEffect: true, isTarget: true },
+                        { name: '兵营', category: 'building', icon: 'weekend', emoji: '🎪', pixel: 'BR', color: '#795548', team: 0, hp: 400, atk: 0, speed: 0, spawner: '战士', isTarget: true },
+                        { name: '黑洞', category: 'building', icon: 'vignette', emoji: '⚫', pixel: 'O', color: '#1A237E', team: 0, hp: 500, atk: 2, speed: 0, blackhole: true, isTarget: true },
+                        { name: '特斯拉', category: 'building', icon: 'flash_auto', emoji: '⚡', pixel: 'Z', color: '#FFEB3B', team: 0, hp: 300, atk: 50, speed: 0, isTarget: true },
+                        { name: '孵化场', category: 'building', icon: 'opacity', emoji: '🥚', pixel: 'SP', color: '#76FF03', team: 0, hp: 350, atk: 0, speed: 0, spawner: '史莱姆', isTarget: true },
+                        // 新增
+                        { name: '神像', category: 'building', icon: 'face', emoji: '🗿', pixel: 'ID', color: '#9E9E9E', team: 0, hp: 1000, atk: 0, speed: 0, isTarget: false },
+                        { name: '金矿', category: 'building', icon: 'monetization_on', emoji: '💰', pixel: '$', color: '#FFD700', team: 0, hp: 300, atk: 0, speed: 0, spawner: '金币', isTarget: true },
+
+                        // --- 自然 (新分类) ---
+                        { name: '树木', category: 'nature', icon: 'nature', emoji: '🌲', pixel: 'T', color: '#4CAF50', team: 0, hp: 9999, atk: 0, speed: 0, isTarget: false },
+                        { name: '岩浆', category: 'nature', icon: 'whatshot', emoji: '🌋', pixel: '~', color: '#FF5722', team: 0, hp: 9999, atk: 5, speed: 0, isTarget: false, lava: true },
+                        { name: '泥沼', category: 'nature', icon: 'blur_on', emoji: '💩', pixel: '#', color: '#795548', team: 0, hp: 9999, atk: 0, speed: 0, isTarget: false, slowZone: true },
+
+                        // --- 物品 ---
+                        { name: '地雷', category: 'item', icon: 'brightness_7', emoji: '💣', pixel: '@', color: '#F44336', team: 0, hp: 10, atk: 100, speed: 0 },
+                        { name: '药包', category: 'item', icon: 'local_hospital', emoji: '💊', pixel: '+', color: '#F06292', team: 0, hp: 10, atk: -50, speed: 0 },
+                        { name: 'TNT', category: 'item', icon: 'system_update_alt', emoji: '🧨', pixel: 'TNT', color: '#DD2C00', team: 0, hp: 10, atk: 250, speed: 0 },
+                        { name: '加速', category: 'item', icon: 'fast_forward', emoji: '⚡', pixel: '>>', color: '#FFFF00', team: 0, hp: 10, atk: 0, speedEffect: 2, desc: "Speed Up" },
+                        { name: '冰霜', category: 'item', icon: 'ac_unit', emoji: '🧊', pixel: '*', color: '#29B6F6', team: 0, hp: 10, atk: 0, speedEffect: -0.5, desc: "Slowed" },
+                        { name: '毒液', category: 'item', icon: 'bubble_chart', emoji: '☠️', pixel: '~', color: '#9C27B0', team: 0, hp: 10, atk: 5, speed: 0, desc: "Poison" },
+                        { name: '核弹', category: 'item', icon: 'error', emoji: '☢️', pixel: 'NUKE', color: '#212121', team: 0, hp: 10, atk: 999, speed: 0, range: 300 },
+                        { name: '磁铁', category: 'item', icon: 'leak_add', emoji: '🧲', pixel: 'U', color: '#F48FB1', team: 0, hp: 10, atk: 0, speed: 0, magnet: true },
+                        { name: '护盾', category: 'item', icon: 'security', emoji: '🛡️', pixel: '{}', color: '#00E676', team: 0, hp: 10, atk: 0, speed: 0, shield: true },
+                        { name: '狂暴', category: 'item', icon: 'flash_on', emoji: '🤬', pixel: '!!', color: '#D50000', team: 0, hp: 10, atk: 0, speed: 0, berserk: true },
+                        { name: '隐身药', category: 'item', icon: 'visibility_off', emoji: '👻', pixel: 'IV', color: '#90A4AE', team: 0, hp: 10, atk: 0, speed: 0, invisibility: true },
+                        { name: '陨石', category: 'item', icon: 'public', emoji: '☄️', pixel: 'MET', color: '#3E2723', team: 0, hp: 10, atk: 500, speed: 0, meteor: true },
+                        // 新增
+                        { name: '传送门', category: 'item', icon: 'settings_ethernet', emoji: '🌀', pixel: 'O', color: '#6200EA', team: 0, hp: 10, atk: 0, speed: 0, portal: true },
+                        { name: '金币', category: 'item', icon: 'monetization_on', emoji: '🪙', pixel: '$', color: '#FFD700', team: 0, hp: 10, atk: -20, speed: 0, desc: "+Gold" }, // 加血模拟加分
+                    ],
+                    
+                    selectedRole: null, 
+                    placedItems: [],
+                    nextId: 1,
+                };
+            },
+            computed: {
+                creatureList() { return this.allRoles.filter(r => r.category === 'creature'); },
+                buildingList() { return this.allRoles.filter(r => r.category === 'building'); },
+                natureList() { return this.allRoles.filter(r => r.category === 'nature'); },
+                itemList() { return this.allRoles.filter(r => r.category === 'item'); },
+                currentDisplayList() {
+                    if(this.currentCategory === 'creature') return this.creatureList;
+                    if(this.currentCategory === 'building') return this.buildingList;
+                    if(this.currentCategory === 'nature') return this.natureList;
+                    return this.itemList;
+                },
+                gridStyle() {
+                    const s = this.settings.gridSize;
+                    if (s <= 0) return {};
+                    return {
+                        'background-image': `linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)`,
+                        'background-size': `${s}px ${s}px`
+                    };
+                }
+            },
+            watch: {
+                'settings.iconStyle'(newVal) {
+                    this.isIconSwitching = true;
+                    setTimeout(() => { this.isIconSwitching = false; }, 400); 
+                }
+            },
+            created() {
+                this.selectedRole = this.creatureList[0];
+            },
+            methods: {
+                getTeamName(team) {
+                    if(team === 1) return "人类";
+                    if(team === 2) return "怪物";
+                    if(team === 0) return "中立";
+                    return "未知";
+                },
+                getDisplayIcon(role) {
+                    switch (this.settings.iconStyle) {
+                        case 'emoji': return role.emoji || role.icon;
+                        case 'pixel': return role.pixel || role.icon;
+                        default: return role.icon;
+                    }
+                },
+                getIconClass() {
+                    if (this.settings.iconStyle === 'default') {
+                        return 'mdui-icon material-icons';
+                    } else if (this.settings.iconStyle === 'pixel') {
+                        return 'pixel-font';
+                    }
+                    return ''; 
+                },
+
+                openSettings() {
+                    if(!this.dialogInstance) this.dialogInstance = new mdui.Dialog('#settings-dialog');
+                    this.dialogInstance.open();
+                },
+                switchCategory(cat) {
+                    this.currentCategory = cat;
+                    this.selectedRole = this.currentDisplayList[0];
+                    this.isEraserMode = false;
+                },
+                selectRole(role) {
+                    this.selectedRole = role;
+                    this.isEraserMode = false;
+                    
+                    if(this.currentSelectionToast.timer) clearTimeout(this.currentSelectionToast.timer);
+                    this.currentSelectionToast = {
+                        visible: true,
+                        name: role.name,
+                        icon: this.getDisplayIcon(role),
+                        color: role.color,
+                        team: role.team
+                    };
+                    this.currentSelectionToast.timer = setTimeout(() => {
+                        this.currentSelectionToast.visible = false;
+                    }, 1500);
+                },
+                toggleEraser() {
+                    this.isEraserMode = !this.isEraserMode;
+                    if(this.isEraserMode) {
+                        mdui.snackbar({ message: '橡皮擦模式：点击物品以删除', position: 'top', timeout: 1000 });
+                    }
+                },
+                
+                handleCanvasClick(event) {
+                    if(this.isLoading) return;
+                    const x = event.clientX;
+                    const y = event.clientY;
+
+                    if (this.isEraserMode) {
+                        for (let i = this.placedItems.length - 1; i >= 0; i--) {
+                            const item = this.placedItems[i];
+                            const dx = item.x - x;
+                            const dy = item.y - y;
+                            if (Math.sqrt(dx*dx + dy*dy) < 30) {
+                                this.placedItems.splice(i, 1);
+                                this.spawnExplosion(item.x, item.y, '#fff', 'close');
+                                return;
+                            }
+                        }
+                        return;
+                    }
+
+                    const role = this.selectedRole;
+                    const initVx = role.speed > 0 ? (Math.random() - 0.5) * role.speed : 0;
+                    const initVy = role.speed > 0 ? (Math.random() - 0.5) * role.speed : 0;
+
+                    this.placedItems.push({
+                        id: this.nextId++,
+                        ...role, 
+                        maxHp: role.hp,
+                        x: x, y: y,
+                        vx: initVx, vy: initVy, 
+                        cooldown: 0,
+                        isAttacking: false,
+                        damageTexts: [],
+                        invulnerable: 0,
+                        invisible: 0 
+                    });
+                    
+                    if(role.meteor) {
+                        setTimeout(() => {
+                            const m = this.placedItems.find(i => i.id === this.nextId - 1);
+                            if(m) {
+                                this.spawnExplosion(m.x, m.y, '#FF5722', 'public'); 
+                                this.placedItems.forEach(v => {
+                                    const dist = Math.sqrt((v.x-m.x)**2 + (v.y-m.y)**2);
+                                    if(dist < 150 && v !== m) {
+                                        v.hp -= 500;
+                                        if(this.settings.showDamage) v.damageTexts.push({id: Date.now(), val: 500});
+                                    }
+                                });
+                                m.hp = 0; 
+                            }
+                        }, 1000);
+                    }
+                },
+
+                clearCanvas() {
+                    if (this.placedItems.length === 0) return;
+                    mdui.confirm('确认清空所有单位？', '清空', () => { 
+                        this.placedItems = []; 
+                        this.explosions = [];
+                    });
+                },
+                
+                spawnExplosion(x, y, color, icon) {
+                    if(!this.settings.showExplosion) return;
+                    const id = Date.now() + Math.random();
+                    this.explosions.push({ id, x, y, color, icon });
+                    setTimeout(() => {
+                        this.explosions = this.explosions.filter(e => e.id !== id);
+                    }, 500);
+                },
+
+                updateGame() {
+                    if(this.isLoading) {
+                        requestAnimationFrame(this.updateGame);
+                        return; 
+                    }
+
+                    const canvasW = window.innerWidth;
+                    const canvasH = window.innerHeight;
+                    const topOffset = 104; 
+                    const gameSpeed = this.settings.gameSpeed;
+
+                    if(this.settings.showFps) {
+                        const now = Date.now();
+                        this.frameCount++;
+                        if (now - this.lastFrameTime >= 1000) {
+                            this.fps = this.frameCount;
+                            this.frameCount = 0;
+                            this.lastFrameTime = now;
+                        }
+                    }
+
+                    this.placedItems.forEach(unit => {
+                        if(unit.damageTexts.length > 0 && Math.random() > 0.95) unit.damageTexts.shift();
+                        if (unit.invulnerable > 0) unit.invulnerable -= 1 * gameSpeed;
+                        if (unit.invisible > 0) unit.invisible -= 1 * gameSpeed;
+
+                        // 自然分类 - 环境效果
+                        if (unit.category === 'nature') {
+                            if (unit.lava) {
+                                this.placedItems.forEach(v => {
+                                    if(v===unit) return;
+                                    const dist = Math.sqrt((v.x-unit.x)**2 + (v.y-unit.y)**2);
+                                    if(dist < 30 && v.invulnerable <= 0) {
+                                        v.hp -= 0.5 * gameSpeed; // 持续伤害
+                                    }
+                                });
+                            }
+                            if (unit.slowZone) {
+                                this.placedItems.forEach(v => {
+                                    if(v===unit || v.speed===0) return;
+                                    const dist = Math.sqrt((v.x-unit.x)**2 + (v.y-unit.y)**2);
+                                    if(dist < 30) {
+                                        v.vx *= 0.8; v.vy *= 0.8; // 减速
+                                    }
+                                });
+                            }
+                            // 树木无逻辑，纯阻挡
+                        }
+
+                        // 狼人狂暴
+                        if (unit.rage && unit.hp < unit.maxHp * 0.4) {
+                            // 简单的狂暴逻辑：血量低时加攻
+                            unit.atk = 30; // 基础是15
+                        }
+
+                        // 孵化场/兵营/金矿
+                        if (unit.spawner && unit.cooldown <= 0) {
+                             const spawnName = unit.spawner;
+                             const mob = this.allRoles.find(r => r.name === spawnName);
+                             if(mob) {
+                                 this.placedItems.push({
+                                     id: this.nextId++,
+                                     ...mob,
+                                     maxHp: mob.hp,
+                                     x: unit.x + (Math.random()-0.5)*40,
+                                     y: unit.y + (Math.random()-0.5)*40,
+                                     vx: mob.speed > 0 ? (Math.random()-0.5)*mob.speed : 0,
+                                     vy: mob.speed > 0 ? (Math.random()-0.5)*mob.speed : 0,
+                                     cooldown: 30,
+                                     isAttacking: false,
+                                     damageTexts: [],
+                                     invulnerable: 0, invisible: 0
+                                 });
+                                 this.spawnExplosion(unit.x, unit.y, '#fff', 'add');
+                             }
+                             unit.cooldown = 180 / gameSpeed; 
+                        }
+                        if (unit.spawner && unit.cooldown > 0) unit.cooldown -= 1 * gameSpeed;
+
+                        // 特斯拉
+                        if (unit.name === '特斯拉' && unit.cooldown <= 0) {
+                             let hit = false;
+                             this.placedItems.forEach(e => {
+                                 if(e.category==='creature' && e.team!==unit.team && e.hp>0) {
+                                     const dist = Math.sqrt((unit.x-e.x)**2 + (unit.y-e.y)**2);
+                                     if(dist < 80) {
+                                         e.hp -= unit.atk;
+                                         if(this.settings.showDamage) e.damageTexts.push({id:Date.now(), val: unit.atk});
+                                         hit = true;
+                                     }
+                                 }
+                             });
+                             if(hit) {
+                                 this.spawnExplosion(unit.x, unit.y, '#FFEB3B', 'flash_on');
+                                 unit.cooldown = 20 / gameSpeed; 
+                             }
+                        }
+
+                        // 黑洞
+                        if (unit.blackhole) {
+                             this.placedItems.forEach(victim => {
+                                 if(victim.category === 'creature' && victim.team !== unit.team) {
+                                     const dx = unit.x - victim.x;
+                                     const dy = unit.y - victim.y;
+                                     const dist = Math.sqrt(dx*dx + dy*dy);
+                                     if(dist < 200 && dist > 10) {
+                                         const pull = 0.5 * gameSpeed;
+                                         victim.vx += (dx/dist) * pull;
+                                         victim.vy += (dy/dist) * pull;
+                                         if(dist < 50 && Math.random()<0.05) {
+                                             victim.hp -= unit.atk;
+                                             if(this.settings.showDamage) victim.damageTexts.push({id: Date.now(), val: unit.atk});
+                                         }
+                                     }
+                                 }
+                             });
+                        }
+
+                        // 治疗塔
+                        if (unit.name === '治疗塔' && unit.cooldown <= 0) {
+                            this.placedItems.forEach(ally => {
+                                if(ally.category === 'creature' && ally.team === unit.team && ally.hp < ally.maxHp) {
+                                     const dx = unit.x - ally.x;
+                                     const dy = unit.y - ally.y;
+                                     if(Math.sqrt(dx*dx + dy*dy) < 150) {
+                                         ally.hp = Math.min(ally.maxHp, ally.hp + 10);
+                                         if(this.settings.showDamage) ally.damageTexts.push({id: Date.now(), val: -10});
+                                     }
+                                }
+                            });
+                            unit.cooldown = 60 / gameSpeed;
+                        }
+
+                        // 地刺 & 毒液 & 岩浆
+                        if (unit.name === '地刺' || unit.name === '毒液') {
+                            this.placedItems.forEach(victim => {
+                                if (victim === unit || victim.category !== 'creature') return;
+                                if (unit.name === '地刺' && victim.team === unit.team) return;
+
+                                const dx = unit.x - victim.x;
+                                const dy = unit.y - victim.y;
+                                if (Math.sqrt(dx*dx + dy*dy) < 30 && unit.cooldown <= 0) {
+                                    if(victim.invulnerable <= 0) {
+                                        victim.hp -= unit.atk;
+                                        if(this.settings.showDamage) victim.damageTexts.push({id: Date.now(), val: unit.atk});
+                                    }
+                                    unit.cooldown = 30 / gameSpeed; 
+                                }
+                            });
+                            if(unit.cooldown > 0) unit.cooldown -= 1 * gameSpeed;
+                        }
+
+                        // 炮塔
+                        if (unit.name === '炮塔') {
+                             let turretTarget = null;
+                             let turretMinDist = 200; 
+                             this.placedItems.forEach(enemy => {
+                                 if (enemy.hp > 0 && enemy.category === 'creature' && enemy.team !== unit.team && enemy.invisible <= 0) {
+                                     const dx = unit.x - enemy.x;
+                                     const dy = unit.y - enemy.y;
+                                     const dist = Math.sqrt(dx*dx + dy*dy);
+                                     if(dist < turretMinDist) {
+                                         turretMinDist = dist;
+                                         turretTarget = enemy;
+                                     }
+                                 }
+                             });
+                             if(turretTarget && unit.cooldown <= 0) {
+                                 turretTarget.hp -= unit.atk;
+                                 if(this.settings.showDamage) turretTarget.damageTexts.push({ id: Date.now(), val: unit.atk });
+                                 this.spawnExplosion(turretTarget.x, turretTarget.y, '#fff', 'radio_button_checked');
+                                 unit.cooldown = 60 / gameSpeed;
+                             }
+                             if(unit.cooldown > 0) unit.cooldown -= 1 * gameSpeed;
+                        }
+
+                        if (unit.category === 'building' || unit.category === 'item' || unit.category === 'nature') return;
+
+                        let target = null;
+                        let minDist = Infinity;
+                        let sepX = 0; 
+                        let sepY = 0;
+
+                        this.placedItems.forEach(other => {
+                            if (unit === other) return;
+                            
+                            const dx = unit.x - other.x;
+                            const dy = unit.y - other.y;
+                            const dist = Math.sqrt(dx*dx + dy*dy);
+
+                            // 物品触发
+                            if (other.category === 'item' && dist < 30) {
+                                if(other.name === '毒液') return;
+                                if(other.magnet) return; 
+                                if(other.name === '陨石') return;
+
+                                if(other.portal) {
+                                    // 传送逻辑
+                                    unit.x = Math.random() * (canvasW - 40) + 20;
+                                    unit.y = Math.random() * (canvasH - 120) + 120;
+                                    if(this.settings.showDamage) unit.damageTexts.push({id: Date.now(), val: "Teleport!"});
+                                    other.hp = 0; return;
+                                }
+
+                                if(other.name === '核弹') {
+                                    this.spawnExplosion(other.x, other.y, other.color, 'brightness_high');
+                                    this.placedItems.forEach(v => {
+                                        const vdx = v.x - other.x;
+                                        const vdy = v.y - other.y;
+                                        if(Math.sqrt(vdx*vdx + vdy*vdy) < (other.range || 300)) {
+                                            if(v.invulnerable <= 0) {
+                                                v.hp -= other.atk;
+                                                if(this.settings.showDamage) v.damageTexts.push({id: Date.now(), val: 999});
+                                            }
+                                        }
+                                    });
+                                } else if(other.shield) {
+                                    unit.invulnerable = 300; 
+                                    if(this.settings.showDamage) unit.damageTexts.push({id: Date.now(), val: "Shielded!"});
+                                    this.spawnExplosion(unit.x, unit.y, '#00E676', 'security');
+                                } else if(other.invisibility) {
+                                    unit.invisible = 600; 
+                                    if(this.settings.showDamage) unit.damageTexts.push({id: Date.now(), val: "Invisible!"});
+                                    this.spawnExplosion(unit.x, unit.y, '#90A4AE', 'visibility_off');
+                                } else if(other.berserk) {
+                                    unit.speed *= 2;
+                                    unit.atk *= 2;
+                                    unit.hp -= 20; 
+                                    if(this.settings.showDamage) unit.damageTexts.push({id: Date.now(), val: "Berserk!"});
+                                } else if(other.atk > 0) { 
+                                    if(unit.invulnerable <= 0) {
+                                        unit.hp -= other.atk;
+                                        if(this.settings.showDamage) unit.damageTexts.push({id: Date.now(), val: other.atk});
+                                        this.spawnExplosion(other.x, other.y, other.color, 'whatshot');
+                                    }
+                                } else if (other.speedEffect) {
+                                    unit.speed = Math.max(0.5, unit.speed + other.speedEffect);
+                                    const msg = other.desc ? other.desc : (other.speedEffect > 0 ? "Speed Up" : "Slowed");
+                                    if(this.settings.showDamage) unit.damageTexts.push({id: Date.now(), val: msg});
+                                    if(other.name === '冰霜') this.spawnExplosion(other.x, other.y, other.color, 'ac_unit');
+                                } else { 
+                                    unit.hp -= other.atk;
+                                    if(unit.hp > unit.maxHp) unit.hp = unit.maxHp;
+                                    let val = other.atk;
+                                    if(other.desc) val = other.desc;
+                                    if(this.settings.showDamage) unit.damageTexts.push({id: Date.now(), val: val});
+                                }
+                                other.hp = 0; 
+                                return;
+                            }
+                            
+                            // 磁铁
+                            if (other.name === '磁铁' && dist < 200 && dist > 10) {
+                                 const pullStrength = 1.5 * gameSpeed;
+                                 unit.vx -= (dx / dist) * pullStrength;
+                                 unit.vy -= (dy / dist) * pullStrength;
+                            }
+
+                            // 生物排斥
+                            if (other.category === 'creature' && dist < 40 && dist > 0) {
+                                const pushStrength = 0.5 * gameSpeed;
+                                sepX += (dx / dist) * pushStrength;
+                                sepY += (dy / dist) * pushStrength;
+                            }
+
+                            // 寻敌
+                            if (other.hp > 0 && other.category !== 'item') {
+                                // 修正：自然物体不作为攻击目标，除非有特殊逻辑
+                                if(other.category === 'nature') return;
+
+                                let isEnemy = false;
+                                if (unit.team === 1 && other.team === 2) isEnemy = true;
+                                
+                                // 怪物打中立/建筑逻辑修正：只打 isTarget !== false 的
+                                if (unit.team === 2 && (other.team === 1 || other.team === 0)) {
+                                    if (other.category === 'building' && other.isTarget === false) {
+                                        isEnemy = false; // 不攻击装饰建筑
+                                    } else {
+                                        isEnemy = true;
+                                    }
+                                }
+                                
+                                if(other.invisible > 0 && dist > 30) isEnemy = false;
+
+                                if (isEnemy && dist < minDist) {
+                                    minDist = dist;
+                                    target = other;
+                                }
+                            }
+                        });
+
+                        unit.isAttacking = false;
+                        let desiredVx = 0;
+                        let desiredVy = 0;
+                        const range = unit.range || 50; 
+
+                        if (target) {
+                            if (minDist < range) {
+                                unit.isAttacking = true;
+                                if (unit.cooldown <= 0) {
+                                    target.hp -= unit.atk;
+                                    if(this.settings.showDamage) target.damageTexts.push({ id: Date.now() + Math.random(), val: unit.atk });
+                                    
+                                    if(unit.lifesteal) {
+                                        unit.hp = Math.min(unit.maxHp, unit.hp + unit.atk * 0.5);
+                                        if(this.settings.showDamage) unit.damageTexts.push({ id: Date.now()+1, val: -Math.floor(unit.atk * 0.5) });
+                                    }
+                                    if(unit.poison) {
+                                         // 简化中毒：额外伤害
+                                         target.hp -= 5;
+                                         if(this.settings.showDamage) target.damageTexts.push({id:Date.now()+2, val: "Poison"});
+                                    }
+
+                                    let attackDelay = unit.attackDelay || 40;
+                                    unit.cooldown = attackDelay / gameSpeed; 
+                                }
+                                if (unit.category === 'creature') { 
+                                    if (minDist < range * 0.5) {
+                                        const angle = Math.atan2(target.y - unit.y, target.x - unit.x);
+                                        desiredVx = -Math.cos(angle) * unit.speed * 0.5;
+                                        desiredVy = -Math.sin(angle) * unit.speed * 0.5;
+                                    } else {
+                                        if(Math.random() < 0.1) {
+                                             desiredVx = (Math.random() - 0.5) * unit.speed;
+                                             desiredVy = (Math.random() - 0.5) * unit.speed;
+                                        }
+                                    }
+                                }
+                            } else {
+                                const angle = Math.atan2(target.y - unit.y, target.x - unit.x);
+                                desiredVx = Math.cos(angle) * unit.speed;
+                                desiredVy = Math.sin(angle) * unit.speed;
+                            }
+                        } else {
+                            if (Math.random() < 0.05) {
+                                unit.vx = (Math.random() - 0.5) * unit.speed;
+                                unit.vy = (Math.random() - 0.5) * unit.speed;
+                            }
+                            desiredVx = unit.vx;
+                            desiredVy = unit.vy;
+                        }
+
+                        desiredVx *= gameSpeed;
+                        desiredVy *= gameSpeed;
+                        sepX *= gameSpeed;
+                        sepY *= gameSpeed;
+
+                        desiredVx += sepX;
+                        desiredVy += sepY;
+
+                        const nextX = unit.x + desiredVx;
+                        const nextY = unit.y + desiredVy;
+                        let blocked = false;
+
+                        for (let b of this.placedItems) {
+                            if ((b.category === 'building' || b.category === 'nature') && b.hp > 0) {
+                                if (b.name === '地刺' || b.name === '毒液' || b.name === '岩浆' || b.name === '泥沼') continue; 
+
+                                const bdx = nextX - b.x;
+                                const bdy = nextY - b.y;
+                                const dist = Math.sqrt(bdx*bdx + bdy*bdy);
+                                
+                                if (dist < 45) { 
+                                    blocked = true;
+                                    if (dist < 40) {
+                                        const pushAngle = Math.atan2(bdy, bdx);
+                                        unit.x += Math.cos(pushAngle) * 2 * gameSpeed;
+                                        unit.y += Math.sin(pushAngle) * 2 * gameSpeed;
+                                    }
+                                    break; 
+                                }
+                            }
+                        }
+
+                        if (!blocked) {
+                            unit.x = nextX;
+                            unit.y = nextY;
+                            unit.vx = desiredVx;
+                            unit.vy = desiredVy;
+                        } else {
+                            unit.vx *= -0.5;
+                            unit.vy *= -0.5;
+                            unit.x += unit.vx;
+                            unit.y += unit.vy;
+                        }
+
+                        if (unit.x < 20) unit.x = 20;
+                        if (unit.x > canvasW - 20) unit.x = canvasW - 20;
+                        if (unit.y < topOffset + 20) unit.y = topOffset + 20;
+                        if (unit.y > canvasH - 20) unit.y = canvasH - 20;
+
+                        if (unit.cooldown > 0) unit.cooldown -= 1 * gameSpeed;
+                    });
+
+                    this.placedItems = this.placedItems.filter(item => item.hp > 0);
+                    
+                    requestAnimationFrame(this.updateGame);
+                }
+            },
+            async mounted() {
+                this.loadProgress = 10;
+                await nextTick();
+                setTimeout(() => { this.loadProgress = 30; }, 200);
+                setTimeout(() => { 
+                    mdui.mutation(); 
+                    this.loadProgress = 60; 
+                }, 500);
+                setTimeout(() => {
+                    this.loadProgress = 80;
+                    this.updateGame(); 
+                }, 800);
+                setTimeout(() => {
+                    this.loadProgress = 100;
+                    setTimeout(() => {
+                        this.loadingDone = true;
+                        setTimeout(() => { this.isLoading = false; }, 500); 
+                    }, 300);
+                }, 1200);
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
