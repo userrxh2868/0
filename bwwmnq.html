@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#1a202c">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Ragdoll Sandbox: v7.0 Maps</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/mdui@1.0.2/dist/css/mdui.min.css"/>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none; 
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a202c; 
+            font-family: 'Roboto', sans-serif;
+            width: 100vw;
+            height: 100vh;
+            transition: background-color 0.5s; /* 背景色切换动画 */
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #ui-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 12px 16px;
+            color: #fff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+            pointer-events: auto;
+        }
+
+        .info-box h3 { margin: 0 0 4px 0; font-size: 16px; font-weight: 700; color: #9f7aea; }
+        .info-box p { margin: 0; font-size: 12px; color: #cbd5e0; opacity: 0.8; }
+
+        .status-pill {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+        .stat-item { font-size: 12px; font-weight: 500; display: flex; align-items: center; }
+        .stat-val { font-family: monospace; font-size: 14px; margin-left: 8px; font-weight: bold; }
+
+        .bottom-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-bottom: 20px;
+        }
+
+        .action-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: auto;
+            max-height: 60vh; /* 防止按钮过多溢出 */
+            overflow-y: auto; /* 允许滚动如果需要 */
+        }
+
+        /* 隐藏滚动条 */
+        .action-group::-webkit-scrollbar { display: none; }
+
+        .app-fab {
+            width: 50px;
+            height: 50px;
+            border-radius: 14px !important;
+            background: rgba(45, 55, 72, 0.95) !important;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: white !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
+            transition: all 0.2s;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .app-fab:active { transform: scale(0.92); }
+        .app-fab.active { background: #fc8181 !important; border-color: #fc8181; } 
+        
+        .app-fab.mode-bomb { background: #e53e3e !important; }
+        .app-fab.mode-gun { background: #805ad5 !important; }
+        .app-fab.mode-zero-g { background: #38b2ac !important; }
+        .app-fab.mode-map { background: #d69e2e !important; }
+
+        .app-fab i { font-size: 24px; }
+
+        .fab-label {
+            position: absolute;
+            left: 58px;
+            background: rgba(0,0,0,0.8);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+            z-index: 20;
+        }
+        .app-fab:active .fab-label { opacity: 1; }
+
+        #joystick-zone {
+            width: 140px;
+            height: 140px;
+            position: relative;
+            pointer-events: auto;
+        }
+        
+        #joystick-bg {
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #joystick-knob {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div id="ui-layer">
+        <div class="top-bar">
+            <div class="glass-card info-box">
+                <h3>多场景 v7.0</h3>
+                <p>场景切换 · 物理阶梯 · 智能清理</p>
+            </div>
+            
+            <div class="glass-card status-pill">
+                <div class="stat-item">
+                    <span style="color:#a0aec0">对象:</span>
+                    <span id="obj-count" class="stat-val text-blue">0</span>
+                </div>
+                <div class="stat-item">
+                    <span style="color:#a0aec0">FPS:</span>
+                    <span id="fps-counter" class="stat-val text-green">60</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-area">
+            <div class="action-group">
+                <button id="btn-add" class="mdui-btn mdui-ripple app-fab" style="background: rgba(66, 153, 225, 0.8)!important;">
+                    <i class="mdui-icon material-icons">person_add</i>
+                    <span class="fab-label">生成活体</span>
+                </button>
+
+                <button id="btn-barrel" class="mdui-btn mdui-ripple app-fab" style="background: rgba(229, 62, 62, 0.8)!important;">
+                    <i class="mdui-icon material-icons">local_fire_department</i>
+                    <span class="fab-label">易爆油桶</span>
+                </button>
+
+                <!-- 地图切换 -->
+                <button id="btn-map" class="mdui-btn mdui-ripple app-fab mode-map">
+                    <i class="mdui-icon material-icons">map</i>
+                    <span class="fab-label">切换场景</span>
+                </button>
+                
+                <button id="btn-mode" class="mdui-btn mdui-ripple app-fab">
+                    <i class="mdui-icon material-icons" id="mode-icon">pan_tool</i>
+                    <span class="fab-label" id="mode-label">拖拽模式</span>
+                </button>
+
+                <button id="btn-gravity" class="mdui-btn mdui-ripple app-fab">
+                    <i class="mdui-icon material-icons">public</i>
+                    <span class="fab-label">零重力</span>
+                </button>
+
+                <button id="btn-slow" class="mdui-btn mdui-ripple app-fab" style="background: rgba(236, 201, 75, 0.8)!important;">
+                    <i class="mdui-icon material-icons">shutter_speed</i>
+                    <span class="fab-label">慢动作</span>
+                </button>
+
+                <button id="btn-clear" class="mdui-btn mdui-ripple app-fab" style="background: rgba(245, 101, 101, 0.8)!important;">
+                    <i class="mdui-icon material-icons">delete_sweep</i>
+                    <span class="fab-label">清理实体</span>
+                </button>
+            </div>
+
+            <div id="joystick-zone">
+                <div id="joystick-bg"></div>
+                <div id="joystick-knob"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/mdui@1.0.2/dist/js/mdui.min.js"></script>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import * as CANNON from 'cannon-es';
+
+        let scene, camera, renderer, world;
+        
+        // 实体
+        let ragdolls = []; 
+        let props = []; // 油桶、箱子
+        let particles = [];
+        let mapObjects = []; // 地图静态物体 (墙、楼梯)，清理实体时不删
+        
+        // 交互 (V1)
+        let mouseConstraint = null;
+        let isDragging = false;
+        let dragBody = null; 
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let interactionMode = 'drag'; 
+
+        // 摄像机
+        let camAngle = Math.PI / 4;
+        let camY = 8;
+        let camRadius = 18;
+        let targetCamAngle = camAngle;
+        let targetCamY = camY;
+
+        // 状态
+        let timeScale = 1.0;
+        let isSlowMo = false;
+        let isZeroG = false;
+        let currentSceneIdx = 0;
+
+        // 性能
+        let lastTime = 0;
+        let frameCount = 0;
+        const fpsEl = document.getElementById('fps-counter');
+        const countEl = document.getElementById('obj-count');
+
+        // 材质
+        const sharedMaterials = {
+            skin: [
+                new THREE.MeshStandardMaterial({ color: 0xe0ac69, roughness: 0.6 }),
+                new THREE.MeshStandardMaterial({ color: 0x8d5524, roughness: 0.6 }),
+                new THREE.MeshStandardMaterial({ color: 0xc68642, roughness: 0.6 })
+            ],
+            shirt: new THREE.MeshStandardMaterial({ color: 0x4299e1, roughness: 0.7 }), 
+            blood: new THREE.MeshBasicMaterial({ color: 0xaa0000 }),
+            dead: new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8 }),
+            red: new THREE.MeshStandardMaterial({ color: 0xaa0000, roughness: 0.5 }),
+            barrel: new THREE.MeshStandardMaterial({ color: 0xe53e3e, roughness: 0.4, metalness: 0.4 }),
+            wall: new THREE.MeshStandardMaterial({ color: 0x718096, roughness: 0.9 }),
+            stair: new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.8 })
+        };
+        const barrelGeo = new THREE.CylinderGeometry(0.4, 0.4, 1.2, 16);
+
+        // 场景配置
+        const scenes = [
+            { name: "标准虚空", bg: 0x1a202c, gravity: -9.82, setup: setupStandardScene },
+            { name: "死亡阶梯", bg: 0x2d3748, gravity: -9.82, setup: setupStairScene },
+            { name: "角斗场", bg: 0x1a202c, gravity: -9.82, setup: setupArenaScene },
+            { name: "低重力火星", bg: 0x441111, gravity: -3.71, setup: setupMarsScene }
+        ];
+
+        init();
+        animate();
+
+        function init() {
+            const container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a202c); 
+            scene.fog = new THREE.Fog(0x1a202c, 20, 60);
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+            updateCamera(true);
+
+            renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.BasicShadowMap;
+            container.appendChild(renderer.domElement);
+
+            const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambient);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            dirLight.position.set(10, 20, 10);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.set(1024, 1024);
+            scene.add(dirLight);
+
+            world = new CANNON.World();
+            world.gravity.set(0, -9.82, 0);
+            world.broadphase = new CANNON.SAPBroadphase(world);
+            world.solver.iterations = 20; 
+
+            const mat = new CANNON.Material();
+            const contactMat = new CANNON.ContactMaterial(mat, mat, {
+                friction: 0.5,
+                restitution: 0.2
+            });
+            world.addContactMaterial(contactMat);
+
+            // 交互刚体
+            let mouseBodyGlobal = new CANNON.Body({ mass: 0, type: CANNON.Body.KINEMATIC, collisionFilterGroup: 0 });
+            mouseBodyGlobal.addShape(new CANNON.Sphere(0.1));
+            world.addBody(mouseBodyGlobal);
+            window.mouseBody = mouseBodyGlobal;
+
+            window.addEventListener('resize', onWindowResize);
+            
+            document.addEventListener('mousedown', onMouseDown);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            document.addEventListener('touchstart', onTouchStart, {passive: false});
+            document.addEventListener('touchmove', onTouchMove, {passive: false});
+            document.addEventListener('touchend', onMouseUp);
+
+            // UI Buttons
+            document.getElementById('btn-add').addEventListener('click', () => {
+                spawnRagdoll( (Math.random()-0.5)*4, 6 + Math.random()*2, (Math.random()-0.5)*4 );
+                triggerHaptic();
+            });
+            
+            document.getElementById('btn-barrel').addEventListener('click', () => {
+                spawnBarrel( (Math.random()-0.5)*4, 5, (Math.random()-0.5)*4 );
+                triggerHaptic();
+            });
+
+            document.getElementById('btn-clear').addEventListener('click', clearEntities);
+            
+            // 地图切换
+            document.getElementById('btn-map').addEventListener('click', () => {
+                currentSceneIdx = (currentSceneIdx + 1) % scenes.length;
+                loadScene(currentSceneIdx);
+                triggerHaptic();
+            });
+
+            // 模式切换
+            const btnMode = document.getElementById('btn-mode');
+            const iconMode = document.getElementById('mode-icon');
+            const labelMode = document.getElementById('mode-label');
+            btnMode.addEventListener('click', () => {
+                if (interactionMode === 'drag') {
+                    interactionMode = 'bomb';
+                    iconMode.innerText = 'public';
+                    labelMode.innerText = '爆破模式';
+                    btnMode.classList.add('mode-bomb');
+                    btnMode.classList.remove('mode-gun');
+                    mdui.snackbar({message: '爆破模式', position: 'bottom'});
+                } else if (interactionMode === 'bomb') {
+                    interactionMode = 'gun';
+                    iconMode.innerText = 'gps_fixed';
+                    labelMode.innerText = '射击模式';
+                    btnMode.classList.remove('mode-bomb');
+                    btnMode.classList.add('mode-gun');
+                    mdui.snackbar({message: '射击模式', position: 'bottom'});
+                } else {
+                    interactionMode = 'drag';
+                    iconMode.innerText = 'pan_tool';
+                    labelMode.innerText = '拖拽模式';
+                    btnMode.classList.remove('mode-bomb', 'mode-gun');
+                    mdui.snackbar({message: '拖拽模式', position: 'bottom'});
+                }
+                triggerHaptic();
+            });
+
+            const btnGrav = document.getElementById('btn-gravity');
+            btnGrav.addEventListener('click', () => {
+                isZeroG = !isZeroG;
+                // 注意：如果当前场景重力不是地球重力，恢复时应恢复为场景重力
+                const normalGravity = scenes[currentSceneIdx].gravity;
+                world.gravity.set(0, isZeroG ? 0 : normalGravity, 0);
+                world.bodies.forEach(b => b.wakeUp());
+                if(isZeroG) {
+                    btnGrav.classList.add('mode-zero-g');
+                    mdui.snackbar({message: '零重力已开启', position: 'bottom'});
+                } else {
+                    btnGrav.classList.remove('mode-zero-g');
+                    mdui.snackbar({message: '重力已恢复', position: 'bottom'});
+                }
+                triggerHaptic();
+            });
+
+            const btnSlow = document.getElementById('btn-slow');
+            btnSlow.addEventListener('click', () => {
+                isSlowMo = !isSlowMo;
+                timeScale = isSlowMo ? 0.2 : 1.0;
+                if(isSlowMo) btnSlow.classList.add('active');
+                else btnSlow.classList.remove('active');
+                triggerHaptic();
+            });
+
+            initJoystick();
+            
+            // 加载默认场景
+            loadScene(0);
+        }
+
+        // --- 场景管理系统 ---
+
+        function loadScene(idx) {
+            // 完全重置世界
+            resetWorld();
+            
+            const config = scenes[idx];
+            
+            // 设置环境
+            scene.background = new THREE.Color(config.bg);
+            scene.fog = new THREE.Fog(config.bg, 20, 60);
+            document.body.style.backgroundColor = '#' + config.bg.toString(16);
+            
+            // 设置重力
+            isZeroG = false;
+            document.getElementById('btn-gravity').classList.remove('mode-zero-g');
+            world.gravity.set(0, config.gravity, 0);
+
+            // 调用特定构建函数
+            config.setup();
+            
+            mdui.snackbar({message: `场景: ${config.name}`, position: 'top'});
+        }
+
+        function createStaticBox(x, y, z, w, h, d, mat = sharedMaterials.wall) {
+            const geo = new THREE.BoxGeometry(w, h, d);
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+
+            const body = new CANNON.Body({ mass: 0 }); // 静态
+            body.addShape(new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2)));
+            body.position.set(x, y, z);
+            world.addBody(body);
+
+            mapObjects.push({mesh, body});
+        }
+
+        // 场景1: 标准 (只有地面)
+        function setupStandardScene() {
+            createStaticPlane();
+            spawnRagdoll(0, 5, 0);
+        }
+
+        // 场景2: 楼梯
+        function setupStairScene() {
+            createStaticPlane();
+            
+            // 建楼梯
+            const steps = 15;
+            const width = 8;
+            const depth = 1.5;
+            const height = 0.8;
+            
+            for(let i=0; i<steps; i++) {
+                createStaticBox(0, i * height + height/2, -5 - i * depth, width, height, depth, sharedMaterials.stair);
+            }
+            
+            // 顶部平台
+            createStaticBox(0, steps * height + 2, -5 - steps * depth - 2, 10, 4, 6, sharedMaterials.stair);
+            
+            spawnRagdoll(0, steps * height + 6, -5 - steps * depth - 2);
+        }
+
+        // 场景3: 竞技场 (墙壁)
+        function setupArenaScene() {
+            createStaticPlane();
+            // 四周墙壁
+            const size = 15;
+            const h = 4;
+            const thick = 1;
+            
+            createStaticBox(0, h/2, -size, size*2, h, thick); // 北
+            createStaticBox(0, h/2, size, size*2, h, thick);  // 南
+            createStaticBox(-size, h/2, 0, thick, h, size*2); // 西
+            createStaticBox(size, h/2, 0, thick, h, size*2);  // 东
+            
+            spawnRagdoll(0, 5, 0);
+        }
+
+        // 场景4: 火星
+        function setupMarsScene() {
+            // 红地面
+            const mat = new CANNON.Material();
+            const body = new CANNON.Body({ mass: 0, material: mat });
+            body.addShape(new CANNON.Plane());
+            body.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+            world.addBody(body);
+            
+            // 红色网格
+            const grid = new THREE.GridHelper(60, 60, 0xff0000, 0x550000);
+            scene.add(grid);
+            mapObjects.push({mesh: grid, body: body}); // 存入以便清理
+
+            spawnRagdoll(0, 8, 0);
+        }
+
+        function createStaticPlane() {
+            const mat = new CANNON.Material();
+            const body = new CANNON.Body({ mass: 0, material: mat });
+            body.addShape(new CANNON.Plane());
+            body.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+            world.addBody(body);
+            
+            const grid = new THREE.GridHelper(60, 60, 0x4a5568, 0x2d3748);
+            scene.add(grid);
+            
+            mapObjects.push({mesh: grid, body: body});
+        }
+
+        // --- 核心清理逻辑 ---
+
+        // 只清理实体（保留地图）
+        function clearEntities() {
+            ragdolls.forEach(rd => {
+                rd.parts.forEach(p => { scene.remove(p.mesh); p.mesh.geometry.dispose(); world.removeBody(p.body); });
+                rd.constraints.forEach(c => world.removeConstraint(c.constraint));
+            });
+            ragdolls = [];
+            
+            props.forEach(p => { scene.remove(p.mesh); if(p.body) world.removeBody(p.body); });
+            props = [];
+
+            particles.forEach(p => { scene.remove(p.mesh); p.mesh.geometry.dispose(); });
+            particles = [];
+            
+            updateCount();
+            triggerHaptic();
+        }
+
+        // 重置所有（包括地图）
+        function resetWorld() {
+            clearEntities();
+            
+            // 清理地图静态物体
+            mapObjects.forEach(obj => {
+                if(obj.mesh) {
+                    scene.remove(obj.mesh);
+                    if(obj.mesh.geometry) obj.mesh.geometry.dispose();
+                }
+                if(obj.body) world.removeBody(obj.body);
+            });
+            mapObjects = [];
+        }
+
+        // --- 其他原有逻辑 (物理、射击、粒子等) ---
+
+        function enforceSpeedLimit() {
+            const maxSpeed = 60; 
+            const maxSpeedSq = maxSpeed * maxSpeed;
+            world.bodies.forEach(body => {
+                if(isNaN(body.position.x) || isNaN(body.velocity.x)) {
+                    body.velocity.set(0,0,0);
+                    body.position.set(0, 5, 0);
+                }
+                const speedSq = body.velocity.lengthSquared();
+                if (speedSq > maxSpeedSq) {
+                    body.velocity.normalize();
+                    body.velocity.scale(maxSpeed, body.velocity);
+                }
+            });
+        }
+
+        function createBloodEffect(pos, amount = 8) {
+            const geometry = new THREE.BoxGeometry(0.06, 0.06, 0.06);
+            for (let i = 0; i < amount; i++) {
+                const mesh = new THREE.Mesh(geometry, sharedMaterials.blood);
+                mesh.position.set(
+                    pos.x + (Math.random() - 0.5) * 0.2,
+                    pos.y + (Math.random() - 0.5) * 0.2,
+                    pos.z + (Math.random() - 0.5) * 0.2
+                );
+                mesh.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+                scene.add(mesh);
+                const vel = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.2,
+                    (Math.random() * 0.2) + 0.1,
+                    (Math.random() - 0.5) * 0.2
+                );
+                particles.push({ mesh, vel, life: 1.5 });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life -= 0.02 * (isSlowMo ? 0.2 : 1.0); 
+                if(!isZeroG) p.vel.y -= 0.005; 
+                p.mesh.position.add(p.vel);
+                p.mesh.rotation.x += 0.1;
+                p.mesh.scale.setScalar(Math.max(0, p.life));
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    p.mesh.geometry.dispose(); 
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function spawnBarrel(x, y, z) {
+            const mesh = new THREE.Mesh(barrelGeo, sharedMaterials.barrel);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+
+            const body = new CANNON.Body({ mass: 15 });
+            body.addShape(new CANNON.Cylinder(0.4, 0.4, 1.2, 16));
+            const quat = new CANNON.Quaternion();
+            quat.setFromAxisAngle(new CANNON.Vec3(1,0,0), -Math.PI/2);
+            body.shapeOrientations[0] = quat;
+            body.position.set(x, y, z);
+            world.addBody(body);
+
+            const prop = { mesh, body, type: 'barrel', hp: 50, isExploded: false };
+            body.addEventListener("collide", (e) => {
+                if(prop.isExploded) return;
+                const v = e.contact.getImpactVelocityAlongNormal();
+                if(v > 10) { prop.hp -= v * 2; if(prop.hp <= 0) explodeBarrel(prop); }
+            });
+            props.push(prop);
+            updateCount();
+        }
+
+        function explodeBarrel(prop) {
+            if(prop.isExploded) return;
+            prop.isExploded = true;
+            const pos = new THREE.Vector3(prop.body.position.x, prop.body.position.y, prop.body.position.z);
+            explodeAt(pos, 250, 12); 
+            scene.remove(prop.mesh);
+            world.removeBody(prop.body);
+            prop.body.position.set(0, -100, 0); 
+            for(let i=0; i<10; i++) createBloodEffect(pos, 1);
+        }
+
+        function spawnRagdoll(x, y, z) {
+            const scale = 0.6;
+            const ragdollData = {
+                parts: [], constraints: [], isAlive: true, isKnockedOut: false, health: 800, spawnTime: Date.now()
+            };
+            const skinMat = sharedMaterials.skin[Math.floor(Math.random()*sharedMaterials.skin.length)];
+            const shirtMat = sharedMaterials.shirt.clone();
+            shirtMat.color.setHex(Math.random() * 0xffffff);
+
+            function makePart(w, h, d, mass, mat, px, py, pz) {
+                const geo = new THREE.BoxGeometry(w, h, d);
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                scene.add(mesh);
+                const body = new CANNON.Body({ mass: mass });
+                body.addShape(new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2)));
+                body.position.set(px, py, pz);
+                body.linearDamping = 0.4;
+                body.angularDamping = 0.4; 
+                world.addBody(body);
+                ragdollData.parts.push({ mesh, body });
+                body.addEventListener("collide", (e) => handleCollision(e, ragdollData));
+                return body;
+            }
+            function linkBall(b1, b2, piv1, piv2, angleLimit) {
+                const c = new CANNON.ConeTwistConstraint(b1, b2, { pivotA: new CANNON.Vec3(...piv1), pivotB: new CANNON.Vec3(...piv2), axisA: CANNON.Vec3.UNIT_Y, axisB: CANNON.Vec3.UNIT_Y, angle: angleLimit, twistAngle: 0 });
+                world.addConstraint(c);
+                ragdollData.constraints.push({ constraint: c, bodyA: b1, bodyB: b2 });
+            }
+            function linkHinge(b1, b2, piv1, piv2, axis) {
+                const c = new CANNON.HingeConstraint(b1, b2, { pivotA: new CANNON.Vec3(...piv1), pivotB: new CANNON.Vec3(...piv2), axisA: new CANNON.Vec3(...axis), axisB: new CANNON.Vec3(...axis) });
+                c.collideConnected = false; 
+                world.addConstraint(c);
+                ragdollData.constraints.push({ constraint: c, bodyA: b1, bodyB: b2 });
+            }
+
+            const headS = 0.5 * scale, torsoS = { w: 0.8*scale, h: 0.9*scale, d: 0.4*scale }, limbW = 0.25 * scale;
+            const torso = makePart(torsoS.w, torsoS.h, torsoS.d, 10, shirtMat, x, y, z);
+            torso.velocity.set(0, 2, 0);
+            const head = makePart(headS, headS, headS, 3, skinMat, x, y + torsoS.h/2 + headS/2 + 0.1, z);
+            linkBall(torso, head, [0, torsoS.h/2+0.05, 0], [0, -headS/2-0.05, 0], Math.PI/6);
+
+            function makeLimb(isLeft, isArm) {
+                const len = isArm ? 0.7*scale : 0.9*scale;
+                const side = isLeft ? 1 : -1;
+                const offX = isArm ? (torsoS.w/2 + limbW/2) * side : (torsoS.w/4) * side;
+                const offY = isArm ? y + torsoS.h/3 : y - torsoS.h/2;
+                const upY = isArm ? offY : offY - len/2 - 0.1;
+                const upMat = isArm ? shirtMat : new THREE.MeshStandardMaterial({color: 0x333333});
+                const up = makePart(limbW, len, limbW, 4, upMat, x+offX, upY, z);
+                const torsoPiv = isArm ? [offX - (limbW/2)*side, torsoS.h/3, 0] : [offX, -torsoS.h/2-0.05, 0];
+                const limit = isArm ? Math.PI/2 : Math.PI/3; 
+                linkBall(torso, up, torsoPiv, [0, len/2+0.05, 0], limit);
+                const lowY = upY - len - 0.1;
+                const low = makePart(limbW, len, limbW, 3, skinMat, x+offX, lowY, z);
+                const hingeAxis = [1, 0, 0]; 
+                linkHinge(up, low, [0, -len/2-0.05, 0], [0, len/2+0.05, 0], hingeAxis);
+            }
+            makeLimb(true, true); makeLimb(false, true); makeLimb(true, false); makeLimb(false, false); 
+            ragdolls.push(ragdollData);
+            updateCount();
+        }
+
+        function updateActiveRagdolls() {
+            if(isZeroG) return;
+            ragdolls.forEach(rd => {
+                if(rd.isAlive && !rd.isKnockedOut && rd.parts.length > 0) {
+                    const torso = rd.parts[0].body; 
+                    torso.angularDamping = 0.9;
+                    const stiffness = 80;
+                    torso.torque.x -= torso.quaternion.x * stiffness;
+                    torso.torque.z -= torso.quaternion.z * stiffness;
+                } else if(rd.parts.length > 0) {
+                    rd.parts[0].body.angularDamping = 0.4;
+                }
+            });
+        }
+
+        function handleCollision(e, ragdoll) {
+            if (!ragdoll.isAlive) return;
+            if (Date.now() - ragdoll.spawnTime < 3000) return;
+            const v = e.contact.getImpactVelocityAlongNormal();
+            if (Math.abs(v) < 10) return; 
+            if (Math.abs(v) > 20) ragdoll.isKnockedOut = true;
+            ragdoll.health -= Math.abs(v) * 2; 
+            if (Math.abs(v) > 25 && Math.random() > 0.6 && ragdoll.constraints.length > 0) {
+                const idx = Math.floor(Math.random() * ragdoll.constraints.length);
+                const c = ragdoll.constraints[idx];
+                world.removeConstraint(c.constraint);
+                ragdoll.constraints.splice(idx, 1);
+                const part = ragdoll.parts.find(p => p.body === c.bodyB);
+                if(part) {
+                    part.mesh.material = sharedMaterials.red; 
+                    createBloodEffect(part.mesh.position, 12);
+                    triggerHaptic();
+                    ragdoll.isKnockedOut = true;
+                }
+            }
+            if (ragdoll.health <= 0) {
+                ragdoll.isAlive = false;
+                ragdoll.isKnockedOut = true;
+                ragdoll.parts.forEach(p => {
+                    if(p.mesh.material !== sharedMaterials.red) p.mesh.material = sharedMaterials.dead;
+                });
+                mdui.snackbar({message: '损毁', position: 'top', timeout: 500});
+            }
+        }
+        
+        function explodeAt(point, force = 150, radius = 12) {
+            const upLift = isZeroG ? 0 : 50; 
+            ragdolls.forEach(rd => applyExplosionForce(rd.parts, point, radius, force, upLift, rd));
+            applyExplosionForce(props, point, radius, force * 1.5, upLift, null);
+            props.forEach(p => {
+                if(p.type === 'barrel' && !p.isExploded) {
+                    const dist = point.distanceTo(new THREE.Vector3(p.body.position.x, p.body.position.y, p.body.position.z));
+                    if(dist < radius) setTimeout(() => explodeBarrel(p), Math.random() * 200 + 100);
+                }
+            });
+            const flashGeo = new THREE.SphereGeometry(1, 8, 8);
+            const flashMat = new THREE.MeshBasicMaterial({color: 0xffaa00, transparent: true, opacity: 0.8});
+            const flash = new THREE.Mesh(flashGeo, flashMat);
+            flash.position.copy(point);
+            scene.add(flash);
+            let op = 0.8;
+            function animFlash() {
+                op -= 0.1;
+                flash.scale.multiplyScalar(1.2);
+                flash.material.opacity = op;
+                if(op > 0) requestAnimationFrame(animFlash);
+                else { scene.remove(flash); flashGeo.dispose(); flashMat.dispose(); }
+            }
+            animFlash();
+            triggerHaptic();
+        }
+
+        function applyExplosionForce(objects, point, radius, forceVal, upLift, ragdollRef) {
+            objects.forEach(p => {
+                const body = p.body;
+                if(!body) return;
+                const dist = point.distanceTo(new THREE.Vector3(body.position.x, body.position.y, body.position.z));
+                if(dist < radius) {
+                    const dir = new CANNON.Vec3(body.position.x - point.x, body.position.y - point.y, body.position.z - point.z);
+                    dir.normalize();
+                    const factor = Math.max(0, 1 - dist / radius);
+                    const force = forceVal * factor;
+                    dir.scale(force, dir);
+                    dir.y += upLift * factor;
+                    body.applyImpulse(dir, body.position);
+                    if(ragdollRef) ragdollRef.isKnockedOut = true;
+                }
+            });
+        }
+
+        function shootAt(point, body, ragdollRef, propRef) {
+            if(propRef && propRef.type === 'barrel') { explodeBarrel(propRef); return; }
+            const dir = new CANNON.Vec3(point.x - camera.position.x, point.y - camera.position.y, point.z - camera.position.z);
+            dir.normalize();
+            const shootForce = 80; 
+            dir.scale(shootForce, dir);
+            if(body) { body.applyImpulse(dir, point); body.wakeUp(); }
+            if(ragdollRef) {
+                 createBloodEffect(point, 5);
+                 ragdollRef.isKnockedOut = true;
+                 if(ragdollRef.constraints.length > 0 && Math.random() > 0.3) {
+                     handleCollision({contact: {getImpactVelocityAlongNormal: () => 60}}, ragdollRef);
+                 }
+            }
+            const lineGeo = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(point.x - dir.x*2, point.y - dir.y*2, point.z - dir.z*2), point
+            ]);
+            const lineMat = new THREE.LineBasicMaterial({ color: 0xffffaa });
+            const line = new THREE.Line(lineGeo, lineMat);
+            scene.add(line);
+            setTimeout(() => { scene.remove(line); lineGeo.dispose(); lineMat.dispose(); }, 40);
+            triggerHaptic();
+        }
+
+        function getRayIntersection(clientX, clientY) {
+            mouse.x = (clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            let targets = [];
+            ragdolls.forEach(rd => rd.parts.forEach(p => targets.push({mesh: p.mesh, body: p.body, parent: rd})));
+            props.forEach(p => { if(!p.isExploded) targets.push({mesh: p.mesh, body: p.body, parent: null, prop: p}); });
+            
+            // 还要检测地图静态物体，防止穿墙射击/操作
+            // 但为了性能和逻辑简化，拖拽和射击优先检测活动物体
+            // 爆破模式需要检测地板
+            
+            const intersects = raycaster.intersectObjects(targets.map(t => t.mesh));
+            if(intersects.length > 0) {
+                const hitMesh = intersects[0].object;
+                const target = targets.find(t => t.mesh === hitMesh);
+                return { point: intersects[0].point, body: target.body, parent: target.parent, prop: target.prop };
+            }
+            return null;
+        }
+
+        function onMouseDown(e) {
+            if (interactionMode === 'bomb' || interactionMode === 'gun') {
+                const intersect = getRayIntersection(e.clientX, e.clientY);
+                if (interactionMode === 'bomb') {
+                    if (intersect) explodeAt(intersect.point);
+                    else {
+                        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                        raycaster.setFromCamera(mouse, camera);
+                        // 检测地图物体
+                        let mapMeshes = mapObjects.map(m => m.mesh);
+                        // 添加一个无限大平面作为最后的兜底
+                        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+                        
+                        const mapIntersects = raycaster.intersectObjects(mapMeshes);
+                        if(mapIntersects.length > 0) explodeAt(mapIntersects[0].point);
+                        else {
+                            const target = new THREE.Vector3();
+                            raycaster.ray.intersectPlane(plane, target);
+                            if(target) explodeAt(target);
+                        }
+                    }
+                } else if (interactionMode === 'gun') {
+                    if (intersect) shootAt(intersect.point, intersect.body, intersect.parent, intersect.prop);
+                }
+                return;
+            }
+
+            const intersect = getRayIntersection(e.clientX, e.clientY);
+            if (intersect) {
+                isDragging = true;
+                dragBody = intersect.body;
+                window.mouseBody.position.copy(intersect.point);
+                mouseConstraint = new CANNON.PointToPointConstraint(dragBody, new CANNON.Vec3(intersect.point.x - dragBody.position.x, intersect.point.y - dragBody.position.y, intersect.point.z - dragBody.position.z), window.mouseBody, new CANNON.Vec3(0, 0, 0));
+                world.addConstraint(mouseConstraint);
+            }
+        }
+
+        function updateMouseBodyPosition(x, y) {
+            const vec = new THREE.Vector3((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1, 0.5);
+            vec.unproject(camera);
+            vec.sub(camera.position).normalize();
+            const distance = dragBody ? camera.position.distanceTo(dragBody.position) : 10;
+            const pos = camera.position.clone().add(vec.multiplyScalar(distance));
+            window.mouseBody.position.set(pos.x, pos.y, pos.z);
+            if(mouseConstraint) mouseConstraint.bodyA.wakeUp();
+        }
+
+        function onMouseMove(e) { if(isDragging) updateMouseBodyPosition(e.clientX, e.clientY); }
+        function onMouseUp(e) { isDragging = false; if (mouseConstraint) { world.removeConstraint(mouseConstraint); mouseConstraint = null; dragBody = null; } }
+        function onTouchStart(e) {
+            if(e.touches.length > 0) {
+                const t = e.touches[0];
+                const joyZone = document.getElementById('joystick-zone').getBoundingClientRect();
+                if (t.clientX >= joyZone.left && t.clientX <= joyZone.right && t.clientY >= joyZone.top && t.clientY <= joyZone.bottom) return; 
+                onMouseDown({clientX: t.clientX, clientY: t.clientY});
+            }
+        }
+        function onTouchMove(e) { if(isDragging && e.touches.length > 0) { e.preventDefault(); onMouseMove({clientX: e.touches[0].clientX, clientY: e.touches[0].clientY}); } }
+
+        function updateCount() { countEl.innerText = ragdolls.length + props.length; }
+        function triggerHaptic() { if (navigator.vibrate) navigator.vibrate(20); }
+
+        function initJoystick() {
+            const zone = document.getElementById('joystick-zone');
+            const knob = document.getElementById('joystick-knob');
+            let startX, startY;
+            let active = false;
+            const maxDist = 45;
+            zone.addEventListener('touchstart', e => { e.preventDefault(); const t = e.touches[0]; const rect = zone.getBoundingClientRect(); startX = rect.left + rect.width/2; startY = rect.top + rect.height/2; active = true; knob.style.transition = 'none'; updateJoy(t.clientX, t.clientY); });
+            zone.addEventListener('touchmove', e => { if(!active) return; e.preventDefault(); updateJoy(e.touches[0].clientX, e.touches[0].clientY); });
+            const resetJoy = () => { active = false; knob.style.transition = '0.2s'; knob.style.transform = `translate(-50%, -50%)`; };
+            zone.addEventListener('touchend', resetJoy); zone.addEventListener('touchcancel', resetJoy);
+            function updateJoy(x, y) {
+                let dx = x - startX; let dy = y - startY;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if(dist > maxDist) { dx = (dx/dist) * maxDist; dy = (dy/dist) * maxDist; }
+                knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+                targetCamAngle -= dx * 0.0008; targetCamY += dy * 0.005; targetCamY = Math.max(2, Math.min(18, targetCamY));
+            }
+        }
+
+        function updateCamera(instant = false) {
+            if(!instant) { camAngle += (targetCamAngle - camAngle) * 0.1; camY += (targetCamY - camY) * 0.1; } else { camAngle = targetCamAngle; camY = targetCamY; }
+            camera.position.x = Math.sin(camAngle) * camRadius; camera.position.z = Math.cos(camAngle) * camRadius; camera.position.y = camY;
+            camera.lookAt(0, 4, 0);
+        }
+
+        function onWindowResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+            if(time - lastTime >= 1000) { fpsEl.innerText = frameCount; frameCount = 0; lastTime = time; }
+            frameCount++;
+            const dt = (1/60) * timeScale;
+            world.step(1/60, dt, 10); 
+            enforceSpeedLimit();
+            updateActiveRagdolls();
+            updateParticles();
+            ragdolls.forEach(rd => { rd.parts.forEach(p => { p.mesh.position.copy(p.body.position); p.mesh.quaternion.copy(p.body.quaternion); }); });
+            props.forEach(p => { if(p.body && !p.isExploded) { p.mesh.position.copy(p.body.position); p.mesh.quaternion.copy(p.body.quaternion); } });
+            updateCamera();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
