@@ -3,52 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MD3 物理沙盘 (Offline Safe)</title>
-    
-    <!-- Bootloader: 核心 Vue/Vuetify CDN 选择 -->
-    <script>
-        (function() {
-            var cdnConfig = {
-                'staticfile': { 
-                    name: 'Staticfile (七牛云)', 
-                    vue: 'https://cdn.staticfile.org/vue/3.3.4/vue.global.prod.min.js', 
-                    vuetifyCss: 'https://cdn.staticfile.org/vuetify/3.4.0/vuetify.min.css', 
-                    vuetifyJs: 'https://cdn.staticfile.org/vuetify/3.4.0/vuetify.min.js' 
-                },
-                'bytedance': { 
-                    name: 'ByteDance (字节跳动)', 
-                    vue: 'https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/vue/3.2.31/vue.global.prod.min.js', 
-                    vuetifyCss: 'https://cdn.staticfile.org/vuetify/3.4.0/vuetify.min.css', 
-                    vuetifyJs: 'https://cdn.staticfile.org/vuetify/3.4.0/vuetify.min.js' 
-                },
-                'cdnjs': { 
-                    name: 'Cloudflare (国际)', 
-                    vue: 'https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.prod.min.js', 
-                    vuetifyCss: 'https://cdnjs.cloudflare.com/ajax/libs/vuetify/3.4.0/vuetify.min.css', 
-                    vuetifyJs: 'https://cdnjs.cloudflare.com/ajax/libs/vuetify/3.4.0/vuetify.min.js' 
-                },
-                'unpkg': { 
-                    name: 'Unpkg (官方)', 
-                    vue: 'https://unpkg.com/vue@3/dist/vue.global.prod.js', 
-                    vuetifyCss: 'https://unpkg.com/vuetify@3.4.0/dist/vuetify.min.css', 
-                    vuetifyJs: 'https://unpkg.com/vuetify@3.4.0/dist/vuetify.min.js' 
-                }
-            };
-
-            var savedCdn = localStorage.getItem('core_cdn_source');
-            var currentCdn = (savedCdn && cdnConfig[savedCdn]) ? cdnConfig[savedCdn] : cdnConfig['staticfile'];
-
-            document.write('<link href="' + currentCdn.vuetifyCss + '" rel="stylesheet">');
-            document.write('<script src="' + currentCdn.vue + '"><\/script>');
-            
-            window.AppConfig = { cdnSources: cdnConfig, currentCdnKey: savedCdn || 'staticfile' };
-        })();
-    </script>
-
-    <!-- 动态图标 CSS -->
-    <link id="icon-css-link" href="" rel="stylesheet">
-    <!-- Bootstrap (备用) -->
-    <link id="bs-css-link" href="" rel="stylesheet">
+    <title>MD3 物理沙盘 (GH-Pages Fixed)</title>
     
     <style>
         body, html {
@@ -60,27 +15,105 @@
             font-family: 'Roboto', sans-serif;
         }
         
-        /* 加载屏幕 */
+        /* --- 加载屏幕 (居中修复 + 日志终端) --- */
         #loading-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #111; z-index: 9999;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #0a0a0a; 
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center; 
             transition: opacity 0.5s ease;
         }
-        .loading-logo { font-size: 64px; color: #444; margin-bottom: 20px; line-height: 1; }
-        .loading-title { color: #eee; margin-bottom: 30px; font-weight: 400; font-size: 20px; font-family: monospace; }
+        
+        /* 绝对居中容器 */
+        .loading-center-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-grow: 1; /* 占据剩余空间，将日志挤到底部 */
+            margin-bottom: 20px;
+        }
+
+        .loading-logo {
+            font-size: 72px;
+            margin-bottom: 24px;
+            line-height: 1;
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .loading-title {
+            color: #fff; 
+            margin-bottom: 32px; 
+            font-weight: 300; 
+            font-size: 24px;
+            font-family: monospace; 
+            letter-spacing: 2px;
+        }
+
         .loading-spinner {
-            width: 30px; height: 30px; border: 4px solid #333; 
-            border-radius: 50%; border-top-color: #fff; 
-            animation: spin 1s steps(12) infinite; 
+            width: 36px;
+            height: 36px;
+            border: 3px solid rgba(255,255,255,0.1); 
+            border-radius: 50%;
+            border-top-color: #00E676; /* 绿色表示正常 */
+            animation: spin 0.8s linear infinite; 
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        /* --- 真实系统日志终端 --- */
+        .sys-terminal {
+            width: 90%;
+            max-width: 500px;
+            height: 150px; /* 固定高度 */
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 40px; /* 底部留白 */
+            overflow-y: auto; /* 允许滑动 */
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            color: #aaa;
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            backdrop-filter: blur(5px);
+        }
+
+        .sys-log-line {
+            margin-bottom: 4px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 2px;
+            word-wrap: break-word;
+        }
+        .sys-log-line.success { color: #00E676; }
+        .sys-log-line.warn { color: #FFC107; }
+        .sys-log-line.error { color: #FF5252; }
+        .sys-log-line.info { color: #2196F3; }
+
+        /* 滚动条美化 */
+        .sys-terminal::-webkit-scrollbar { width: 4px; }
+        .sys-terminal::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+
+        /* --- 游戏画布 --- */
         #game-canvas {
             display: block; width: 100%; height: 100%;
             image-rendering: pixelated; position: absolute; top: 0; left: 0; z-index: 0;
         }
 
+        /* --- UI 结构 --- */
         .ui-overlay {
             position: absolute; bottom: 0; left: 0; width: 100%; height: 100%;
             z-index: 50; pointer-events: none; display: flex; flex-direction: column; justify-content: flex-end;
@@ -139,19 +172,115 @@
         .custom-icon { font-size: 18px; line-height: 1; display: inline-block; }
         .bi { font-style: normal; font-size: 18px; }
         .pro-hud { font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.2; white-space: pre; }
-        
-        /* 符号样式优化 */
         .symbol-icon { font-size: 20px; line-height: 1; display: inline-block; filter: grayscale(1); }
     </style>
+
+    <!-- 动态图标 CSS 占位 -->
+    <link id="icon-css-link" href="" rel="stylesheet">
+    <link id="bs-css-link" href="" rel="stylesheet">
+
+    <!-- 日志系统 & 资源加载器 (修复 GH-Pages 问题) -->
+    <script>
+        // 1. 初始化日志系统
+        window.sysLogger = function(msg, type = 'normal') {
+            var term = document.getElementById('sys-terminal');
+            if(!term) return; // DOM还没准备好
+            
+            var line = document.createElement('div');
+            line.className = 'sys-log-line ' + type;
+            var time = new Date().toLocaleTimeString().split(' ')[0];
+            line.textContent = '[' + time + '] ' + msg;
+            
+            term.appendChild(line);
+            term.scrollTop = term.scrollHeight; // 自动滚动到底部
+            console.log('[' + type.toUpperCase() + '] ' + msg);
+        };
+
+        // 2. 引导加载器 (不再使用 document.write)
+        document.addEventListener("DOMContentLoaded", function() {
+            window.sysLogger('DOM Ready. Starting Bootloader...', 'info');
+            
+            var cdnConfig = {
+                'staticfile': { 
+                    name: 'Staticfile', 
+                    vue: 'https://cdn.staticfile.org/vue/3.3.4/vue.global.prod.min.js', 
+                    vuetifyCss: 'https://cdn.staticfile.org/vuetify/3.4.0/vuetify.min.css', 
+                    vuetifyJs: 'https://cdn.staticfile.org/vuetify/3.4.0/vuetify.min.js' 
+                },
+                'bytedance': { 
+                    name: 'ByteDance', 
+                    vue: 'https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/vue/3.2.31/vue.global.prod.min.js', 
+                    vuetifyCss: 'https://cdn.staticfile.org/vuetify/3.4.0/vuetify.min.css',
+                    vuetifyJs: 'https://cdn.staticfile.org/vuetify/3.4.0/vuetify.min.js' 
+                },
+                'unpkg': { 
+                    name: 'Unpkg', 
+                    vue: 'https://unpkg.com/vue@3/dist/vue.global.prod.js', 
+                    vuetifyCss: 'https://unpkg.com/vuetify@3.4.0/dist/vuetify.min.css', 
+                    vuetifyJs: 'https://unpkg.com/vuetify@3.4.0/dist/vuetify.min.js' 
+                }
+            };
+
+            var savedCdn = localStorage.getItem('core_cdn_source');
+            // 默认 CDN
+            var currentCdnKey = (savedCdn && cdnConfig[savedCdn]) ? savedCdn : 'staticfile';
+            var currentCdn = cdnConfig[currentCdnKey];
+            
+            window.sysLogger('Config: ' + currentCdn.name, 'info');
+            window.AppConfig = { cdnSources: cdnConfig, currentCdnKey: currentCdnKey };
+
+            // 动态加载 CSS
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = currentCdn.vuetifyCss;
+            document.head.appendChild(link);
+            window.sysLogger('Injecting CSS: ' + currentCdn.vuetifyCss);
+
+            // 动态加载 JS (按顺序)
+            function loadScript(src, callback) {
+                var script = document.createElement('script');
+                script.src = src;
+                script.onload = function() {
+                    window.sysLogger('Loaded: ' + src, 'success');
+                    if (callback) callback();
+                };
+                script.onerror = function() {
+                    window.sysLogger('FAILED: ' + src, 'error');
+                    window.sysLogger('Please check network or switch CDN.', 'error');
+                };
+                document.body.appendChild(script);
+            }
+
+            // 链式加载：Vue -> Vuetify -> Init App
+            window.sysLogger('Requesting Vue Core...');
+            loadScript(currentCdn.vue, function() {
+                window.sysLogger('Vue loaded. Requesting Vuetify...');
+                loadScript(currentCdn.vuetifyJs, function() {
+                    window.sysLogger('Vuetify loaded. Initializing App...', 'success');
+                    if (window.initVueApp) {
+                        window.initVueApp();
+                    } else {
+                        window.sysLogger('CRITICAL: App entry point not found!', 'error');
+                    }
+                });
+            });
+        });
+    </script>
 </head>
 <body>
 
+    <!-- 1. 修复后的加载屏幕 -->
     <div id="loading-screen">
-        <div class="loading-content">
+        <div class="loading-center-wrapper">
             <!-- 默认 Logo 改为 Emoji 组合，防止 MDI 加载失败导致空白 -->
             <div class="loading-logo">⚛️</div>
-            <div class="loading-title">PHYSICS_ENGINE_V8</div>
+            <div class="loading-title">PHYSICS_ENGINE_V9</div>
             <div class="loading-spinner"></div>
+        </div>
+        
+        <!-- 真实系统日志终端 (可滑动) -->
+        <div class="sys-terminal" id="sys-terminal">
+            <div class="sys-log-line info">[SYSTEM] Boot sequence initiated...</div>
         </div>
     </div>
 
@@ -276,7 +405,7 @@
             <div class="ui-overlay">
                 <div class="ui-controls-container" :class="{ 'closed': !isMenuOpen }">
                     <div class="ui-controls">
-                        <div class="brand-header"><div class="brand-title">Physics Sandbox Engine /// v8.0</div></div>
+                        <div class="brand-header"><div class="brand-title">Physics Sandbox Engine /// v9.0</div></div>
 
                         <div class="controls-content">
                             <!-- 画笔 -->
@@ -342,645 +471,646 @@
         </v-app>
     </div>
 
-    <!-- 加载 Vuetify JS -->
     <script>
-        (function() {
-            var savedCdn = localStorage.getItem('core_cdn_source') || 'staticfile';
-            var config = window.AppConfig.cdnSources[savedCdn];
-            document.write('<script src="' + config.vuetifyJs + '"><\/script>');
-        })();
-    </script>
+        // 将主逻辑封装，供 Bootloader 调用
+        window.initVueApp = function() {
+            window.sysLogger('Initializing Vue App Logic...', 'info');
+            const { createApp, ref, onMounted, computed, watch, nextTick } = Vue;
+            const { createVuetify } = Vuetify;
 
-    <script>
-        const { createApp, ref, onMounted, computed, watch, nextTick } = Vue;
-        const { createVuetify } = Vuetify;
+            const vuetify = createVuetify();
 
-        const vuetify = createVuetify();
-
-        const app = createApp({
-            setup() {
-                const canvasRef = ref(null);
-                const fps = ref(0);
-                const particleCount = ref(0);
-                const isPaused = ref(false);
-                const brushSize = ref(6);
-                const brushShape = ref('circle');
-                const isMenuOpen = ref(true);
-                const showMoreMenu = ref(false);
-                const settingsDialog = ref(false);
-                const resolutionSetting = ref(6); 
-                const hudMode = ref('medium'); 
-                
-                // 核心CDN
-                const coreCdnKey = ref(window.AppConfig.currentCdnKey);
-                const coreCdnOptions = Object.keys(window.AppConfig.cdnSources).map(key => ({
-                    key: key, name: window.AppConfig.cdnSources[key].name
-                }));
-                const changeCoreCdn = (newVal) => { localStorage.setItem('core_cdn_source', newVal); window.location.reload(); };
-                
-                // 图标源：默认设为 emoji (离线/国内稳妥)
-                const iconSourceType = ref('emoji'); 
-                const iconSources = [
-                    { name: 'Emoji Mode (默认)', value: 'emoji', desc: '无需网络，符号+表情', url: '' },
-                    { name: 'ByteDance MDI', value: 'bytedance-mdi', desc: '字节跳动 CDN', url: 'https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/MaterialDesign-Icons/6.5.95/css/materialdesignicons.min.css' },
-                    { name: 'Bootstrap Icons', value: 'bootstrap', desc: 'Bootstrap 国内源', url: 'https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/bootstrap-icons/1.8.1/font/bootstrap-icons.min.css' },
-                    { name: 'Standard MDI', value: 'mdi', desc: 'jsDelivr 官方源', url: 'https://cdn.jsdelivr.net/npm/@mdi/font@6.x/css/materialdesignicons.min.css' },
-                ];
-
-                const isMdi = computed(() => iconSourceType.value.includes('mdi'));
-                const isBootstrap = computed(() => iconSourceType.value === 'bootstrap');
-
-                const changeIconSource = (val) => {
-                    const selected = iconSources.find(s => s.value === val);
-                    const mdiLink = document.getElementById('icon-css-link');
-                    const bsLink = document.getElementById('bs-css-link');
+            const app = createApp({
+                setup() {
+                    const canvasRef = ref(null);
+                    const fps = ref(0);
+                    const particleCount = ref(0);
+                    const isPaused = ref(false);
+                    const brushSize = ref(6);
+                    const brushShape = ref('circle');
+                    const isMenuOpen = ref(true);
+                    const showMoreMenu = ref(false);
+                    const settingsDialog = ref(false);
+                    const resolutionSetting = ref(6); 
+                    const hudMode = ref('medium'); 
                     
-                    if (val === 'emoji') { 
-                        mdiLink.href = ''; bsLink.href = '';
-                    } else if (val === 'bootstrap') {
-                        bsLink.href = selected.url; mdiLink.href = '';
-                    } else {
-                        mdiLink.href = selected.url; bsLink.href = '';
-                    }
-                };
+                    // 核心CDN
+                    const coreCdnKey = ref(window.AppConfig.currentCdnKey);
+                    const coreCdnOptions = Object.keys(window.AppConfig.cdnSources).map(key => ({
+                        key: key, name: window.AppConfig.cdnSources[key].name
+                    }));
+                    const changeCoreCdn = (newVal) => { localStorage.setItem('core_cdn_source', newVal); window.location.reload(); };
+                    
+                    // 图标源：默认设为 emoji (修复加载失败问题)
+                    const iconSourceType = ref('emoji'); 
+                    const iconSources = [
+                        { name: 'Emoji Mode (默认)', value: 'emoji', desc: '无需网络，符号+表情', url: '' },
+                        { name: 'ByteDance MDI', value: 'bytedance-mdi', desc: '字节跳动 CDN', url: 'https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/MaterialDesign-Icons/6.5.95/css/materialdesignicons.min.css' },
+                        { name: 'Bootstrap Icons', value: 'bootstrap', desc: 'Bootstrap 国内源', url: 'https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/bootstrap-icons/1.8.1/font/bootstrap-icons.min.css' },
+                        { name: 'Standard MDI', value: 'mdi', desc: 'jsDelivr 官方源', url: 'https://cdn.jsdelivr.net/npm/@mdi/font@6.x/css/materialdesignicons.min.css' },
+                    ];
 
-                const TYPES = {
-                    EMPTY: 0, SAND: 1, WATER: 2, STONE: 3, FIRE: 4, 
-                    ACID: 5, WOOD: 6, OIL: 7, PLANT: 8, GUNPOWDER: 9, 
-                    STEAM: 10, ICE: 11, METHANE: 12, WAX: 13,
-                    C4: 14, NITROGEN: 15, VIRUS: 16,
-                    TERMITE: 17, FUSE: 18, THUNDER: 19,
-                    MERCURY: 20, URANIUM: 21,
-                    SALT: 22, CONCRETE: 23, PLASMA: 24,
-                    LAVA: 25, CLOUD: 26, VOID: 27,
-                    SOAP: 28, BUBBLE: 29, LASER: 30,
-                    FIREWORKS: 31, ANTIMATTER: 32,
-                    VINE: 33, CLONE: 34, DRY_ICE: 35 // 新增
-                };
+                    const isMdi = computed(() => iconSourceType.value.includes('mdi'));
+                    const isBootstrap = computed(() => iconSourceType.value === 'bootstrap');
 
-                const allElements = [
-                    { name: '橡皮', id: TYPES.EMPTY, uiColor: '#EEEEEE', mdi: 'mdi-eraser', bi: 'bi-eraser-fill', emoji: '⬛' },
-                    { name: '沙土', id: TYPES.SAND, uiColor: '#FBC02D', mdi: 'mdi-grain', bi: 'bi-circle-fill', emoji: '🏜️' },
-                    { name: '水源', id: TYPES.WATER, uiColor: '#29B6F6', mdi: 'mdi-water', bi: 'bi-droplet-fill', emoji: '💧' },
-                    { name: '岩石', id: TYPES.STONE, uiColor: '#90A4AE', mdi: 'mdi-wall', bi: 'bi-bricks', emoji: '🪨' },
-                    { name: '火焰', id: TYPES.FIRE, uiColor: '#FF3D00', mdi: 'mdi-fire', bi: 'bi-fire', emoji: '🔥' },
-                    { name: '雷电', id: TYPES.THUNDER, uiColor: '#FFEB3B', mdi: 'mdi-flash', bi: 'bi-lightning-fill', emoji: '⚡' },
-                    { name: '藤蔓', id: TYPES.VINE, uiColor: '#4CAF50', mdi: 'mdi-barley', bi: 'bi-flower3', emoji: '🌿' }, // 新增
-                    { name: '克隆', id: TYPES.CLONE, uiColor: '#FFEB3B', mdi: 'mdi-content-copy', bi: 'bi-files', emoji: '👯' }, // 新增
-                    { name: '干冰', id: TYPES.DRY_ICE, uiColor: '#E0F2F1', mdi: 'mdi-cube-send', bi: 'bi-box-seam', emoji: '🌫️' }, // 新增
-                    { name: '激光', id: TYPES.LASER, uiColor: '#FF0000', mdi: 'mdi-laser-pointer', bi: 'bi-activity', emoji: '🛑' },
-                    { name: '肥皂', id: TYPES.SOAP, uiColor: '#E1BEE7', mdi: 'mdi-soap', bi: 'bi-square-half', emoji: '🧼' },
-                    { name: '泡沫', id: TYPES.BUBBLE, uiColor: '#F8BBD0', mdi: 'mdi-chart-bubble', bi: 'bi-circle', emoji: '🫧' },
-                    { name: '烟花', id: TYPES.FIREWORKS, uiColor: '#FF4081', mdi: 'mdi-creation', bi: 'bi-stars', emoji: '🎆' },
-                    { name: '反物质', id: TYPES.ANTIMATTER, uiColor: '#000000', mdi: 'mdi-nuke', bi: 'bi-radioactive', emoji: '✴️' },
-                    { name: '岩浆', id: TYPES.LAVA, uiColor: '#FF5722', mdi: 'mdi-volcano', bi: 'bi-fire', emoji: '🌋' },
-                    { name: '云朵', id: TYPES.CLOUD, uiColor: '#E0F7FA', mdi: 'mdi-cloud', bi: 'bi-cloud-fill', emoji: '☁️' },
-                    { name: '虚空', id: TYPES.VOID, uiColor: '#311B92', mdi: 'mdi-black-mesa', bi: 'bi-circle', emoji: '⚫' },
-                    { name: '石油', id: TYPES.OIL, uiColor: '#5D4037', mdi: 'mdi-water-opacity', bi: 'bi-droplet-half', emoji: '🛢️' },
-                    { name: '水银', id: TYPES.MERCURY, uiColor: '#CFD8DC', mdi: 'mdi-thermometer', bi: 'bi-thermometer-half', emoji: '🌡️' },
-                    { name: '铀矿', id: TYPES.URANIUM, uiColor: '#76FF03', mdi: 'mdi-radioactive', bi: 'bi-radioactive', emoji: '☢️' },
-                    { name: '植物', id: TYPES.PLANT, uiColor: '#43A047', mdi: 'mdi-sprout', bi: 'bi-flower1', emoji: '🌱' },
-                    { name: '白蚁', id: TYPES.TERMITE, uiColor: '#D7CCC8', mdi: 'mdi-bug', bi: 'bi-bug-fill', emoji: '🐜' },
-                    { name: '火药', id: TYPES.GUNPOWDER, uiColor: '#616161', mdi: 'mdi-hexagon-slice-6', bi: 'bi-hexagon-fill', emoji: '⚫' },
-                    { name: 'C4',   id: TYPES.C4, uiColor: '#3E2723', mdi: 'mdi-land-mine', bi: 'bi-box', emoji: '🧨' },
-                    { name: '酸液', id: TYPES.ACID, uiColor: '#B2FF59', mdi: 'mdi-bottle-tonic-skull', bi: 'bi-virus', emoji: '🧪' },
-                    { name: '木材', id: TYPES.WOOD, uiColor: '#8D6E63', mdi: 'mdi-tree', bi: 'bi-tree-fill', emoji: '🪵' },
-                    { name: '蒸汽', id: TYPES.STEAM, uiColor: '#CFD8DC', mdi: 'mdi-weather-fog', bi: 'bi-cloud-fill', emoji: '🌫️' },
-                    { name: '冰块', id: TYPES.ICE, uiColor: '#81D4FA', mdi: 'mdi-snowflake', bi: 'bi-snow', emoji: '🧊' },
-                    { name: '液氮', id: TYPES.NITROGEN, uiColor: '#00B0FF', mdi: 'mdi-snowflake-alert', bi: 'bi-thermometer-snow', emoji: '❄️' },
-                    { name: '甲烷', id: TYPES.METHANE, uiColor: '#E040FB', mdi: 'mdi-gas-cylinder', bi: 'bi-cloud-haze2-fill', emoji: '🟣' },
-                    { name: '软蜡', id: TYPES.WAX, uiColor: '#FFF59D', mdi: 'mdi-candle', bi: 'bi-file-fill', emoji: '🕯️' },
-                    { name: '病毒', id: TYPES.VIRUS, uiColor: '#D500F9', mdi: 'mdi-virus', bi: 'bi-bug', emoji: '🦠' },
-                    { name: '食盐', id: TYPES.SALT, uiColor: '#FFFFFF', mdi: 'mdi-shaker', bi: 'bi-dice-5', emoji: '🧂' },
-                    { name: '水泥', id: TYPES.CONCRETE, uiColor: '#757575', mdi: 'mdi-bucket', bi: 'bi-bucket-fill', emoji: '🧱' },
-                    { name: '等离子', id: TYPES.PLASMA, uiColor: '#AA00FF', mdi: 'mdi-blur', bi: 'bi-sun-fill', emoji: '⚛️' },
-                ];
-
-                const shortcutIds = ref([TYPES.SAND, TYPES.WATER, TYPES.STONE, TYPES.FIRE, TYPES.VINE, TYPES.CLONE, TYPES.DRY_ICE, TYPES.EMPTY]);
-                const selectedElementId = ref(TYPES.SAND);
-
-                const shortcutElements = computed(() => {
-                    return shortcutIds.value.map(id => allElements.find(el => el.id === id)).filter(Boolean);
-                });
-
-                const selectFromMore = (el) => {
-                    selectedElementId.value = el.id;
-                    if (!shortcutIds.value.includes(el.id)) {
-                        shortcutIds.value.unshift(el.id);
-                        if (shortcutIds.value.length > 8) shortcutIds.value.pop();
-                    }
-                    showMoreMenu.value = false;
-                };
-
-                const colorMap = {
-                    [TYPES.EMPTY]: [0, 0, 0],
-                    [TYPES.SAND]: [240, 200, 80],
-                    [TYPES.WATER]: [33, 150, 243],
-                    [TYPES.STONE]: [117, 117, 117],
-                    [TYPES.FIRE]: [255, 60, 0],
-                    [TYPES.ACID]: [178, 255, 89],
-                    [TYPES.WOOD]: [121, 85, 72],
-                    [TYPES.OIL]: [50, 30, 10],
-                    [TYPES.PLANT]: [76, 175, 80],
-                    [TYPES.GUNPOWDER]: [60, 60, 60],
-                    [TYPES.STEAM]: [200, 210, 220],
-                    [TYPES.ICE]: [180, 230, 250],
-                    [TYPES.METHANE]: [150, 100, 200],
-                    [TYPES.WAX]: [240, 230, 180],
-                    [TYPES.C4]: [100, 80, 60],
-                    [TYPES.NITROGEN]: [200, 240, 255],
-                    [TYPES.VIRUS]: [200, 0, 200],
-                    [TYPES.TERMITE]: [200, 180, 160],
-                    [TYPES.FUSE]: [50, 100, 50],
-                    [TYPES.THUNDER]: [255, 255, 200],
-                    [TYPES.MERCURY]: [190, 190, 200],
-                    [TYPES.URANIUM]: [100, 255, 100],
-                    [TYPES.SALT]: [250, 250, 250],
-                    [TYPES.CONCRETE]: [120, 120, 120],
-                    [TYPES.PLASMA]: [170, 0, 255],
-                    [TYPES.LAVA]: [255, 87, 34],
-                    [TYPES.CLOUD]: [230, 245, 250],
-                    [TYPES.VOID]: [20, 0, 40],
-                    [TYPES.SOAP]: [235, 200, 235],
-                    [TYPES.BUBBLE]: [255, 200, 220],
-                    [TYPES.LASER]: [255, 0, 0],
-                    [TYPES.FIREWORKS]: [255, 100, 100],
-                    [TYPES.ANTIMATTER]: [20, 20, 20],
-                    [TYPES.VINE]: [56, 142, 60],
-                    [TYPES.CLONE]: [255, 235, 59],
-                    [TYPES.DRY_ICE]: [240, 250, 255]
-                };
-
-                let ctx = null, width = 0, height = 0;
-                let grid = null, pixelData = null; 
-                let isDrawing = false, lastX = -1, lastY = -1;
-                let animationId = null;
-
-                watch(resolutionSetting, () => { initGame(); });
-
-                const initGame = () => {
-                    if(animationId) cancelAnimationFrame(animationId);
-                    const canvas = canvasRef.value;
-                    if(!canvas) return;
-                    const rect = canvas.getBoundingClientRect();
-                    const scale = 12 - resolutionSetting.value;
-                    width = Math.floor(rect.width / scale);
-                    height = Math.floor(rect.height / scale);
-                    canvas.width = width; canvas.height = height;
-                    ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
-                    grid = new Int8Array(width * height).fill(TYPES.EMPTY);
-                    pixelData = ctx.createImageData(width, height);
-                    loop();
-                };
-
-                const getIdx = (x, y) => x + y * width;
-                const isValid = (x, y) => x >= 0 && x < width && y >= 0 && y < height;
-
-                const update = () => {
-                    if (isPaused.value) return;
-                    let activeCount = 0;
-
-                    for (let y = height - 1; y >= 0; y--) {
-                        const startX = Math.random() > 0.5 ? 0 : width - 1;
-                        const step = startX === 0 ? 1 : -1;
+                    const changeIconSource = (val) => {
+                        const selected = iconSources.find(s => s.value === val);
+                        const mdiLink = document.getElementById('icon-css-link');
+                        const bsLink = document.getElementById('bs-css-link');
                         
-                        for (let i = 0; i < width; i++) {
-                            const x = startX + i * step;
-                            const idx = getIdx(x, y);
-                            const type = grid[idx];
+                        if (val === 'emoji') { 
+                            mdiLink.href = ''; bsLink.href = '';
+                        } else if (val === 'bootstrap') {
+                            bsLink.href = selected.url; mdiLink.href = '';
+                        } else {
+                            mdiLink.href = selected.url; bsLink.href = '';
+                        }
+                    };
+
+                    const TYPES = {
+                        EMPTY: 0, SAND: 1, WATER: 2, STONE: 3, FIRE: 4, 
+                        ACID: 5, WOOD: 6, OIL: 7, PLANT: 8, GUNPOWDER: 9, 
+                        STEAM: 10, ICE: 11, METHANE: 12, WAX: 13,
+                        C4: 14, NITROGEN: 15, VIRUS: 16,
+                        TERMITE: 17, FUSE: 18, THUNDER: 19,
+                        MERCURY: 20, URANIUM: 21,
+                        SALT: 22, CONCRETE: 23, PLASMA: 24,
+                        LAVA: 25, CLOUD: 26, VOID: 27,
+                        SOAP: 28, BUBBLE: 29, LASER: 30,
+                        FIREWORKS: 31, ANTIMATTER: 32,
+                        VINE: 33, CLONE: 34, DRY_ICE: 35
+                    };
+
+                    const allElements = [
+                        { name: '橡皮', id: TYPES.EMPTY, uiColor: '#EEEEEE', mdi: 'mdi-eraser', bi: 'bi-eraser-fill', emoji: '⬛' },
+                        { name: '沙土', id: TYPES.SAND, uiColor: '#FBC02D', mdi: 'mdi-grain', bi: 'bi-circle-fill', emoji: '🏜️' },
+                        { name: '水源', id: TYPES.WATER, uiColor: '#29B6F6', mdi: 'mdi-water', bi: 'bi-droplet-fill', emoji: '💧' },
+                        { name: '岩石', id: TYPES.STONE, uiColor: '#90A4AE', mdi: 'mdi-wall', bi: 'bi-bricks', emoji: '🪨' },
+                        { name: '火焰', id: TYPES.FIRE, uiColor: '#FF3D00', mdi: 'mdi-fire', bi: 'bi-fire', emoji: '🔥' },
+                        { name: '雷电', id: TYPES.THUNDER, uiColor: '#FFEB3B', mdi: 'mdi-flash', bi: 'bi-lightning-fill', emoji: '⚡' },
+                        { name: '藤蔓', id: TYPES.VINE, uiColor: '#4CAF50', mdi: 'mdi-barley', bi: 'bi-flower3', emoji: '🌿' },
+                        { name: '克隆', id: TYPES.CLONE, uiColor: '#FFEB3B', mdi: 'mdi-content-copy', bi: 'bi-files', emoji: '👯' },
+                        { name: '干冰', id: TYPES.DRY_ICE, uiColor: '#E0F2F1', mdi: 'mdi-cube-send', bi: 'bi-box-seam', emoji: '🌫️' },
+                        { name: '激光', id: TYPES.LASER, uiColor: '#FF0000', mdi: 'mdi-laser-pointer', bi: 'bi-activity', emoji: '🛑' },
+                        { name: '肥皂', id: TYPES.SOAP, uiColor: '#E1BEE7', mdi: 'mdi-soap', bi: 'bi-square-half', emoji: '🧼' },
+                        { name: '泡沫', id: TYPES.BUBBLE, uiColor: '#F8BBD0', mdi: 'mdi-chart-bubble', bi: 'bi-circle', emoji: '🫧' },
+                        { name: '烟花', id: TYPES.FIREWORKS, uiColor: '#FF4081', mdi: 'mdi-creation', bi: 'bi-stars', emoji: '🎆' },
+                        { name: '反物质', id: TYPES.ANTIMATTER, uiColor: '#000000', mdi: 'mdi-nuke', bi: 'bi-radioactive', emoji: '✴️' },
+                        { name: '岩浆', id: TYPES.LAVA, uiColor: '#FF5722', mdi: 'mdi-volcano', bi: 'bi-fire', emoji: '🌋' },
+                        { name: '云朵', id: TYPES.CLOUD, uiColor: '#E0F7FA', mdi: 'mdi-cloud', bi: 'bi-cloud-fill', emoji: '☁️' },
+                        { name: '虚空', id: TYPES.VOID, uiColor: '#311B92', mdi: 'mdi-black-mesa', bi: 'bi-circle', emoji: '⚫' },
+                        { name: '石油', id: TYPES.OIL, uiColor: '#5D4037', mdi: 'mdi-water-opacity', bi: 'bi-droplet-half', emoji: '🛢️' },
+                        { name: '水银', id: TYPES.MERCURY, uiColor: '#CFD8DC', mdi: 'mdi-thermometer', bi: 'bi-thermometer-half', emoji: '🌡️' },
+                        { name: '铀矿', id: TYPES.URANIUM, uiColor: '#76FF03', mdi: 'mdi-radioactive', bi: 'bi-radioactive', emoji: '☢️' },
+                        { name: '植物', id: TYPES.PLANT, uiColor: '#43A047', mdi: 'mdi-sprout', bi: 'bi-flower1', emoji: '🌱' },
+                        { name: '白蚁', id: TYPES.TERMITE, uiColor: '#D7CCC8', mdi: 'mdi-bug', bi: 'bi-bug-fill', emoji: '🐜' },
+                        { name: '火药', id: TYPES.GUNPOWDER, uiColor: '#616161', mdi: 'mdi-hexagon-slice-6', bi: 'bi-hexagon-fill', emoji: '⚫' },
+                        { name: 'C4',   id: TYPES.C4, uiColor: '#3E2723', mdi: 'mdi-land-mine', bi: 'bi-box', emoji: '🧨' },
+                        { name: '酸液', id: TYPES.ACID, uiColor: '#B2FF59', mdi: 'mdi-bottle-tonic-skull', bi: 'bi-virus', emoji: '🧪' },
+                        { name: '木材', id: TYPES.WOOD, uiColor: '#8D6E63', mdi: 'mdi-tree', bi: 'bi-tree-fill', emoji: '🪵' },
+                        { name: '蒸汽', id: TYPES.STEAM, uiColor: '#CFD8DC', mdi: 'mdi-weather-fog', bi: 'bi-cloud-fill', emoji: '🌫️' },
+                        { name: '冰块', id: TYPES.ICE, uiColor: '#81D4FA', mdi: 'mdi-snowflake', bi: 'bi-snow', emoji: '🧊' },
+                        { name: '液氮', id: TYPES.NITROGEN, uiColor: '#00B0FF', mdi: 'mdi-snowflake-alert', bi: 'bi-thermometer-snow', emoji: '❄️' },
+                        { name: '甲烷', id: TYPES.METHANE, uiColor: '#E040FB', mdi: 'mdi-gas-cylinder', bi: 'bi-cloud-haze2-fill', emoji: '🟣' },
+                        { name: '软蜡', id: TYPES.WAX, uiColor: '#FFF59D', mdi: 'mdi-candle', bi: 'bi-file-fill', emoji: '🕯️' },
+                        { name: '病毒', id: TYPES.VIRUS, uiColor: '#D500F9', mdi: 'mdi-virus', bi: 'bi-bug', emoji: '🦠' },
+                        { name: '食盐', id: TYPES.SALT, uiColor: '#FFFFFF', mdi: 'mdi-shaker', bi: 'bi-dice-5', emoji: '🧂' },
+                        { name: '水泥', id: TYPES.CONCRETE, uiColor: '#757575', mdi: 'mdi-bucket', bi: 'bi-bucket-fill', emoji: '🧱' },
+                        { name: '等离子', id: TYPES.PLASMA, uiColor: '#AA00FF', mdi: 'mdi-blur', bi: 'bi-sun-fill', emoji: '⚛️' },
+                    ];
+
+                    const shortcutIds = ref([TYPES.SAND, TYPES.WATER, TYPES.STONE, TYPES.FIRE, TYPES.VINE, TYPES.CLONE, TYPES.DRY_ICE, TYPES.EMPTY]);
+                    const selectedElementId = ref(TYPES.SAND);
+
+                    const shortcutElements = computed(() => {
+                        return shortcutIds.value.map(id => allElements.find(el => el.id === id)).filter(Boolean);
+                    });
+
+                    const selectFromMore = (el) => {
+                        selectedElementId.value = el.id;
+                        if (!shortcutIds.value.includes(el.id)) {
+                            shortcutIds.value.unshift(el.id);
+                            if (shortcutIds.value.length > 8) shortcutIds.value.pop();
+                        }
+                        showMoreMenu.value = false;
+                    };
+
+                    const colorMap = {
+                        [TYPES.EMPTY]: [0, 0, 0],
+                        [TYPES.SAND]: [240, 200, 80],
+                        [TYPES.WATER]: [33, 150, 243],
+                        [TYPES.STONE]: [117, 117, 117],
+                        [TYPES.FIRE]: [255, 60, 0],
+                        [TYPES.ACID]: [178, 255, 89],
+                        [TYPES.WOOD]: [121, 85, 72],
+                        [TYPES.OIL]: [50, 30, 10],
+                        [TYPES.PLANT]: [76, 175, 80],
+                        [TYPES.GUNPOWDER]: [60, 60, 60],
+                        [TYPES.STEAM]: [200, 210, 220],
+                        [TYPES.ICE]: [180, 230, 250],
+                        [TYPES.METHANE]: [150, 100, 200],
+                        [TYPES.WAX]: [240, 230, 180],
+                        [TYPES.C4]: [100, 80, 60],
+                        [TYPES.NITROGEN]: [200, 240, 255],
+                        [TYPES.VIRUS]: [200, 0, 200],
+                        [TYPES.TERMITE]: [200, 180, 160],
+                        [TYPES.FUSE]: [50, 100, 50],
+                        [TYPES.THUNDER]: [255, 255, 200],
+                        [TYPES.MERCURY]: [190, 190, 200],
+                        [TYPES.URANIUM]: [100, 255, 100],
+                        [TYPES.SALT]: [250, 250, 250],
+                        [TYPES.CONCRETE]: [120, 120, 120],
+                        [TYPES.PLASMA]: [170, 0, 255],
+                        [TYPES.LAVA]: [255, 87, 34],
+                        [TYPES.CLOUD]: [230, 245, 250],
+                        [TYPES.VOID]: [20, 0, 40],
+                        [TYPES.SOAP]: [235, 200, 235],
+                        [TYPES.BUBBLE]: [255, 200, 220],
+                        [TYPES.LASER]: [255, 0, 0],
+                        [TYPES.FIREWORKS]: [255, 100, 100],
+                        [TYPES.ANTIMATTER]: [20, 20, 20],
+                        [TYPES.VINE]: [56, 142, 60],
+                        [TYPES.CLONE]: [255, 235, 59],
+                        [TYPES.DRY_ICE]: [240, 250, 255]
+                    };
+
+                    let ctx = null, width = 0, height = 0;
+                    let grid = null, pixelData = null; 
+                    let isDrawing = false, lastX = -1, lastY = -1;
+                    let animationId = null;
+
+                    watch(resolutionSetting, () => { initGame(); });
+
+                    const initGame = () => {
+                        window.sysLogger('Initializing Physics Engine...', 'info');
+                        if(animationId) cancelAnimationFrame(animationId);
+                        const canvas = canvasRef.value;
+                        if(!canvas) return;
+                        const rect = canvas.getBoundingClientRect();
+                        const scale = 12 - resolutionSetting.value;
+                        width = Math.floor(rect.width / scale);
+                        height = Math.floor(rect.height / scale);
+                        canvas.width = width; canvas.height = height;
+                        ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
+                        grid = new Int8Array(width * height).fill(TYPES.EMPTY);
+                        pixelData = ctx.createImageData(width, height);
+                        loop();
+                        window.sysLogger('Physics Engine Running.', 'success');
+                    };
+
+                    const getIdx = (x, y) => x + y * width;
+                    const isValid = (x, y) => x >= 0 && x < width && y >= 0 && y < height;
+
+                    const update = () => {
+                        if (isPaused.value) return;
+                        let activeCount = 0;
+
+                        for (let y = height - 1; y >= 0; y--) {
+                            const startX = Math.random() > 0.5 ? 0 : width - 1;
+                            const step = startX === 0 ? 1 : -1;
                             
-                            if (type === TYPES.EMPTY || type === TYPES.STONE) continue;
-                            activeCount++;
+                            for (let i = 0; i < width; i++) {
+                                const x = startX + i * step;
+                                const idx = getIdx(x, y);
+                                const type = grid[idx];
+                                
+                                if (type === TYPES.EMPTY || type === TYPES.STONE) continue;
+                                activeCount++;
 
-                            if (type === TYPES.SAND || type === TYPES.GUNPOWDER || type === TYPES.WAX || type === TYPES.C4 || type === TYPES.SALT || type === TYPES.FIREWORKS || type === TYPES.DRY_ICE) updatePowder(x, y, idx, type);
-                            else if (type === TYPES.WATER || type === TYPES.ACID || type === TYPES.OIL || type === TYPES.NITROGEN || type === TYPES.MERCURY || type === TYPES.CONCRETE || type === TYPES.LAVA || type === TYPES.SOAP) updateLiquid(x, y, idx, type);
-                            else if (type === TYPES.FIRE) updateFire(x, y, idx);
-                            else if (type === TYPES.STEAM || type === TYPES.METHANE || type === TYPES.PLASMA || type === TYPES.CLOUD || type === TYPES.BUBBLE) updateGas(x, y, idx, type);
-                            else if (type === TYPES.ICE) updateIce(x, y, idx);
-                            else if (type === TYPES.VIRUS) updateVirus(x, y, idx);
-                            else if (type === TYPES.TERMITE) updateTermite(x, y, idx);
-                            else if (type === TYPES.FUSE) updateFuse(x, y, idx);
-                            else if (type === TYPES.THUNDER) updateThunder(x, y, idx);
-                            else if (type === TYPES.LASER) updateLaser(x, y, idx);
-                            else if (type === TYPES.URANIUM) updateUranium(x, y, idx);
-                            else if (type === TYPES.VOID) updateVoid(x, y, idx);
-                            else if (type === TYPES.ANTIMATTER) updateAntimatter(x, y, idx);
-                            else if (type === TYPES.CLONE) updateClone(x, y, idx);
-                            else if (type === TYPES.VINE) updateVine(x, y, idx);
-                            else if (type === TYPES.PLANT || type === TYPES.WOOD) updateSolid(x, y, idx);
+                                if (type === TYPES.SAND || type === TYPES.GUNPOWDER || type === TYPES.WAX || type === TYPES.C4 || type === TYPES.SALT || type === TYPES.FIREWORKS || type === TYPES.DRY_ICE) updatePowder(x, y, idx, type);
+                                else if (type === TYPES.WATER || type === TYPES.ACID || type === TYPES.OIL || type === TYPES.NITROGEN || type === TYPES.MERCURY || type === TYPES.CONCRETE || type === TYPES.LAVA || type === TYPES.SOAP) updateLiquid(x, y, idx, type);
+                                else if (type === TYPES.FIRE) updateFire(x, y, idx);
+                                else if (type === TYPES.STEAM || type === TYPES.METHANE || type === TYPES.PLASMA || type === TYPES.CLOUD || type === TYPES.BUBBLE) updateGas(x, y, idx, type);
+                                else if (type === TYPES.ICE) updateIce(x, y, idx);
+                                else if (type === TYPES.VIRUS) updateVirus(x, y, idx);
+                                else if (type === TYPES.TERMITE) updateTermite(x, y, idx);
+                                else if (type === TYPES.FUSE) updateFuse(x, y, idx);
+                                else if (type === TYPES.THUNDER) updateThunder(x, y, idx);
+                                else if (type === TYPES.LASER) updateLaser(x, y, idx);
+                                else if (type === TYPES.URANIUM) updateUranium(x, y, idx);
+                                else if (type === TYPES.VOID) updateVoid(x, y, idx);
+                                else if (type === TYPES.ANTIMATTER) updateAntimatter(x, y, idx);
+                                else if (type === TYPES.CLONE) updateClone(x, y, idx);
+                                else if (type === TYPES.VINE) updateVine(x, y, idx);
+                                else if (type === TYPES.PLANT || type === TYPES.WOOD) updateSolid(x, y, idx);
+                            }
                         }
-                    }
-                    particleCount.value = activeCount;
-                };
+                        particleCount.value = activeCount;
+                    };
 
-                // --- 物理行为更新 ---
-                const updateVine = (x, y, idx) => {
-                    if(Math.random() < 0.05) { 
+                    const updateVine = (x, y, idx) => {
+                        if(Math.random() < 0.05) { 
+                            const dir = Math.random() > 0.5 ? 1 : -1;
+                            const targets = [[x, y-1], [x+dir, y], [x-dir, y]];
+                            for(let t of targets) {
+                                if(isValid(t[0], t[1]) && grid[getIdx(t[0], t[1])] === TYPES.EMPTY) {
+                                    grid[getIdx(t[0], t[1])] = TYPES.VINE; return;
+                                }
+                            }
+                        }
+                    };
+
+                    const updateClone = (x, y, idx) => {
+                        const offsets = [[0,1], [0,-1], [1,0], [-1,0]];
+                        for(let o of offsets) {
+                            const nx = x + o[0], ny = y + o[1];
+                            if(isValid(nx, ny)) {
+                                const t = grid[getIdx(nx, ny)];
+                                if(t !== TYPES.EMPTY && t !== TYPES.CLONE && t !== TYPES.STONE) {
+                                    grid[idx] = t; return;
+                                }
+                            }
+                        }
+                    };
+
+                    const updatePowder = (x, y, idx, type) => {
+                        if (y >= height - 1) return;
+                        const belowIdx = getIdx(x, y + 1);
+                        const belowType = grid[belowIdx];
+
+                        if (type === TYPES.DRY_ICE) {
+                            if (Math.random() < 0.01 || belowType === TYPES.WATER) { grid[idx] = TYPES.STEAM; return; }
+                        }
+                        if (type === TYPES.FIREWORKS) {
+                            if (checkAround(x, y, TYPES.FIRE)) { explodeFireworks(x,y); return; }
+                            if (Math.random() < 0.1) {
+                                if (y > 10 && grid[getIdx(x, y-1)] === TYPES.EMPTY) {
+                                    grid[idx] = TYPES.EMPTY; grid[getIdx(x, y-1)] = TYPES.FIREWORKS; return;
+                                } else { explodeFireworks(x, y); return; }
+                            }
+                        }
+                        if (type === TYPES.SALT && belowType === TYPES.WATER) { grid[idx] = TYPES.WATER; grid[belowIdx] = TYPES.WATER; return; }
+                        if (type === TYPES.GUNPOWDER || type === TYPES.C4) {
+                            if (checkAround(x, y, TYPES.FIRE) || checkAround(x, y, TYPES.THUNDER) || checkAround(x, y, TYPES.URANIUM) || checkAround(x,y, TYPES.PLASMA) || checkAround(x,y, TYPES.LAVA) || checkAround(x,y, TYPES.LASER)) {
+                                explode(x, y, type === TYPES.C4 ? 12 : 3); return;
+                            }
+                        }
+                        if (canPass(belowType)) { grid[idx] = (belowType === TYPES.FIRE || belowType === TYPES.LAVA) ? TYPES.EMPTY : belowType; grid[belowIdx] = type; return; }
                         const dir = Math.random() > 0.5 ? 1 : -1;
-                        const targets = [[x, y-1], [x+dir, y], [x-dir, y]];
-                        for(let t of targets) {
-                            if(isValid(t[0], t[1]) && grid[getIdx(t[0], t[1])] === TYPES.EMPTY) {
-                                grid[getIdx(t[0], t[1])] = TYPES.VINE; return;
+                        if (isValid(x + dir, y + 1)) {
+                             const sideIdx = getIdx(x+dir, y+1);
+                             if (canPass(grid[sideIdx])) { grid[idx] = grid[sideIdx]; grid[sideIdx] = type; }
+                        }
+                    };
+
+                    const updateAntimatter = (x, y, idx) => {
+                        const check = [[0,1],[0,-1],[1,0],[-1,0]];
+                        for(let o of check) {
+                            const nx = x+o[0], ny = y+o[1];
+                            if(isValid(nx,ny)) {
+                                const t = grid[getIdx(nx,ny)];
+                                if (t !== TYPES.EMPTY && t !== TYPES.ANTIMATTER) {
+                                    grid[idx] = TYPES.EMPTY; grid[getIdx(nx,ny)] = TYPES.EMPTY;
+                                    if(Math.random() < 0.5) grid[getIdx(nx,ny)] = TYPES.PLASMA;
+                                    return;
+                                }
                             }
                         }
-                    }
-                };
-
-                const updateClone = (x, y, idx) => {
-                    const offsets = [[0,1], [0,-1], [1,0], [-1,0]];
-                    for(let o of offsets) {
-                        const nx = x + o[0], ny = y + o[1];
-                        if(isValid(nx, ny)) {
-                            const t = grid[getIdx(nx, ny)];
-                            if(t !== TYPES.EMPTY && t !== TYPES.CLONE && t !== TYPES.STONE) {
-                                grid[idx] = t; return;
-                            }
+                        if (y < height - 1 && grid[getIdx(x, y+1)] === TYPES.EMPTY) {
+                            grid[idx] = TYPES.EMPTY; grid[getIdx(x, y+1)] = TYPES.ANTIMATTER;
                         }
-                    }
-                };
+                    };
 
-                const updatePowder = (x, y, idx, type) => {
-                    if (y >= height - 1) return;
-                    const belowIdx = getIdx(x, y + 1);
-                    const belowType = grid[belowIdx];
-
-                    if (type === TYPES.DRY_ICE) {
-                        if (Math.random() < 0.01 || belowType === TYPES.WATER) { grid[idx] = TYPES.STEAM; return; }
-                    }
-                    if (type === TYPES.FIREWORKS) {
-                        if (checkAround(x, y, TYPES.FIRE)) { explodeFireworks(x,y); return; }
-                        if (Math.random() < 0.1) {
-                            if (y > 10 && grid[getIdx(x, y-1)] === TYPES.EMPTY) {
-                                grid[idx] = TYPES.EMPTY; grid[getIdx(x, y-1)] = TYPES.FIREWORKS; return;
-                            } else { explodeFireworks(x, y); return; }
+                    const updateLiquid = (x, y, idx, type) => {
+                        if (y >= height - 1) return;
+                        const belowIdx = getIdx(x, y + 1);
+                        const belowType = grid[belowIdx];
+                        if (type === TYPES.LAVA) {
+                            if (belowType === TYPES.WATER) { grid[idx] = TYPES.STONE; grid[belowIdx] = TYPES.STEAM; return; }
+                            if (checkAround(x,y, TYPES.WATER)) { grid[idx] = TYPES.STONE; return; }
+                            if (burnable(belowType)) { grid[belowIdx] = TYPES.FIRE; }
                         }
-                    }
-                    if (type === TYPES.SALT && belowType === TYPES.WATER) { grid[idx] = TYPES.WATER; grid[belowIdx] = TYPES.WATER; return; }
-                    if (type === TYPES.GUNPOWDER || type === TYPES.C4) {
-                        if (checkAround(x, y, TYPES.FIRE) || checkAround(x, y, TYPES.THUNDER) || checkAround(x, y, TYPES.URANIUM) || checkAround(x,y, TYPES.PLASMA) || checkAround(x,y, TYPES.LAVA) || checkAround(x,y, TYPES.LASER)) {
-                            explode(x, y, type === TYPES.C4 ? 12 : 3); return;
+                        if (type === TYPES.SOAP) {
+                            if (belowType === TYPES.WATER) { grid[idx] = TYPES.BUBBLE; grid[belowIdx] = TYPES.BUBBLE; return; }
+                            if (belowType === TYPES.OIL || belowType === TYPES.ACID) { grid[belowIdx] = TYPES.BUBBLE; return; }
                         }
-                    }
-                    if (canPass(belowType)) { grid[idx] = (belowType === TYPES.FIRE || belowType === TYPES.LAVA) ? TYPES.EMPTY : belowType; grid[belowIdx] = type; return; }
-                    const dir = Math.random() > 0.5 ? 1 : -1;
-                    if (isValid(x + dir, y + 1)) {
-                         const sideIdx = getIdx(x+dir, y+1);
-                         if (canPass(grid[sideIdx])) { grid[idx] = grid[sideIdx]; grid[sideIdx] = type; }
-                    }
-                };
-
-                const updateAntimatter = (x, y, idx) => {
-                    const check = [[0,1],[0,-1],[1,0],[-1,0]];
-                    for(let o of check) {
-                        const nx = x+o[0], ny = y+o[1];
-                        if(isValid(nx,ny)) {
-                            const t = grid[getIdx(nx,ny)];
-                            if (t !== TYPES.EMPTY && t !== TYPES.ANTIMATTER) {
-                                grid[idx] = TYPES.EMPTY; grid[getIdx(nx,ny)] = TYPES.EMPTY;
-                                if(Math.random() < 0.5) grid[getIdx(nx,ny)] = TYPES.PLASMA;
-                                return;
-                            }
+                        if (type === TYPES.CONCRETE) { if (Math.random() < 0.005) { grid[idx] = TYPES.STONE; return; } }
+                        if (type === TYPES.NITROGEN) {
+                            if (belowType === TYPES.WATER) { grid[belowIdx] = TYPES.ICE; grid[idx] = TYPES.EMPTY; return; }
+                            if (Math.random() < 0.05) { grid[idx] = TYPES.EMPTY; return; }
                         }
-                    }
-                    if (y < height - 1 && grid[getIdx(x, y+1)] === TYPES.EMPTY) {
-                        grid[idx] = TYPES.EMPTY; grid[getIdx(x, y+1)] = TYPES.ANTIMATTER;
-                    }
-                };
-
-                const updateLiquid = (x, y, idx, type) => {
-                    if (y >= height - 1) return;
-                    const belowIdx = getIdx(x, y + 1);
-                    const belowType = grid[belowIdx];
-                    if (type === TYPES.LAVA) {
-                        if (belowType === TYPES.WATER) { grid[idx] = TYPES.STONE; grid[belowIdx] = TYPES.STEAM; return; }
-                        if (checkAround(x,y, TYPES.WATER)) { grid[idx] = TYPES.STONE; return; }
-                        if (burnable(belowType)) { grid[belowIdx] = TYPES.FIRE; }
-                    }
-                    if (type === TYPES.SOAP) {
-                        if (belowType === TYPES.WATER) { grid[idx] = TYPES.BUBBLE; grid[belowIdx] = TYPES.BUBBLE; return; }
-                        if (belowType === TYPES.OIL || belowType === TYPES.ACID) { grid[belowIdx] = TYPES.BUBBLE; return; }
-                    }
-                    if (type === TYPES.CONCRETE) { if (Math.random() < 0.005) { grid[idx] = TYPES.STONE; return; } }
-                    if (type === TYPES.NITROGEN) {
-                        if (belowType === TYPES.WATER) { grid[belowIdx] = TYPES.ICE; grid[idx] = TYPES.EMPTY; return; }
-                        if (Math.random() < 0.05) { grid[idx] = TYPES.EMPTY; return; }
-                    }
-                    if (canPass(belowType)) { grid[idx] = belowType; grid[belowIdx] = type; return; }
-                    
-                    if (type === TYPES.MERCURY && (belowType === TYPES.WATER || belowType === TYPES.ACID || belowType === TYPES.OIL || belowType === TYPES.CONCRETE || belowType === TYPES.LAVA || belowType === TYPES.SOAP)) {
-                        grid[idx] = belowType; grid[belowIdx] = TYPES.MERCURY; return;
-                    }
-                    else if (type === TYPES.CONCRETE && (belowType === TYPES.WATER || belowType === TYPES.ACID || belowType === TYPES.OIL || belowType === TYPES.LAVA)) {
-                         grid[idx] = belowType; grid[belowIdx] = TYPES.CONCRETE; return;
-                    }
-                    else if ((type === TYPES.WATER || type === TYPES.ACID || type === TYPES.SOAP) && belowType === TYPES.OIL) {
-                         grid[idx] = TYPES.OIL; grid[belowIdx] = type; return;
-                    }
-                    const dir = Math.random() > 0.5 ? 1 : -1;
-                    if (type === TYPES.CONCRETE && Math.random() < 0.7) return; 
-                    if (isValid(x+dir, y) && canPass(grid[getIdx(x+dir, y)])) {
-                        grid[idx] = grid[getIdx(x+dir, y)]; grid[getIdx(x+dir, y)] = type;
-                    }
-                };
-
-                const updateGas = (x, y, idx, type) => {
-                    if (y <= 0) { grid[idx] = TYPES.EMPTY; return; }
-                    if (Math.random() < 0.6) return; 
-                    const upIdx = getIdx(x, y - 1);
-                    const upType = grid[upIdx];
-                    if (type === TYPES.BUBBLE && Math.random() < 0.05) { grid[idx] = TYPES.EMPTY; return; }
-                    if (type === TYPES.CLOUD && Math.random() < 0.01 && isValid(x, y+1) && grid[getIdx(x, y+1)] === TYPES.EMPTY) { grid[getIdx(x, y+1)] = TYPES.WATER; }
-                    if (type === TYPES.PLASMA && upType !== TYPES.EMPTY && upType !== TYPES.PLASMA && upType !== TYPES.VOID) {
-                         if(Math.random()<0.5) grid[upIdx] = TYPES.FIRE; else grid[upIdx] = TYPES.EMPTY;
-                    }
-                    if (type === TYPES.METHANE && (checkAround(x,y, TYPES.FIRE) || checkAround(x,y, TYPES.THUNDER) || checkAround(x,y, TYPES.PLASMA) || checkAround(x,y, TYPES.LAVA) || checkAround(x,y, TYPES.LASER))) { explode(x,y, 4); return; }
-                    if (upType === TYPES.EMPTY || upType === TYPES.WATER || upType === TYPES.OIL) {
-                        grid[idx] = upType; grid[upIdx] = type; return;
-                    }
-                    if (Math.random() < 0.5) {
+                        if (canPass(belowType)) { grid[idx] = belowType; grid[belowIdx] = type; return; }
+                        
+                        if (type === TYPES.MERCURY && (belowType === TYPES.WATER || belowType === TYPES.ACID || belowType === TYPES.OIL || belowType === TYPES.CONCRETE || belowType === TYPES.LAVA || belowType === TYPES.SOAP)) {
+                            grid[idx] = belowType; grid[belowIdx] = TYPES.MERCURY; return;
+                        }
+                        else if (type === TYPES.CONCRETE && (belowType === TYPES.WATER || belowType === TYPES.ACID || belowType === TYPES.OIL || belowType === TYPES.LAVA)) {
+                             grid[idx] = belowType; grid[belowIdx] = TYPES.CONCRETE; return;
+                        }
+                        else if ((type === TYPES.WATER || type === TYPES.ACID || type === TYPES.SOAP) && belowType === TYPES.OIL) {
+                             grid[idx] = TYPES.OIL; grid[belowIdx] = type; return;
+                        }
                         const dir = Math.random() > 0.5 ? 1 : -1;
-                        if (isValid(x+dir, y-1) && grid[getIdx(x+dir, y-1)] === TYPES.EMPTY) {
-                             grid[idx] = TYPES.EMPTY; grid[getIdx(x+dir, y-1)] = type;
+                        if (type === TYPES.CONCRETE && Math.random() < 0.7) return; 
+                        if (isValid(x+dir, y) && canPass(grid[getIdx(x+dir, y)])) {
+                            grid[idx] = grid[getIdx(x+dir, y)]; grid[getIdx(x+dir, y)] = type;
                         }
-                    }
-                };
+                    };
 
-                const updateVoid = (x, y, idx) => {
-                    const check = [[0,1],[0,-1],[1,0],[-1,0]];
-                    for(let o of check) {
-                        const nx = x+o[0], ny = y+o[1];
-                        if(isValid(nx,ny) && grid[getIdx(nx,ny)] !== TYPES.EMPTY && grid[getIdx(nx,ny)] !== TYPES.VOID) {
-                            grid[getIdx(nx,ny)] = TYPES.EMPTY;
-                        }
-                    }
-                };
-
-                const updateFire = (x, y, idx) => {
-                    if (Math.random() < 0.2) { grid[idx] = TYPES.EMPTY; return; } 
-                    if (y > 0) {
+                    const updateGas = (x, y, idx, type) => {
+                        if (y <= 0) { grid[idx] = TYPES.EMPTY; return; }
+                        if (Math.random() < 0.6) return; 
                         const upIdx = getIdx(x, y - 1);
                         const upType = grid[upIdx];
-                        if (upType === TYPES.EMPTY) {
-                            if (Math.random() < 0.3) grid[upIdx] = Math.random() < 0.3 ? TYPES.STEAM : TYPES.FIRE;
+                        if (type === TYPES.BUBBLE && Math.random() < 0.05) { grid[idx] = TYPES.EMPTY; return; }
+                        if (type === TYPES.CLOUD && Math.random() < 0.01 && isValid(x, y+1) && grid[getIdx(x, y+1)] === TYPES.EMPTY) { grid[getIdx(x, y+1)] = TYPES.WATER; }
+                        if (type === TYPES.PLASMA && upType !== TYPES.EMPTY && upType !== TYPES.PLASMA && upType !== TYPES.VOID) {
+                             if(Math.random()<0.5) grid[upIdx] = TYPES.FIRE; else grid[upIdx] = TYPES.EMPTY;
                         }
-                        else if (burnable(upType)) grid[upIdx] = TYPES.FIRE;
-                        else if (upType === TYPES.WATER || upType === TYPES.ICE) { grid[idx] = TYPES.EMPTY; grid[upIdx] = TYPES.STEAM; }
-                    }
-                    if(Math.random()<0.1) {
+                        if (type === TYPES.METHANE && (checkAround(x,y, TYPES.FIRE) || checkAround(x,y, TYPES.THUNDER) || checkAround(x,y, TYPES.PLASMA) || checkAround(x,y, TYPES.LAVA) || checkAround(x,y, TYPES.LASER))) { explode(x,y, 4); return; }
+                        if (upType === TYPES.EMPTY || upType === TYPES.WATER || upType === TYPES.OIL) {
+                            grid[idx] = upType; grid[upIdx] = type; return;
+                        }
+                        if (Math.random() < 0.5) {
+                            const dir = Math.random() > 0.5 ? 1 : -1;
+                            if (isValid(x+dir, y-1) && grid[getIdx(x+dir, y-1)] === TYPES.EMPTY) {
+                                 grid[idx] = TYPES.EMPTY; grid[getIdx(x+dir, y-1)] = type;
+                            }
+                        }
+                    };
+
+                    const updateVoid = (x, y, idx) => {
+                        const check = [[0,1],[0,-1],[1,0],[-1,0]];
+                        for(let o of check) {
+                            const nx = x+o[0], ny = y+o[1];
+                            if(isValid(nx,ny) && grid[getIdx(nx,ny)] !== TYPES.EMPTY && grid[getIdx(nx,ny)] !== TYPES.VOID) {
+                                grid[getIdx(nx,ny)] = TYPES.EMPTY;
+                            }
+                        }
+                    };
+
+                    const updateFire = (x, y, idx) => {
+                        if (Math.random() < 0.2) { grid[idx] = TYPES.EMPTY; return; } 
+                        if (y > 0) {
+                            const upIdx = getIdx(x, y - 1);
+                            const upType = grid[upIdx];
+                            if (upType === TYPES.EMPTY) {
+                                if (Math.random() < 0.3) grid[upIdx] = Math.random() < 0.3 ? TYPES.STEAM : TYPES.FIRE;
+                            }
+                            else if (burnable(upType)) grid[upIdx] = TYPES.FIRE;
+                            else if (upType === TYPES.WATER || upType === TYPES.ICE) { grid[idx] = TYPES.EMPTY; grid[upIdx] = TYPES.STEAM; }
+                        }
+                        if(Math.random()<0.1) {
+                            const dir = Math.random()>0.5?1:-1;
+                            if(isValid(x+dir, y) && burnable(grid[getIdx(x+dir, y)])) grid[getIdx(x+dir, y)] = TYPES.FIRE;
+                        }
+                    };
+
+                    const updateUranium = (x, y, idx) => {
+                        if(Math.random() < 0.05) {
+                            const offsets = [[0,1],[0,-1],[1,0],[-1,0]];
+                            const o = offsets[Math.floor(Math.random()*4)];
+                            const nx=x+o[0], ny=y+o[1];
+                            if(isValid(nx,ny)) {
+                                const t = grid[getIdx(nx,ny)];
+                                if(t === TYPES.WATER) grid[getIdx(nx,ny)] = TYPES.STEAM;
+                                else if(burnable(t)) grid[getIdx(nx,ny)] = TYPES.FIRE;
+                                else if(t === TYPES.EMPTY && Math.random()<0.05) grid[getIdx(nx,ny)] = TYPES.FIRE; 
+                            }
+                        }
+                    };
+
+                    const updateTermite = (x, y, idx) => {
                         const dir = Math.random()>0.5?1:-1;
-                        if(isValid(x+dir, y) && burnable(grid[getIdx(x+dir, y)])) grid[getIdx(x+dir, y)] = TYPES.FIRE;
-                    }
-                };
-
-                const updateUranium = (x, y, idx) => {
-                    if(Math.random() < 0.05) {
-                        const offsets = [[0,1],[0,-1],[1,0],[-1,0]];
-                        const o = offsets[Math.floor(Math.random()*4)];
-                        const nx=x+o[0], ny=y+o[1];
-                        if(isValid(nx,ny)) {
-                            const t = grid[getIdx(nx,ny)];
-                            if(t === TYPES.WATER) grid[getIdx(nx,ny)] = TYPES.STEAM;
-                            else if(burnable(t)) grid[getIdx(nx,ny)] = TYPES.FIRE;
-                            else if(t === TYPES.EMPTY && Math.random()<0.05) grid[getIdx(nx,ny)] = TYPES.FIRE; 
+                        if(isValid(x+dir, y) && grid[getIdx(x+dir,y)] === TYPES.EMPTY) {
+                            grid[idx] = TYPES.EMPTY; grid[getIdx(x+dir,y)] = TYPES.TERMITE;
+                        } else if (isValid(x+dir, y+1) && grid[getIdx(x+dir,y+1)] === TYPES.EMPTY) {
+                            grid[idx] = TYPES.EMPTY; grid[getIdx(x+dir,y+1)] = TYPES.TERMITE;
                         }
-                    }
-                };
-
-                const updateTermite = (x, y, idx) => {
-                    const dir = Math.random()>0.5?1:-1;
-                    if(isValid(x+dir, y) && grid[getIdx(x+dir,y)] === TYPES.EMPTY) {
-                        grid[idx] = TYPES.EMPTY; grid[getIdx(x+dir,y)] = TYPES.TERMITE;
-                    } else if (isValid(x+dir, y+1) && grid[getIdx(x+dir,y+1)] === TYPES.EMPTY) {
-                        grid[idx] = TYPES.EMPTY; grid[getIdx(x+dir,y+1)] = TYPES.TERMITE;
-                    }
-                    const check = [[0,1],[0,-1],[1,0],[-1,0]];
-                    for(let o of check) {
-                        const nx = x+o[0], ny = y+o[1];
-                        if(isValid(nx,ny) && (grid[getIdx(nx,ny)] === TYPES.WOOD || grid[getIdx(nx,ny)] === TYPES.PLANT)) {
-                            grid[getIdx(nx,ny)] = TYPES.EMPTY; 
-                            if(Math.random()<0.05) grid[idx] = TYPES.EMPTY; 
+                        const check = [[0,1],[0,-1],[1,0],[-1,0]];
+                        for(let o of check) {
+                            const nx = x+o[0], ny = y+o[1];
+                            if(isValid(nx,ny) && (grid[getIdx(nx,ny)] === TYPES.WOOD || grid[getIdx(nx,ny)] === TYPES.PLANT)) {
+                                grid[getIdx(nx,ny)] = TYPES.EMPTY; 
+                                if(Math.random()<0.05) grid[idx] = TYPES.EMPTY; 
+                            }
                         }
-                    }
-                };
+                    };
 
-                const updateFuse = (x, y, idx) => {
-                    if (Math.random() < 0.05 && (checkAround(x,y, TYPES.FIRE) || checkAround(x,y, TYPES.THUNDER) || checkAround(x,y, TYPES.LAVA) || checkAround(x,y, TYPES.LASER))) {
-                        grid[idx] = TYPES.FIRE;
-                    }
-                };
-
-                const updateThunder = (x, y, idx) => {
-                    grid[idx] = TYPES.EMPTY; 
-                    let ty = y + 1;
-                    while(ty < height) {
-                        const tidx = getIdx(x, ty);
-                        const t = grid[tidx];
-                        if (t !== TYPES.EMPTY && t !== TYPES.FIRE) {
-                            if(burnable(t)) grid[tidx] = TYPES.FIRE;
-                            else if(t === TYPES.STONE) grid[tidx] = TYPES.SAND; 
-                            else if(t === TYPES.SAND) grid[tidx] = TYPES.STEAM; 
-                            explode(x, ty, 2);
-                            return;
+                    const updateFuse = (x, y, idx) => {
+                        if (Math.random() < 0.05 && (checkAround(x,y, TYPES.FIRE) || checkAround(x,y, TYPES.THUNDER) || checkAround(x,y, TYPES.LAVA) || checkAround(x,y, TYPES.LASER))) {
+                            grid[idx] = TYPES.FIRE;
                         }
-                        grid[tidx] = TYPES.FIRE; 
-                        ty++;
-                    }
-                };
+                    };
 
-                const updateLaser = (x, y, idx) => {
-                    grid[idx] = TYPES.EMPTY; 
-                    if(Math.random()<0.3) { 
-                         let ty = y + 1;
-                         while(ty < height) {
+                    const updateThunder = (x, y, idx) => {
+                        grid[idx] = TYPES.EMPTY; 
+                        let ty = y + 1;
+                        while(ty < height) {
                             const tidx = getIdx(x, ty);
                             const t = grid[tidx];
-                            if (t !== TYPES.EMPTY && t !== TYPES.LASER) {
-                                grid[tidx] = TYPES.FIRE; return;
+                            if (t !== TYPES.EMPTY && t !== TYPES.FIRE) {
+                                if(burnable(t)) grid[tidx] = TYPES.FIRE;
+                                else if(t === TYPES.STONE) grid[tidx] = TYPES.SAND; 
+                                else if(t === TYPES.SAND) grid[tidx] = TYPES.STEAM; 
+                                explode(x, ty, 2);
+                                return;
                             }
-                            grid[tidx] = TYPES.LASER;
+                            grid[tidx] = TYPES.FIRE; 
                             ty++;
-                         }
-                    }
-                };
-
-                const updateVirus = (x, y, idx) => {
-                    const check = [[0,1],[0,-1],[1,0],[-1,0]];
-                    let hasFood = false;
-                    for(let o of check) {
-                        const nx = x+o[0], ny = y+o[1];
-                        if(isValid(nx, ny)) {
-                            const t = grid[getIdx(nx, ny)];
-                            if (t === TYPES.PLANT || t === TYPES.WOOD || t === TYPES.WAX) {
-                                grid[getIdx(nx, ny)] = TYPES.VIRUS; hasFood = true;
-                            }
                         }
-                    }
-                    if(!hasFood && Math.random() < 0.05) grid[idx] = TYPES.EMPTY;
-                };
-                
-                const updateIce = (x, y, idx) => {
-                    if (checkAround(x, y, TYPES.FIRE) || checkAround(x, y, TYPES.LAVA)) grid[idx] = TYPES.WATER;
-                    else if (Math.random() < 0.001) grid[idx] = TYPES.WATER; 
-                };
-                
-                const updateSolid = (x, y, idx) => {
-                    if (grid[idx] === TYPES.PLANT && Math.random() < 0.005) {
-                        if (y > 0 && grid[getIdx(x, y-1)] === TYPES.EMPTY) grid[getIdx(x, y-1)] = TYPES.PLANT;
-                    }
-                };
+                    };
 
-                const canPass = (t) => t === TYPES.EMPTY || t === TYPES.FIRE || t === TYPES.STEAM || t === TYPES.METHANE || t === TYPES.PLASMA || t === TYPES.CLOUD || t === TYPES.BUBBLE || t === TYPES.LASER;
-                const burnable = (t) => [TYPES.WOOD, TYPES.PLANT, TYPES.OIL, TYPES.GUNPOWDER, TYPES.METHANE, TYPES.WAX, TYPES.C4, TYPES.VIRUS, TYPES.TERMITE, TYPES.FUSE, TYPES.SOAP, TYPES.VINE].includes(t);
-                
-                const checkAround = (x, y, target) => {
-                    const offsets = [[0,1], [0,-1], [1,0], [-1,0]];
-                    for(let o of offsets) if(isValid(x+o[0], y+o[1]) && grid[getIdx(x+o[0], y+o[1])] === target) return true;
-                    return false;
-                };
+                    const updateLaser = (x, y, idx) => {
+                        grid[idx] = TYPES.EMPTY; 
+                        if(Math.random()<0.3) { 
+                             let ty = y + 1;
+                             while(ty < height) {
+                                const tidx = getIdx(x, ty);
+                                const t = grid[tidx];
+                                if (t !== TYPES.EMPTY && t !== TYPES.LASER) {
+                                    grid[tidx] = TYPES.FIRE; return;
+                                }
+                                grid[tidx] = TYPES.LASER;
+                                ty++;
+                             }
+                        }
+                    };
 
-                const explode = (cx, cy, radius) => {
-                    grid[getIdx(cx, cy)] = TYPES.FIRE;
-                    for(let dy=-radius; dy<=radius; dy++){
-                        for(let dx=-radius; dx<=radius; dx++){
-                            if(dx*dx+dy*dy <= radius*radius){
-                                const nx = cx+dx, ny = cy+dy;
-                                if(isValid(nx, ny)){
-                                    if(Math.random() < 0.8) grid[getIdx(nx, ny)] = TYPES.FIRE;
-                                    else grid[getIdx(nx, ny)] = TYPES.EMPTY;
+                    const updateVirus = (x, y, idx) => {
+                        const check = [[0,1],[0,-1],[1,0],[-1,0]];
+                        let hasFood = false;
+                        for(let o of check) {
+                            const nx = x+o[0], ny = y+o[1];
+                            if(isValid(nx, ny)) {
+                                const t = grid[getIdx(nx, ny)];
+                                if (t === TYPES.PLANT || t === TYPES.WOOD || t === TYPES.WAX) {
+                                    grid[getIdx(nx, ny)] = TYPES.VIRUS; hasFood = true;
                                 }
                             }
                         }
-                    }
-                };
-                
-                const explodeFireworks = (cx, cy) => {
-                    grid[getIdx(cx, cy)] = TYPES.EMPTY;
-                    const r = 8;
-                    for(let dy=-r; dy<=r; dy++){
-                        for(let dx=-r; dx<=r; dx++){
-                            if(dx*dx+dy*dy <= r*r){
-                                const nx = cx+dx, ny = cy+dy;
-                                if(isValid(nx, ny) && Math.random()<0.3){
-                                    grid[getIdx(nx, ny)] = Math.random()>0.5 ? TYPES.FIRE : TYPES.PLASMA;
-                                }
-                            }
+                        if(!hasFood && Math.random() < 0.05) grid[idx] = TYPES.EMPTY;
+                    };
+                    
+                    const updateIce = (x, y, idx) => {
+                        if (checkAround(x, y, TYPES.FIRE) || checkAround(x, y, TYPES.LAVA)) grid[idx] = TYPES.WATER;
+                        else if (Math.random() < 0.001) grid[idx] = TYPES.WATER; 
+                    };
+                    
+                    const updateSolid = (x, y, idx) => {
+                        if (grid[idx] === TYPES.PLANT && Math.random() < 0.005) {
+                            if (y > 0 && grid[getIdx(x, y-1)] === TYPES.EMPTY) grid[getIdx(x, y-1)] = TYPES.PLANT;
                         }
-                    }
-                };
+                    };
 
-                const draw = () => {
-                    const data = pixelData.data;
-                    for (let i = 0; i < grid.length; i++) {
-                        const type = grid[i];
-                        const col = colorMap[type];
-                        const offset = i * 4;
-                        let noise = (type !== TYPES.EMPTY) ? (Math.random() - 0.5) * 15 : 0;
-                        if(type===TYPES.FIRE || type===TYPES.URANIUM || type===TYPES.PLASMA || type===TYPES.LAVA || type===TYPES.LASER || type===TYPES.FIREWORKS) noise*=3;
-                        data[offset] = Math.min(255, Math.max(0, col[0] + noise));
-                        data[offset + 1] = Math.min(255, Math.max(0, col[1] + noise));
-                        data[offset + 2] = Math.min(255, Math.max(0, col[2] + noise));
-                        data[offset + 3] = 255;
-                    }
-                    ctx.putImageData(pixelData, 0, 0);
-                };
+                    const canPass = (t) => t === TYPES.EMPTY || t === TYPES.FIRE || t === TYPES.STEAM || t === TYPES.METHANE || t === TYPES.PLASMA || t === TYPES.CLOUD || t === TYPES.BUBBLE || t === TYPES.LASER;
+                    const burnable = (t) => [TYPES.WOOD, TYPES.PLANT, TYPES.OIL, TYPES.GUNPOWDER, TYPES.METHANE, TYPES.WAX, TYPES.C4, TYPES.VIRUS, TYPES.TERMITE, TYPES.FUSE, TYPES.SOAP, TYPES.VINE].includes(t);
+                    
+                    const checkAround = (x, y, target) => {
+                        const offsets = [[0,1], [0,-1], [1,0], [-1,0]];
+                        for(let o of offsets) if(isValid(x+o[0], y+o[1]) && grid[getIdx(x+o[0], y+o[1])] === target) return true;
+                        return false;
+                    };
 
-                let lastTime=0, frameCount=0, lastFpsTime=0;
-                const loop = (t) => {
-                    if(!lastTime) lastTime=t;
-                    update(); draw();
-                    frameCount++;
-                    if(t - lastFpsTime >= 1000) { fps.value = frameCount; frameCount=0; lastFpsTime=t; }
-                    animationId = requestAnimationFrame(loop);
-                };
-
-                const getCanvasCoords = (e) => {
-                    const rect = canvasRef.value.getBoundingClientRect();
-                    const scale = 12 - resolutionSetting.value;
-                    const cx = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
-                    const cy = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
-                    return { x: Math.floor((cx - rect.left)/scale), y: Math.floor((cy - rect.top)/scale) };
-                };
-
-                const placeElement = (cx, cy) => {
-                    const size = Math.floor(brushSize.value);
-                    const shape = brushShape.value;
-                    const elementId = selectedElementId.value;
-                    const r = Math.floor(size / 2);
-                    for (let dy = -r; dy <= r; dy++) {
-                        for (let dx = -r; dx <= r; dx++) {
-                            const nx = cx + dx, ny = cy + dy;
-                            if (isValid(nx, ny)) {
-                                if (shape === 'square' || (dx*dx + dy*dy <= r*r)) {
-                                    const cur = grid[getIdx(nx, ny)];
-                                    if (elementId === TYPES.EMPTY || cur === TYPES.EMPTY || [TYPES.WATER, TYPES.OIL, TYPES.STEAM, TYPES.METHANE, TYPES.FIRE, TYPES.ACID, TYPES.VIRUS, TYPES.TERMITE, TYPES.MERCURY, TYPES.PLASMA, TYPES.LAVA, TYPES.CLOUD, TYPES.SOAP, TYPES.BUBBLE, TYPES.LASER, TYPES.FIREWORKS, TYPES.ANTIMATTER, TYPES.VINE, TYPES.CLONE, TYPES.DRY_ICE].includes(cur)) {
-                                        grid[getIdx(nx, ny)] = elementId;
+                    const explode = (cx, cy, radius) => {
+                        grid[getIdx(cx, cy)] = TYPES.FIRE;
+                        for(let dy=-radius; dy<=radius; dy++){
+                            for(let dx=-radius; dx<=radius; dx++){
+                                if(dx*dx+dy*dy <= radius*radius){
+                                    const nx = cx+dx, ny = cy+dy;
+                                    if(isValid(nx, ny)){
+                                        if(Math.random() < 0.8) grid[getIdx(nx, ny)] = TYPES.FIRE;
+                                        else grid[getIdx(nx, ny)] = TYPES.EMPTY;
                                     }
                                 }
                             }
                         }
-                    }
-                };
-
-                const drawLine = (x0, y0, x1, y1) => {
-                    const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
-                    const sx = (x0 < x1) ? 1 : -1, sy = (y0 < y1) ? 1 : -1;
-                    let err = dx - dy;
-                    while(true) {
-                        placeElement(x0, y0);
-                        if (x0 === x1 && y0 === y1) break;
-                        const e2 = 2 * err;
-                        if (e2 > -dy) { err -= dy; x0 += sx; }
-                        if (e2 < dx) { err += dx; y0 += sy; }
-                    }
-                };
-
-                const handleStart = (e) => { isDrawing=true; const {x,y}=getCanvasCoords(e); lastX=x; lastY=y; placeElement(x,y); };
-                const handleMove = (e) => { if(!isDrawing)return; const {x,y}=getCanvasCoords(e); drawLine(lastX,lastY,x,y); lastX=x; lastY=y; };
-                const handleEnd = () => { isDrawing=false; lastX=-1; lastY=-1; };
-
-                onMounted(async () => {
-                    await nextTick();
-                    setTimeout(() => {}, 800);
-                    setTimeout(() => { initGame(); }, 1600);
-                    setTimeout(() => {
-                        const loader = document.getElementById('loading-screen');
-                        if(loader) {
-                            loader.style.opacity = '0';
-                            setTimeout(() => loader.remove(), 600);
-                        }
-                    }, 2400);
-
-                    const c = canvasRef.value;
-                    c.addEventListener('mousedown', handleStart); window.addEventListener('mousemove', handleMove); window.addEventListener('mouseup', handleEnd);
-                    c.addEventListener('touchstart', (e)=>{e.preventDefault(); handleStart(e)}, {passive:false});
-                    c.addEventListener('touchmove', (e)=>{e.preventDefault(); handleMove(e)}, {passive:false});
-                    c.addEventListener('touchend', handleEnd);
+                    };
                     
-                    let resizeTimeout;
-                    window.addEventListener('resize', () => {
-                        clearTimeout(resizeTimeout);
-                        resizeTimeout = setTimeout(() => initGame(), 300);
+                    const explodeFireworks = (cx, cy) => {
+                        grid[getIdx(cx, cy)] = TYPES.EMPTY;
+                        const r = 8;
+                        for(let dy=-r; dy<=r; dy++){
+                            for(let dx=-r; dx<=r; dx++){
+                                if(dx*dx+dy*dy <= r*r){
+                                    const nx = cx+dx, ny = cy+dy;
+                                    if(isValid(nx, ny) && Math.random()<0.3){
+                                        grid[getIdx(nx, ny)] = Math.random()>0.5 ? TYPES.FIRE : TYPES.PLASMA;
+                                    }
+                                }
+                            }
+                        }
+                    };
+
+                    const draw = () => {
+                        const data = pixelData.data;
+                        for (let i = 0; i < grid.length; i++) {
+                            const type = grid[i];
+                            const col = colorMap[type];
+                            const offset = i * 4;
+                            let noise = (type !== TYPES.EMPTY) ? (Math.random() - 0.5) * 15 : 0;
+                            if(type===TYPES.FIRE || type===TYPES.URANIUM || type===TYPES.PLASMA || type===TYPES.LAVA || type===TYPES.LASER || type===TYPES.FIREWORKS) noise*=3;
+                            data[offset] = Math.min(255, Math.max(0, col[0] + noise));
+                            data[offset + 1] = Math.min(255, Math.max(0, col[1] + noise));
+                            data[offset + 2] = Math.min(255, Math.max(0, col[2] + noise));
+                            data[offset + 3] = 255;
+                        }
+                        ctx.putImageData(pixelData, 0, 0);
+                    };
+
+                    let lastTime=0, frameCount=0, lastFpsTime=0;
+                    const loop = (t) => {
+                        if(!lastTime) lastTime=t;
+                        update(); draw();
+                        frameCount++;
+                        if(t - lastFpsTime >= 1000) { fps.value = frameCount; frameCount=0; lastFpsTime=t; }
+                        animationId = requestAnimationFrame(loop);
+                    };
+
+                    const getCanvasCoords = (e) => {
+                        const rect = canvasRef.value.getBoundingClientRect();
+                        const scale = 12 - resolutionSetting.value;
+                        const cx = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+                        const cy = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+                        return { x: Math.floor((cx - rect.left)/scale), y: Math.floor((cy - rect.top)/scale) };
+                    };
+
+                    const placeElement = (cx, cy) => {
+                        const size = Math.floor(brushSize.value);
+                        const shape = brushShape.value;
+                        const elementId = selectedElementId.value;
+                        const r = Math.floor(size / 2);
+                        for (let dy = -r; dy <= r; dy++) {
+                            for (let dx = -r; dx <= r; dx++) {
+                                const nx = cx + dx, ny = cy + dy;
+                                if (isValid(nx, ny)) {
+                                    if (shape === 'square' || (dx*dx + dy*dy <= r*r)) {
+                                        const cur = grid[getIdx(nx, ny)];
+                                        if (elementId === TYPES.EMPTY || cur === TYPES.EMPTY || [TYPES.WATER, TYPES.OIL, TYPES.STEAM, TYPES.METHANE, TYPES.FIRE, TYPES.ACID, TYPES.VIRUS, TYPES.TERMITE, TYPES.MERCURY, TYPES.PLASMA, TYPES.LAVA, TYPES.CLOUD, TYPES.SOAP, TYPES.BUBBLE, TYPES.LASER, TYPES.FIREWORKS, TYPES.ANTIMATTER, TYPES.VINE, TYPES.CLONE, TYPES.DRY_ICE].includes(cur)) {
+                                            grid[getIdx(nx, ny)] = elementId;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    };
+
+                    const drawLine = (x0, y0, x1, y1) => {
+                        const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+                        const sx = (x0 < x1) ? 1 : -1, sy = (y0 < y1) ? 1 : -1;
+                        let err = dx - dy;
+                        while(true) {
+                            placeElement(x0, y0);
+                            if (x0 === x1 && y0 === y1) break;
+                            const e2 = 2 * err;
+                            if (e2 > -dy) { err -= dy; x0 += sx; }
+                            if (e2 < dx) { err += dx; y0 += sy; }
+                        }
+                    };
+
+                    const handleStart = (e) => { isDrawing=true; const {x,y}=getCanvasCoords(e); lastX=x; lastY=y; placeElement(x,y); };
+                    const handleMove = (e) => { if(!isDrawing)return; const {x,y}=getCanvasCoords(e); drawLine(lastX,lastY,x,y); lastX=x; lastY=y; };
+                    const handleEnd = () => { isDrawing=false; lastX=-1; lastY=-1; };
+
+                    onMounted(async () => {
+                        window.sysLogger('Vue Component Mounted.', 'success');
+                        await nextTick();
+                        
+                        setTimeout(() => { 
+                            initGame(); 
+                        }, 1600);
+                        
+                        setTimeout(() => {
+                            const loader = document.getElementById('loading-screen');
+                            if(loader) {
+                                loader.style.opacity = '0';
+                                setTimeout(() => loader.remove(), 600);
+                            }
+                            window.sysLogger('Loading Screen Removed.', 'success');
+                        }, 2400);
+
+                        const c = canvasRef.value;
+                        c.addEventListener('mousedown', handleStart); window.addEventListener('mousemove', handleMove); window.addEventListener('mouseup', handleEnd);
+                        c.addEventListener('touchstart', (e)=>{e.preventDefault(); handleStart(e)}, {passive:false});
+                        c.addEventListener('touchmove', (e)=>{e.preventDefault(); handleMove(e)}, {passive:false});
+                        c.addEventListener('touchend', handleEnd);
+                        
+                        let resizeTimeout;
+                        window.addEventListener('resize', () => {
+                            clearTimeout(resizeTimeout);
+                            resizeTimeout = setTimeout(() => initGame(), 300);
+                        });
                     });
-                });
 
-                const toggleMenu = () => isMenuOpen.value = !isMenuOpen.value;
+                    const toggleMenu = () => isMenuOpen.value = !isMenuOpen.value;
 
-                return {
-                    canvasRef, fps, particleCount, isPaused, brushSize, brushShape, 
-                    selectedElementId, allElements, shortcutElements, 
-                    isMenuOpen, toggleMenu, showMoreMenu, selectFromMore,
-                    settingsDialog, resolutionSetting, 
-                    iconSourceType, iconSources, changeIconSource,
-                    isMdi, isBootstrap,
-                    hudMode, width, height, coreCdnKey, coreCdnOptions, changeCoreCdn,
-                    togglePause: () => isPaused.value = !isPaused.value,
-                    clearCanvas: () => grid && grid.fill(TYPES.EMPTY)
-                };
-            }
-        });
+                    return {
+                        canvasRef, fps, particleCount, isPaused, brushSize, brushShape, 
+                        selectedElementId, allElements, shortcutElements, 
+                        isMenuOpen, toggleMenu, showMoreMenu, selectFromMore,
+                        settingsDialog, resolutionSetting, 
+                        iconSourceType, iconSources, changeIconSource,
+                        isMdi, isBootstrap,
+                        hudMode, width, height, coreCdnKey, coreCdnOptions, changeCoreCdn,
+                        togglePause: () => isPaused.value = !isPaused.value,
+                        clearCanvas: () => grid && grid.fill(TYPES.EMPTY)
+                    };
+                }
+            });
 
-        app.use(vuetify);
-        app.mount('#app');
+            app.use(vuetify);
+            app.mount('#app');
+        };
     </script>
 </body>
 </html>
