@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>补元旦作业 v8.0 (快乐加倍版)</title>
+    <style>
+        :root {
+            --primary-color: #d32f2f;
+            --primary-light: #ff6659;
+            --accent-color: #fbc02d;
+            --bg-color: #ffffff;
+            --surface-color: #f5f5f5;
+            --text-color: #333333;
+            --text-secondary: #666666;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 8px rgba(0,0,0,0.12);
+            --shadow-lg: 0 8px 16px rgba(0,0,0,0.14);
+            --ease-elastic: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --ease-smooth: cubic-bezier(0.4, 0.0, 0.2, 1);
+            --buff-color: #2979ff;
+            --event-color: #9c27b0;
+            --tech-color: #00bcd4;
+            --help-color: #ff9800;
+            --chaos-color: #e91e63; /* 混沌色 */
+            --code-bg: #282c34;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Roboto', 'Helvetica Neue', 'PingFang SC', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 480px;
+            height: 100%;
+            position: relative;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            z-index: 1;
+        }
+
+        /* 紧急状态红色闪烁背景 */
+        #danger-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            box-shadow: inset 0 0 50px rgba(211, 47, 47, 0.6);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 10;
+            animation: pulse 1s infinite alternate;
+            display: none;
+        }
+        @keyframes pulse {
+            from { box-shadow: inset 0 0 30px rgba(211, 47, 47, 0.4); }
+            to { box-shadow: inset 0 0 80px rgba(211, 47, 47, 0.8); }
+        }
+
+        /* 页面基础 */
+        .page {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            transition: opacity 0.4s var(--ease-smooth), transform 0.4s var(--ease-smooth);
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.95);
+        }
+
+        .page.active {
+            opacity: 1;
+            pointer-events: all;
+            transform: scale(1);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 30px;
+            text-align: center;
+            font-weight: 900;
+            text-shadow: 2px 2px 0px var(--accent-color);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* 按钮样式 */
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            font-weight: bold;
+            box-shadow: var(--shadow-md);
+            cursor: pointer;
+            transition: transform 0.1s var(--ease-smooth), box-shadow 0.2s;
+            position: relative;
+            width: 80%;
+            max-width: 300px;
+            text-align: center;
+            white-space: nowrap;
+            margin-bottom: 15px;
+        }
+        .btn:active { transform: scale(0.95); box-shadow: var(--shadow-sm); }
+        
+        .btn-secondary {
+            background-color: #fff;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
+
+        .ripple-btn {
+            position: relative;
+            overflow: hidden;
+            transform: translate3d(0, 0, 0);
+        }
+
+        /* 游戏主界面布局 */
+        #game-screen {
+            justify-content: flex-start;
+            padding-top: 10px;
+            padding-bottom: 10px;
+        }
+
+        .status-card {
+            background: var(--surface-color);
+            width: 100%;
+            padding: 15px;
+            border-radius: 16px;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 10px;
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Buff 指示器 */
+        #buff-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--buff-color);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 2px 4px rgba(41, 121, 255, 0.3);
+            transform: translateX(120%);
+            transition: transform 0.3s var(--ease-elastic);
+        }
+        #buff-indicator.show { transform: translateX(0); }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .progress-track {
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        .progress-track:last-child { margin-bottom: 0; }
+
+        .progress-bar {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.6s var(--ease-elastic), background-color 0.3s;
+        }
+        #homework-bar { background-color: var(--primary-color); width: 0%; }
+        #time-bar { background-color: var(--accent-color); width: 100%; }
+
+        /* 日志区域 */
+        #event-log {
+            flex: 1;
+            width: 100%;
+            background: #fff;
+            border: 2px solid var(--surface-color);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            display: flex;
+            flex-direction: column-reverse;
+            min-height: 60px;
+            max-height: 140px;
+        }
+
+        .log-item {
+            padding: 6px 10px;
+            margin-bottom: 5px;
+            background: var(--surface-color);
+            border-radius: 6px;
+            border-left: 4px solid;
+            animation: slideIn 0.4s var(--ease-elastic);
+            line-height: 1.3;
+        }
+        .log-item.good { border-left-color: #4caf50; }
+        .log-item.bad { border-left-color: var(--primary-color); }
+        .log-item.neutral { border-left-color: var(--accent-color); }
+        .log-item.buff { border-left-color: var(--buff-color); background: #e3f2fd; }
+        .log-item.event { border-left-color: var(--event-color); background: #f3e5f5; font-weight: bold; }
+        .log-item.chaos { border-left-color: var(--chaos-color); background: #fce4ec; font-weight: bold; }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* 按钮网格 - 滚动容器 */
+        .action-container {
+            width: 100%;
+            flex: 1.5;
+            overflow-y: auto;
+            padding-bottom: 15px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-auto-rows: min-content;
+            gap: 10px;
+            padding: 2px;
+        }
+
+        .action-btn {
+            background: white;
+            border: 1px solid #eee;
+            color: var(--text-color);
+            padding: 12px 4px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            box-shadow: var(--shadow-sm);
+            cursor: pointer;
+            transition: all 0.2s var(--ease-smooth);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            min-height: 75px;
+        }
+        .action-btn:active { transform: scale(0.95); background: var(--surface-color); }
+        .emoji-icon { font-size: 1.5rem; }
+
+        /* 特殊按钮颜色 */
+        .btn-buff { border-bottom: 3px solid var(--buff-color); }
+        .btn-risk { border-bottom: 3px solid var(--primary-color); }
+        .btn-special { border-bottom: 3px solid var(--event-color); }
+        .btn-tech { border-bottom: 3px solid var(--tech-color); }
+        .btn-help { border-bottom: 3px solid var(--help-color); }
+        .btn-chaos { border: 2px dashed var(--chaos-color); background: #fff0f5; }
+
+        /* 涟漪 */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple 0.6s linear;
+            background-color: rgba(0, 0, 0, 0.15);
+            pointer-events: none;
+        }
+        @keyframes ripple { to { transform: scale(4); opacity: 0; } }
+
+        /* 结果页 */
+        .result-content { 
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+        #result-title { font-size: 2rem; margin-bottom: 10px; }
+        #result-desc { font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5; }
+        
+        /* v8.0 称号徽章 */
+        #achievement-badge {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #fff;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(255, 165, 0, 0.4);
+            animation: popIn 0.5s var(--ease-elastic);
+            display: none;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0); }
+            100% { transform: scale(1); }
+        }
+
+        /* 源代码弹窗样式 */
+        #code-modal {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #code-modal.visible {
+            display: flex;
+            opacity: 1;
+        }
+        .modal-content {
+            background: white;
+            width: 90%;
+            max-width: 600px;
+            height: 80%;
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-lg);
+            transform: scale(0.9);
+            transition: transform 0.3s var(--ease-elastic);
+        }
+        #code-modal.visible .modal-content {
+            transform: scale(1);
+        }
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .code-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        #code-textarea {
+            flex: 1;
+            width: 100%;
+            background-color: var(--code-bg);
+            color: #abb2bf;
+            border: none;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            resize: none;
+            margin-bottom: 15px;
+            user-select: text;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-copy { background: #4caf50; color: white; }
+        .btn-close { background: #eee; color: #333; }
+
+        /* 彩带特效 Canvas */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        /* 小屏适配 */
+        @media (max-height: 680px) {
+            h1 { font-size: 1.8rem; margin-bottom: 15px; }
+            .status-card { padding: 10px; margin-bottom: 5px; }
+            .action-btn { min-height: 60px; font-size: 0.8rem; padding: 8px; }
+            .emoji-icon { font-size: 1.2rem; }
+            #event-log { min-height: 50px; }
+            .modal-content { height: 90%; }
+        }
+    </style>
+</head>
+<body>
+    <div id="danger-overlay"></div>
+    <canvas id="confetti-canvas"></canvas>
+    
+    <div id="app">
+        <!-- 首页 -->
+        <div id="home-screen" class="page active">
+            <h1>🖋补元旦作业🖋</h1>
+            <p style="color:var(--text-secondary); margin-bottom: 30px;">v8.0 快乐加倍：成就系统与魔法献祭</p>
+            <button class="btn ripple-btn" onclick="startGame()">开始补作业</button>
+            <button class="btn btn-secondary ripple-btn" onclick="showSourceCode()">查看/复制 源代码</button>
+        </div>
+
+        <!-- 游戏界面 -->
+        <div id="game-screen" class="page">
+            <div class="status-card">
+                <div id="buff-indicator">
+                    <span>⚡ 精力旺盛</span>
+                    <span id="buff-count">3</span>
+                </div>
+                <div class="progress-label">
+                    <span>📚 作业进度</span>
+                    <span id="progress-text">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div id="homework-bar" class="progress-bar"></div>
+                </div>
+
+                <div class="progress-label" style="margin-top: 8px;">
+                    <span>🕛 剩余时间</span>
+                    <span id="time-text">100%</span>
+                </div>
+                <div class="progress-track">
+                    <div id="time-bar" class="progress-bar"></div>
+                </div>
+            </div>
+
+            <div id="event-log">
+                <div class="log-item neutral">假期余额不足，全家总动员开始！</div>
+            </div>
+
+            <div class="action-container">
+                <div class="action-grid">
+                    <!-- 1. 基础 -->
+                    <button class="action-btn ripple-btn" onclick="takeAction('write')">
+                        <span class="emoji-icon">🖋</span>
+                        老实写作业
+                    </button>
+                    <button class="action-btn ripple-btn" onclick="takeAction('phone')">
+                        <span class="emoji-icon">📱</span>
+                        玩会儿手机
+                    </button>
+                    
+                    <!-- 2. AI与搜索 -->
+                    <button class="action-btn ripple-btn" onclick="takeAction('kimi')">
+                        <span class="emoji-icon">💻</span>
+                        Kimi搜答案
+                    </button>
+                    <button class="action-btn ripple-btn btn-tech" onclick="takeAction('zyb')">
+                        <span class="emoji-icon">📸</span>
+                        作业帮搜题
+                    </button>
+                    <button class="action-btn ripple-btn btn-tech" onclick="takeAction('web')">
+                        <span class="emoji-icon">🌐</span>
+                        网上搜一搜
+                    </button>
+
+                    <!-- 3. 求助 -->
+                    <button class="action-btn ripple-btn btn-help" onclick="takeAction('ask')">
+                        <span class="emoji-icon">✉️</span>
+                        求助学霸
+                    </button>
+                    <button class="action-btn ripple-btn btn-help" onclick="takeAction('teacher')">
+                        <span class="emoji-icon">👩‍🏫</span>
+                        问老师
+                    </button>
+                    <button class="action-btn ripple-btn btn-help" onclick="takeAction('parent')">
+                        <span class="emoji-icon">👪</span>
+                        叫家长
+                    </button>
+
+                    <!-- 4. 投机与特殊 -->
+                    <button class="action-btn ripple-btn" onclick="takeAction('guess')">
+                        <span class="emoji-icon">🎲</span>
+                        全选C
+                    </button>
+                    <button class="action-btn ripple-btn" onclick="takeAction('copy')">
+                        <span class="emoji-icon">📖</span>
+                        抄书后答案
+                    </button>
+                    <button class="action-btn ripple-btn btn-buff" onclick="takeAction('coffee')">
+                        <span class="emoji-icon">☕</span>
+                        喝红牛 (Buff)
+                    </button>
+                    <button class="action-btn ripple-btn btn-risk" onclick="takeAction('tear')">
+                        <span class="emoji-icon">✂️</span>
+                        撕掉这页
+                    </button>
+
+                    <!-- 5. 疯狂 -->
+                    <button class="action-btn ripple-btn btn-special" onclick="takeAction('clock')">
+                        <span class="emoji-icon">⏳</span>
+                        调慢时钟
+                    </button>
+                    <button class="action-btn ripple-btn btn-special" onclick="takeAction('hire')">
+                        <span class="emoji-icon">👯‍♀️</span>
+                        雇佣老妹
+                    </button>
+
+                    <!-- 6. 休闲与风险 -->
+                    <button class="action-btn ripple-btn" onclick="takeAction('music')">
+                        <span class="emoji-icon">🎧</span>
+                        听音乐
+                    </button>
+                    <button class="action-btn ripple-btn btn-risk" onclick="takeAction('sick')">
+                        <span class="emoji-icon">🤒</span>
+                        装病
+                    </button>
+
+                    <!-- 7. v8.0 新增趣味选项 -->
+                    <button class="action-btn ripple-btn btn-chaos" onclick="takeAction('sacrifice')">
+                        <span class="emoji-icon">🔮</span>
+                        献祭笔芯
+                    </button>
+                    <button class="action-btn ripple-btn" onclick="takeAction('nap')">
+                        <span class="emoji-icon">💤</span>
+                        战术补觉
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 结果界面 -->
+        <div id="result-screen" class="page">
+            <div class="result-content">
+                <h1 id="result-title">结果</h1>
+                <!-- 称号徽章 -->
+                <div id="achievement-badge">称号: 这么差，直接给我当作业新手</div>
+                <div style="font-size: 4rem; margin-bottom: 20px;" id="result-emoji">😎</div>
+                <p id="result-desc">在这里显示结果描述</p>
+                <button class="btn ripple-btn" onclick="resetGame()">再玩一次</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 源代码模态框 -->
+    <div id="code-modal">
+        <div class="modal-content">
+            <div class="code-header">
+                <span class="code-title">📜 网页源代码</span>
+                <span style="font-size:0.8rem; color:#666;">可以全选复制用于二创</span>
+            </div>
+            <textarea id="code-textarea" readonly></textarea>
+            <div class="modal-actions">
+                <button class="modal-btn btn-copy" onclick="copySource()">复制全部代码</button>
+                <button class="modal-btn btn-close" onclick="closeSourceModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 游戏状态与统计
+        let state = {
+            progress: 0,
+            time: 100,
+            isGameOver: false,
+            buffTurns: 0,
+            lastAction: '',
+            // v8.0 统计数据用于成就
+            stats: {
+                honest: 0,   // 老实写次数
+                cheat: 0,    // 科技/抄袭次数
+                risk: 0,     // 风险次数
+                chaos: 0,    // 献祭次数
+                help: 0      // 求助次数
+            }
+        };
+
+        // DOM 元素
+        const screens = {
+            home: document.getElementById('home-screen'),
+            game: document.getElementById('game-screen'),
+            result: document.getElementById('result-screen')
+        };
+        const bars = {
+            homework: document.getElementById('homework-bar'),
+            time: document.getElementById('time-bar')
+        };
+        const texts = {
+            progress: document.getElementById('progress-text'),
+            time: document.getElementById('time-text')
+        };
+        const logContainer = document.getElementById('event-log');
+        const buffIndicator = document.getElementById('buff-indicator');
+        const buffCountText = document.getElementById('buff-count');
+        const dangerOverlay = document.getElementById('danger-overlay');
+        const achievementBadge = document.getElementById('achievement-badge');
+        
+        // 源代码相关DOM
+        const codeModal = document.getElementById('code-modal');
+        const codeTextarea = document.getElementById('code-textarea');
+
+        function switchScreen(screenName) {
+            Object.values(screens).forEach(s => s.classList.remove('active'));
+            screens[screenName].classList.add('active');
+        }
+
+        function startGame() {
+            // 重置状态
+            state = { 
+                progress: 0, 
+                time: 100, 
+                isGameOver: false, 
+                buffTurns: 0, 
+                lastAction: '',
+                stats: { honest: 0, cheat: 0, risk: 0, chaos: 0, help: 0 }
+            };
+            logContainer.innerHTML = '<div class="log-item neutral">假期余额不足，全家总动员开始！</div>';
+            dangerOverlay.style.display = 'none';
+            achievementBadge.style.display = 'none';
+            updateUI();
+            switchScreen('game');
+        }
+
+        function resetGame() {
+            switchScreen('home');
+        }
+
+        // --- 源代码功能 ---
+        function showSourceCode() {
+            const html = document.documentElement.outerHTML;
+            codeTextarea.value = html;
+            codeModal.classList.add('visible');
+        }
+        function closeSourceModal() {
+            codeModal.classList.remove('visible');
+        }
+        function copySource() {
+            codeTextarea.select();
+            codeTextarea.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(codeTextarea.value).then(() => {
+                const btn = document.querySelector('.btn-copy');
+                const originalText = btn.innerText;
+                btn.innerText = "复制成功！";
+                setTimeout(() => btn.innerText = originalText, 2000);
+            });
+        }
+
+        function updateUI() {
+            bars.homework.style.width = `${state.progress}%`;
+            bars.time.style.width = `${state.time}%`;
+            
+            if(state.time < 20) {
+                bars.time.style.backgroundColor = 'var(--primary-color)';
+                dangerOverlay.style.display = 'block';
+                dangerOverlay.style.opacity = '1';
+            } else {
+                bars.time.style.backgroundColor = 'var(--accent-color)';
+                dangerOverlay.style.display = 'none';
+            }
+
+            texts.progress.innerText = `${Math.floor(state.progress)}%`;
+            texts.time.innerText = `${Math.floor(state.time)}%`;
+
+            if(state.buffTurns > 0) {
+                buffIndicator.classList.add('show');
+                buffCountText.innerText = state.buffTurns;
+            } else {
+                buffIndicator.classList.remove('show');
+            }
+        }
+
+        function addLog(message, type = 'neutral') {
+            const div = document.createElement('div');
+            div.className = `log-item ${type}`;
+            div.innerText = message;
+            logContainer.insertBefore(div, logContainer.firstChild);
+            if(logContainer.children.length > 25) logContainer.lastChild.remove();
+        }
+
+        function checkGameOver() {
+            if (state.progress >= 100) {
+                endGame(true);
+                return true;
+            }
+            if (state.time <= 0) {
+                endGame(false);
+                return true;
+            }
+            return false;
+        }
+
+        // v8.0 计算成就称号
+        function determineAchievement() {
+            const s = state.stats;
+            const total = s.honest + s.cheat + s.risk + s.chaos + s.help;
+            
+            if (s.chaos > 2) return "混沌魔王";
+            if (s.cheat > s.honest * 2) return "科技与狠活";
+            if (s.risk > 3) return "绝命赌徒";
+            if (s.honest > total * 0.7) return "卷王之王";
+            if (s.help > 4) return "啃老一族";
+            if (state.time < 5) return "压哨绝杀";
+            return "作业补全师";
+        }
+
+        function endGame(isWin) {
+            state.isGameOver = true;
+            dangerOverlay.style.display = 'none';
+            
+            setTimeout(() => {
+                switchScreen('result');
+                const title = document.getElementById('result-title');
+                const desc = document.getElementById('result-desc');
+                const emoji = document.getElementById('result-emoji');
+                
+                // 显示成就徽章
+                const achievement = determineAchievement();
+                achievementBadge.innerText = `🎖️ 称号：${achievement}`;
+                achievementBadge.style.display = 'inline-block';
+
+                if (isWin) {
+                    title.innerText = "牛逼，直接奇迹诞生！";
+                    title.style.color = "#4caf50";
+                    emoji.innerText = "🎉";
+                    
+                    // 触发彩带特效
+                    fireConfetti();
+
+                    if (state.time <= 5) {
+                        desc.innerText = `剩余时间 ${Math.floor(state.time)}%... \n心脏都要跳出来了！极限压哨！`;
+                    } else if (state.time > 40) {
+                        desc.innerText = `剩余 ${Math.floor(state.time)}% 时间！\n轻轻松松，这就是强者的从容。`;
+                    } else {
+                        desc.innerText = `剩余 ${Math.floor(state.time)}% 时间。\n终于补完了，安心睡觉！`;
+                    }
+                } else {
+                    title.innerText = "彻底凉凉...";
+                    title.style.color = "var(--primary-color)";
+                    emoji.innerText = "😭";
+                    desc.innerText = `进度停留在 ${Math.floor(state.progress)}%。\n准备好迎接混合双打吧...`;
+                }
+            }, 800);
+        }
+
+        // v8.0 彩带特效
+        function fireConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            const particles = [];
+            const colors = ['#f44336', '#2196f3', '#ffeb3b', '#4caf50', '#9c27b0'];
+            
+            for(let i=0; i<100; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 20,
+                    vy: (Math.random() - 0.5) * 20,
+                    size: Math.random() * 10 + 5,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    life: 100
+                });
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let active = false;
+                particles.forEach(p => {
+                    if(p.life > 0) {
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += 0.5; // gravity
+                        p.life--;
+                        ctx.fillStyle = p.color;
+                        ctx.fillRect(p.x, p.y, p.size, p.size);
+                        active = true;
+                    }
+                });
+                if(active) requestAnimationFrame(animate);
+                else ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            animate();
+        }
+
+        // 随机事件
+        function triggerRandomEvent() {
+            if (Math.random() > 0.18) return; 
+
+            const events = [
+                { msg: "【突发】停电了！只能点蜡烛写...", time: -6, type: 'event' },
+                { msg: "【突发】笔摔断了，墨水溅了一身...", time: -5, type: 'event' },
+                { msg: "【突发】发现去年的压岁钱！士气大振。", progress: 6, type: 'event' },
+                { msg: "【突发】妈妈送水果，被迫假装思考...", time: -4, type: 'event' },
+                { msg: "【突发】群里说有一页不用写！好耶！", progress: 8, type: 'event' },
+                { msg: "【突发】想上厕所，没纸了...", time: -8, type: 'event' },
+                { msg: "【突发】狗把作业叼走了！", time: -7, type: 'event' }
+            ];
+
+            const evt = events[Math.floor(Math.random() * events.length)];
+            setTimeout(() => {
+                if(evt.time) state.time += evt.time;
+                if(evt.progress) state.progress += evt.progress;
+                addLog(evt.msg, evt.type);
+                updateUI();
+                checkGameOver();
+            }, 500); 
+        }
+
+        function takeAction(actionType) {
+            if (state.isGameOver) return;
+
+            let progressChange = 0;
+            let timeChange = 0;
+            let msg = "";
+            let type = "neutral";
+            let rand = Math.random();
+
+            // 连击系统
+            let comboBonus = 0;
+            if (state.lastAction === actionType && ['write', 'kimi', 'zyb'].includes(actionType)) {
+                comboBonus = 3;
+            }
+            state.lastAction = actionType;
+
+            // Buff 逻辑
+            let multiplier = 1;
+            const noBuffActions = ['coffee', 'phone', 'clock', 'tear', 'music', 'nap', 'sacrifice'];
+            if(state.buffTurns > 0 && !noBuffActions.includes(actionType)) {
+                multiplier = 1.5;
+                state.buffTurns--;
+            }
+
+            switch(actionType) {
+                // --- 基础 ---
+                case 'write': 
+                    state.stats.honest++;
+                    timeChange = -10; progressChange = 12 * multiplier;
+                    if(rand > 0.8) { progressChange += 5; msg = "进入心流状态，下笔如有神！"; type = "good"; } 
+                    else { msg = "老老实实写完了一页练习册。"; }
+                    break;
+                case 'phone': 
+                    state.stats.risk++;
+                    timeChange = -15;
+                    if (rand > 0.6) { progressChange = -5; msg = "刷视频太上头，单词全忘了！"; type = "bad"; } 
+                    else { msg = "回了几条消息，还好没沉迷。"; }
+                    break;
+
+                // --- 科技 ---
+                case 'kimi': 
+                    state.stats.cheat++;
+                    timeChange = -6;
+                    if (rand > 0.85) { progressChange = 0; msg = "网断了！Kimi 思考超时..."; type = "bad"; } 
+                    else { progressChange = 28 * multiplier; msg = "Kimi 给出完美解析，抄得飞起！"; type = "good"; }
+                    break;
+                case 'zyb': 
+                    state.stats.cheat++;
+                    timeChange = -5;
+                    if (rand > 0.7) { progressChange = 32 * multiplier; msg = "拍照搜题一秒出答案，科技万岁！"; type = "good"; } 
+                    else if (rand < 0.2) { progressChange = 0; timeChange = -10; msg = "被强制看30秒视频广告！"; type = "bad"; } 
+                    else { progressChange = 5; msg = "搜不到原题，找个类似的参考。"; type = "neutral"; }
+                    break;
+                case 'web': 
+                    state.stats.cheat++;
+                    timeChange = -8;
+                    if (rand > 0.5) { progressChange = 20 * multiplier; msg = "在网上找到了类似题目。"; type = "neutral"; } 
+                    else { progressChange = 0; msg = "搜着搜着点进了娱乐新闻..."; type = "bad"; }
+                    break;
+
+                // --- 求助 ---
+                case 'ask': 
+                    state.stats.help++;
+                    timeChange = -8;
+                    if (rand > 0.5) { progressChange = 30 * multiplier; msg = "学霸发来卷子照片，这波稳了。"; type = "good"; } 
+                    else { progressChange = 0; msg = "学霸：'我也在补呢，别烦我'。"; type = "bad"; }
+                    break;
+                case 'teacher': 
+                    state.stats.help++;
+                    timeChange = -15; 
+                    if (rand > 0.6) { progressChange = 40; msg = "老师发来语音讲解，豁然开朗！"; type = "good"; } 
+                    else { progressChange = 0; timeChange = -5; msg = "老师：'明天来办公室找我'。"; type = "bad"; }
+                    break;
+                case 'parent': 
+                    state.stats.help++;
+                    timeChange = -10;
+                    if (rand > 0.8) { progressChange = 50; msg = "爸爸帮你抄了一整章课文！"; type = "good"; } 
+                    else if (rand < 0.4) { progressChange = 0; timeChange = -20; msg = "被爸妈混合双打训话半小时！"; type = "bad"; } 
+                    else { progressChange = 15; msg = "妈妈监督，虽然慢但不敢走神。"; type = "neutral"; }
+                    break;
+
+                // --- 投机 ---
+                case 'guess': 
+                    state.stats.risk++;
+                    timeChange = -3;
+                    if (rand > 0.4) { progressChange = 10 * multiplier; msg = "选择题全选C，速度飞快！"; } 
+                    else { progressChange = 2; msg = "全是简答题，没法蒙啊！"; type = "bad"; }
+                    break;
+                case 'copy': 
+                    state.stats.cheat++;
+                    timeChange = -5;
+                    if (rand > 0.75) { progressChange = 0; timeChange = -10; msg = "答案页被撕了？！心态崩了！"; type = "bad"; } 
+                    else { progressChange = 25 * multiplier; msg = "找到答案，笔尖起火了！"; type = "good"; }
+                    break;
+                case 'coffee':
+                    timeChange = -5; progressChange = 0; state.buffTurns = 4;
+                    msg = "喝下红牛，充满力量！(效率UP)"; type = "buff";
+                    break;
+                case 'tear':
+                    state.stats.risk++;
+                    timeChange = -1;
+                    if (rand > 0.7) { progressChange = -15; msg = "被妈妈发现撕作业！进度倒扣！"; type = "bad"; } 
+                    else { progressChange = 15; msg = "撕拉——这页作业物理消失了。"; }
+                    break;
+                case 'clock': 
+                    state.stats.risk++;
+                    if (rand > 0.8) { state.time = 0; progressChange = 0; msg = "被妈妈发现拨慢时钟！当场抓获！"; type = "bad"; } 
+                    else { timeChange = 12; progressChange = 0; msg = "神不知鬼觉地拨慢时钟... +时间"; type = "buff"; }
+                    break;
+                case 'hire': 
+                    state.stats.help++;
+                    timeChange = -12;
+                    if (rand > 0.6) { progressChange = 35 * multiplier; msg = "妹妹为了零食帮你狂补作业！"; type = "good"; } 
+                    else { progressChange = 5; msg = "妹妹嫌题太难跑路了..."; type = "bad"; }
+                    break;
+                case 'music': 
+                    timeChange = -5; progressChange = 5;
+                    if (rand > 0.5) { state.buffTurns = 2; msg = "带上耳机，世界安静了。(Buff+2)"; type = "buff"; } 
+                    else { msg = "听着听着跟着唱起来了，效率一般。"; }
+                    break;
+                case 'sick': 
+                    state.stats.risk++;
+                    progressChange = 0;
+                    if (rand > 0.6) { timeChange = 20; msg = "演技爆发！妈妈让你休息一会。(时间+20)"; type = "good"; } 
+                    else { timeChange = -15; msg = "装病被识破，被带去医院挂号，血亏！"; type = "bad"; }
+                    break;
+
+                // --- v8.0 新增趣味选项 ---
+                case 'sacrifice': // 献祭
+                    state.stats.chaos++;
+                    if (rand > 0.9) { 
+                        progressChange = 100; msg = "【大成功】作业之神显灵！作业瞬间完成！"; type = "good"; 
+                    } else if (rand > 0.5) {
+                        progressChange = 10; timeChange = 10; msg = "献祭成功，获得了少量时间和进度。"; type = "neutral";
+                    } else if (rand > 0.2) {
+                        progressChange = -20; msg = "【大失败】墨水打翻了！作业毁了一半！"; type = "bad";
+                    } else {
+                        state.time = 5; msg = "【混沌】献祭了你的寿命... 时间濒临归零！"; type = "chaos";
+                    }
+                    break;
+                
+                case 'nap': // 战术补觉
+                    progressChange = -5; // 进度倒退（因为没写）
+                    if (rand > 0.4) {
+                        timeChange = 15;
+                        msg = "睡了15分钟，精神百倍！(时间+15，进度-5)";
+                        type = "good";
+                    } else {
+                        timeChange = -30;
+                        msg = "一觉睡过头了！！完了完了！(时间-30)";
+                        type = "bad";
+                    }
+                    break;
+            }
+
+            state.progress += progressChange + comboBonus;
+            state.time += timeChange;
+            
+            if(comboBonus > 0) msg += " 【连击+3%】";
+            if(multiplier > 1 && msg.indexOf("Buff") === -1 && progressChange > 0) msg += "(Buff加成!)";
+
+            if (state.progress < 0) state.progress = 0;
+            if (state.progress > 100) state.progress = 100;
+            if (state.time < 0) state.time = 0;
+            if (state.time > 100) state.time = 100;
+
+            addLog(msg, type);
+            updateUI();
+            
+            if (!checkGameOver()) {
+                triggerRandomEvent();
+            }
+        }
+
+        document.addEventListener('click', function (e) {
+            const target = e.target.closest('.ripple-btn');
+            if (target) {
+                const circle = document.createElement('span');
+                const diameter = Math.max(target.clientWidth, target.clientHeight);
+                const radius = diameter / 2;
+                const rect = target.getBoundingClientRect();
+                circle.style.width = circle.style.height = `${diameter}px`;
+                circle.style.left = `${e.clientX - rect.left - radius}px`;
+                circle.style.top = `${e.clientY - rect.top - radius}px`;
+                circle.classList.add('ripple');
+                const existingRipple = target.querySelector('.ripple');
+                if (existingRipple) existingRipple.remove();
+                target.appendChild(circle);
+                setTimeout(() => circle.remove(), 600);
+            }
+        });
+    </script>
+</body>
+</html>
