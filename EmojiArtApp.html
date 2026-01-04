@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#1e1e1e">
+    <title>Emoji Art App - Creative Suite</title>
+    
+    <!-- 优化字体加载连接 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- 引入 Materialize CSS (仅基础样式) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    
+    <!-- 引入 Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Round" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #ff5252;
+            --secondary-color: #2979ff;
+            --accent-color: #ffb74d; 
+            --purple-color: #e040fb; 
+            --pen-color-indicator: #00e676; /* 画笔模式指示色 */
+            --surface-color: #1e1e1e;
+            --surface-element: #2d2d2d;
+            --text-color: #ffffff;
+            --panel-radius: 28px;
+            --island-bg: #000000;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #121212;
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            touch-action: none; 
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: background-color 0.4s ease;
+        }
+
+        /* 全屏画布 */
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 1;
+            cursor: crosshair;
+        }
+
+        /* 网格辅助线层 */
+        #grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; 
+            z-index: 2;
+            display: none;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px; 
+        }
+        #grid-overlay.visible { display: block; }
+
+        /* --- 灵动岛 (Dynamic Island) --- */
+        .dynamic-island {
+            position: fixed;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--island-bg);
+            border-radius: 40px;
+            z-index: 200;
+            transition: 
+                width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), 
+                height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
+                border-radius 0.5s ease;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            
+            width: 100px;
+            height: 32px;
+        }
+
+        .dynamic-island.expanded {
+            width: 420px; /* 再次加宽以容纳画笔按钮 */
+            height: 64px;
+        }
+
+        .island-content {
+            display: flex;
+            align-items: center;
+            gap: 6px; 
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.9);
+            transition: opacity 0.2s ease, transform 0.3s ease;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .dynamic-island.expanded .island-content {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1);
+            transition-delay: 0.1s;
+        }
+
+        .island-idle {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            opacity: 1;
+            transition: opacity 0.2s;
+        }
+        .dynamic-island.expanded .island-idle { opacity: 0; }
+        
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--primary-color);
+            animation: breathe 2s infinite;
+        }
+        @keyframes breathe {
+            0% { opacity: 0.5; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+            100% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        /* 工具栏按钮 */
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .icon-btn i { font-size: 22px; }
+        .icon-btn:active { color: white; transform: scale(0.9); }
+        .icon-btn.active { color: var(--primary-color); background: rgba(255, 82, 82, 0.1); }
+        .icon-btn.mirror-active { color: var(--secondary-color); background: rgba(41, 121, 255, 0.1); }
+        .icon-btn.jitter-active { color: var(--accent-color); background: rgba(255, 183, 77, 0.15); }
+        .icon-btn.size-active { color: var(--purple-color); background: rgba(224, 64, 251, 0.15); }
+        /* 新增：画笔激活样式 */
+        .icon-btn.pen-active { color: var(--pen-color-indicator); background: rgba(0, 230, 118, 0.15); }
+        
+        .divider { width: 1px; background: #333; height: 20px; margin: auto 0; }
+
+        /* --- 底部抽屉 --- */
+        .bottom-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: var(--surface-color);
+            border-top-left-radius: var(--panel-radius);
+            border-top-right-radius: var(--panel-radius);
+            padding: 0 0 30px 0;
+            z-index: 100;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+            transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-height: 85vh; 
+            overflow-y: auto;
+        }
+
+        .bottom-sheet.collapsed {
+            transform: translateY(calc(100% - 40px));
+        }
+
+        .sheet-inner {
+            padding: 0 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* 交错动画 */
+        .stagger-item {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .bottom-sheet:not(.collapsed) .stagger-item {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .bottom-sheet:not(.collapsed) .stagger-item:nth-child(1) { transition-delay: 0.05s; } 
+        .bottom-sheet:not(.collapsed) .stagger-item:nth-child(2) { transition-delay: 0.1s; } 
+        .bottom-sheet:not(.collapsed) .stagger-item:nth-child(3) { transition-delay: 0.15s; } 
+
+
+        .drag-handle {
+            width: 100%;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .drag-indicator { width: 40px; height: 5px; background-color: #444; border-radius: 3px; }
+
+        /* 仪表盘 */
+        .dashboard-row {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(0,0,0,0.2);
+            padding: 10px 15px;
+            border-radius: 16px;
+            align-items: center;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .info-block { display: flex; flex-direction: column; }
+        .info-label { font-size: 10px; color: #888; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 1px; }
+        .info-value { font-family: 'Courier New', monospace; font-weight: 600; color: #eee; font-size: 14px; display: flex; align-items: center; gap: 5px; }
+        .time-ms { color: #666; font-size: 0.8em; }
+        .battery-error { font-size: 12px; color: #ef5350; font-family: sans-serif; }
+
+        /* Emoji 轨道 */
+        .emoji-track {
+            display: flex;
+            overflow-x: auto;
+            gap: 15px;
+            padding: 5px 20px;
+            scrollbar-width: none;
+            flex-shrink: 0;
+            opacity: 0;
+            transform: translateX(-20px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        .bottom-sheet:not(.collapsed) .emoji-track {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .emoji-item {
+            font-size: 28px;
+            width: 60px;
+            height: 60px;
+            border-radius: 20px;
+            background: var(--surface-element);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .emoji-item.active {
+            background: var(--primary-color);
+            transform: translateY(-8px) scale(1.1);
+            box-shadow: 0 8px 15px rgba(255, 82, 82, 0.4);
+            z-index: 2;
+        }
+        
+        .custom-input { width: 100%; height: 100%; background: transparent; border: none; text-align: center; color: white; font-size: 24px; outline: none; }
+
+        .slider-container { background: var(--surface-element); padding: 15px; border-radius: 16px; }
+        .slider-row { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; }
+        .slider-row:last-child { margin-bottom: 0; }
+        .slider-icon { color: #888; font-size: 20px; width: 24px;}
+        
+        input[type=range] { border: none; background: transparent; margin: 0; height: 24px; }
+        input[type=range]::-webkit-slider-thumb { background-color: var(--primary-color); width: 16px; height: 16px; margin-top: -6px; box-shadow: 0 0 0 4px rgba(255, 82, 82, 0.2); }
+        input[type=range]::-webkit-slider-runnable-track { background: #444; height: 4px; border-radius: 2px; }
+        .val-display { font-size: 12px; color: #888; width: 35px; text-align: right; font-variant-numeric: tabular-nums; }
+
+        .action-scroll-container {
+            width: 100%;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        .action-scroll-container::-webkit-scrollbar { display: none; }
+
+        .action-area {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-width: 100%;
+            gap: 20px;
+            padding: 0 5px;
+        }
+
+        .color-group { display: flex; gap: 10px; background: var(--surface-element); padding: 8px; border-radius: 50px; flex-shrink: 0; }
+        .color-dot { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; position: relative; }
+        .color-dot.active { border-color: white; transform: scale(1.1); }
+        .rainbow-dot { background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red); }
+        
+        /* 新增：画笔颜色选择点 */
+        .pen-color-dot {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #424242; /* 默认灰色底 */
+            border: 2px solid #666;
+        }
+        .pen-color-dot i { font-size: 16px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .pen-color-dot.active { border-color: var(--pen-color-indicator); }
+
+        #custom-bg-picker { position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+        /* 新增：画笔颜色输入框 (隐藏) */
+        #pen-color-picker { position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+
+        .fab-row { display: flex; gap: 12px; flex-shrink: 0; }
+        .fab { width: 48px; height: 48px; border-radius: 16px; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s; color: white; }
+        .fab:active { transform: scale(0.92); }
+        .fab-blue { background: #2979ff; }
+        .fab-red { background: #d32f2f; }
+        .fab-grey { background: #424242; }
+        
+        .res-chip {
+            background: var(--surface-element);
+            padding: 0 12px;
+            height: 48px;
+            border-radius: 16px;
+            color: #888;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            flex-shrink: 0;
+            border: 1px solid transparent;
+        }
+        .res-chip.active { color: var(--primary-color); border-color: var(--primary-color); }
+
+    </style>
+</head>
+<body>
+
+    <!-- 网格遮罩 -->
+    <div id="grid-overlay"></div>
+
+    <!-- 灵动岛 (增加 Pen Mode 按钮) -->
+    <div class="dynamic-island" id="dynamic-island">
+        <div class="island-idle">
+            <div class="status-dot"></div>
+        </div>
+
+        <div class="island-content">
+            <button class="icon-btn active" id="mode-brush" title="Emoji 画笔">
+                <i class="material-icons">brush</i>
+            </button>
+            <!-- 新增：纯色画笔按钮 -->
+            <button class="icon-btn" id="mode-pen" title="纯色画笔">
+                <i class="material-icons">create</i>
+            </button>
+            <button class="icon-btn" id="mode-eraser" title="橡皮擦">
+                <i class="material-icons">auto_fix_normal</i>
+            </button>
+            <div class="divider"></div>
+            <button class="icon-btn" id="mode-mirror" title="镜像模式">
+                <i class="material-icons">flip</i>
+            </button>
+            <button class="icon-btn" id="mode-jitter" title="角度抖动">
+                <i class="material-icons">casino</i>
+            </button>
+            <button class="icon-btn" id="mode-size-jitter" title="大小抖动">
+                <i class="material-icons">bubble_chart</i>
+            </button>
+            <div class="divider"></div>
+            <button class="icon-btn" id="btn-undo" title="撤销">
+                <i class="material-icons">undo</i>
+            </button>
+            <button class="icon-btn" id="btn-redo" title="重做">
+                <i class="material-icons">redo</i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 画布 -->
+    <div id="canvas-container">
+        <canvas id="drawing-board"></canvas>
+    </div>
+
+    <!-- 底部控制面板 -->
+    <div class="bottom-sheet" id="bottom-sheet">
+        <div class="drag-handle" id="toggle-sheet">
+            <div class="drag-indicator"></div>
+        </div>
+
+        <!-- Emoji 轨道 -->
+        <div class="emoji-track">
+            <button class="emoji-item active" data-emoji="❤️">❤️</button>
+            <button class="emoji-item" data-emoji="🫧">🫧</button>
+            <button class="emoji-item" data-emoji="✨">✨</button>
+            <button class="emoji-item" data-emoji="🌸">🌸</button>
+            <button class="emoji-item" data-emoji="🔥">🔥</button>
+            <button class="emoji-item" data-emoji="🍔">🍔</button>
+            <button class="emoji-item" data-emoji="💩">💩</button>
+            <button class="emoji-item" data-emoji="🤡">🤡</button>
+            <div class="emoji-item" style="background: #333;">
+                <input id="custom_emoji" type="text" class="custom-input" maxlength="2" placeholder="+">
+            </div>
+        </div>
+
+        <div class="sheet-inner">
+            <!-- 状态仪表盘 -->
+            <div class="dashboard-row stagger-item">
+                <div class="info-block">
+                    <span class="info-label">Current Time</span>
+                    <span class="info-value" id="dashboard-time">
+                        00:00:00 <span class="time-ms">.000</span>
+                    </span>
+                </div>
+                <div class="info-block" style="align-items: flex-end;">
+                    <span class="info-label">Power</span>
+                    <span class="info-value" id="dashboard-battery">
+                        <span id="battery-text">Detecting...</span>
+                        <i class="material-icons" id="battery-icon" style="font-size:16px; margin-left:5px;">battery_unknown</i>
+                    </span>
+                </div>
+            </div>
+
+            <!-- 滑块控制 -->
+            <div class="slider-container stagger-item">
+                <div class="slider-row">
+                    <i class="material-icons slider-icon">circle</i>
+                    <p class="range-field" style="margin:0; flex:1;">
+                        <input type="range" id="size-slider" min="5" max="120" value="40" />
+                    </p>
+                    <span class="val-display" id="size-val">40</span>
+                </div>
+                <div class="slider-row">
+                    <i class="material-icons slider-icon">grid_view</i>
+                    <p class="range-field" style="margin:0; flex:1;">
+                        <input type="range" id="spacing-slider" min="1" max="80" value="10" />
+                    </p>
+                    <span class="val-display" id="spacing-val">10</span>
+                </div>
+            </div>
+
+            <!-- 底部功能区 -->
+            <div class="action-scroll-container stagger-item">
+                <div class="action-area">
+                    <div class="color-group">
+                        <!-- 背景色 -->
+                        <div class="color-dot active" style="background:#121212" data-bg="#121212"></div>
+                        <div class="color-dot" style="background:#1b3a28" data-bg="#1b3a28"></div>
+                        <div class="color-dot" style="background:#0d1b2a" data-bg="#0d1b2a"></div>
+                        <div class="color-dot rainbow-dot" title="自定义背景">
+                            <input type="color" id="custom-bg-picker" value="#121212">
+                        </div>
+                        
+                        <!-- 新增：画笔颜色选择器 -->
+                        <div class="color-dot pen-color-dot" title="画笔颜色">
+                            <i class="material-icons">edit</i>
+                            <input type="color" id="pen-color-picker" value="#ffffff">
+                        </div>
+                    </div>
+
+                    <div class="fab-row">
+                        <button class="fab fab-grey waves-effect waves-light" id="grid-btn" title="显示/隐藏网格">
+                            <i class="material-icons">grid_on</i>
+                        </button>
+                        <button class="fab fab-grey waves-effect waves-light" id="fullscreen-btn" title="全屏">
+                            <i class="material-icons">fullscreen</i>
+                        </button>
+                        
+                        <div class="res-chip waves-effect" id="res-toggle">
+                            <i class="material-icons" style="font-size:16px">hd</i>
+                            <span id="res-text">SD</span>
+                        </div>
+                        <button class="fab fab-blue waves-effect waves-light" id="snapshot-btn">
+                            <i class="material-icons">camera_alt</i>
+                        </button>
+                        <button class="fab fab-red waves-effect waves-light" id="clear-btn">
+                            <i class="material-icons">delete</i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+
+    <script>
+        // --- 核心变量 ---
+        const canvas = document.getElementById('drawing-board');
+        const ctx = canvas.getContext('2d');
+        const bottomSheet = document.getElementById('bottom-sheet');
+        const gridOverlay = document.getElementById('grid-overlay');
+        
+        // 控件引用
+        const emojiBtns = document.querySelectorAll('.emoji-item:not(:last-child)');
+        const customInput = document.getElementById('custom_emoji');
+        const sizeSlider = document.getElementById('size-slider');
+        const spacingSlider = document.getElementById('spacing-slider');
+        const clearBtn = document.getElementById('clear-btn');
+        const snapshotBtn = document.getElementById('snapshot-btn');
+        const resToggle = document.getElementById('res-toggle');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const gridBtn = document.getElementById('grid-btn');
+        
+        // 灵动岛引用
+        const dynamicIsland = document.getElementById('dynamic-island');
+        
+        // 顶部工具
+        const undoBtn = document.getElementById('btn-undo');
+        const redoBtn = document.getElementById('btn-redo');
+        const modeBrushBtn = document.getElementById('mode-brush');
+        const modePenBtn = document.getElementById('mode-pen'); // 新增
+        const modeEraserBtn = document.getElementById('mode-eraser');
+        const modeMirrorBtn = document.getElementById('mode-mirror');
+        const modeJitterBtn = document.getElementById('mode-jitter');
+        const modeSizeJitterBtn = document.getElementById('mode-size-jitter');
+        
+        // 颜色控件
+        const bgDots = document.querySelectorAll('.color-dot:not(.rainbow-dot):not(.pen-color-dot)');
+        const rainbowDot = document.querySelector('.rainbow-dot');
+        const customBgPicker = document.getElementById('custom-bg-picker');
+        // 新增画笔颜色
+        const penColorDot = document.querySelector('.pen-color-dot');
+        const penColorPicker = document.getElementById('pen-color-picker');
+
+        // 状态变量
+        let currentEmoji = '❤️';
+        let brushSize = 40;
+        let brushSpacing = 10; 
+        let isDrawing = false;
+        let pixelRatio = 1; 
+        
+        // 模式状态
+        let isPen = false; // 新增：是否是纯色笔模式
+        let isEraser = false;
+        let isMirror = false; 
+        let isJitter = false;
+        let isSizeJitter = false; 
+        
+        let currentBgColor = '#121212';
+        let currentPenColor = '#ffffff'; // 新增：当前画笔颜色
+        let lastX = 0, lastY = 0;
+
+        let undoStack = [];
+        let redoStack = [];
+        const MAX_HISTORY = 15;
+
+        // --- 0. 自动保存与加载 ---
+        function saveToLocal() {
+            localStorage.setItem('emojiArtSave', canvas.toDataURL());
+        }
+
+        function loadFromLocal() {
+            const data = localStorage.getItem('emojiArtSave');
+            if (data) {
+                const img = new Image();
+                img.src = data;
+                img.onload = () => {
+                    ctx.drawImage(img, 0, 0, canvas.width/pixelRatio, canvas.height/pixelRatio);
+                    undoStack.push(data); 
+                };
+            }
+        }
+        window.addEventListener('load', loadFromLocal);
+
+        // --- 1. 灵动岛交互 ---
+        dynamicIsland.addEventListener('click', (e) => {
+            e.stopPropagation(); 
+            dynamicIsland.classList.add('expanded');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!dynamicIsland.contains(e.target)) {
+                dynamicIsland.classList.remove('expanded');
+            }
+        });
+
+        // --- 2. 仪表盘逻辑 ---
+        function updateTime() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            const ms = String(now.getMilliseconds()).padStart(3, '0');
+            document.getElementById('dashboard-time').innerHTML = 
+                `${h}:${m}:${s}<span class="time-ms">.${ms}</span>`;
+            requestAnimationFrame(updateTime);
+        }
+        requestAnimationFrame(updateTime);
+
+        function initBattery() {
+            const batteryText = document.getElementById('battery-text');
+            const batteryIcon = document.getElementById('battery-icon');
+            if ('getBattery' in navigator) {
+                navigator.getBattery().then(function(battery) {
+                    function updateBatteryUI() {
+                        const level = Math.round(battery.level * 100);
+                        const isCharging = battery.charging;
+                        batteryText.innerText = `${level}%${isCharging ? ' (Charging)' : ''}`;
+                        batteryText.style.color = isCharging ? '#4caf50' : '#eee';
+                        if (isCharging) batteryIcon.innerText = 'bolt';
+                        else if (level >= 90) batteryIcon.innerText = 'battery_full';
+                        else if (level >= 60) batteryIcon.innerText = 'battery_5_bar';
+                        else if (level >= 30) batteryIcon.innerText = 'battery_3_bar';
+                        else batteryIcon.innerText = 'battery_alert';
+                    }
+                    updateBatteryUI();
+                    battery.addEventListener('levelchange', updateBatteryUI);
+                    battery.addEventListener('chargingchange', updateBatteryUI);
+                }).catch(() => { showBatteryError(); });
+            } else { showBatteryError(); }
+
+            function showBatteryError() {
+                batteryText.innerText = "浏览器没有该api或设备不支持";
+                batteryText.className = "battery-error";
+                batteryIcon.style.display = 'none';
+            }
+        }
+        initBattery();
+
+        // --- 3. 模式功能 ---
+
+        modeMirrorBtn.addEventListener('click', () => {
+            isMirror = !isMirror;
+            modeMirrorBtn.classList.toggle('mirror-active', isMirror);
+            M.toast({html: isMirror ? '镜像模式: 开启 🦋' : '镜像模式: 关闭', classes: 'rounded blue'});
+        });
+
+        modeJitterBtn.addEventListener('click', () => {
+            isJitter = !isJitter;
+            modeJitterBtn.classList.toggle('jitter-active', isJitter);
+            M.toast({html: isJitter ? '角度抖动: 开启 🎲' : '角度抖动: 关闭', classes: 'rounded orange'});
+        });
+
+        modeSizeJitterBtn.addEventListener('click', () => {
+            isSizeJitter = !isSizeJitter;
+            modeSizeJitterBtn.classList.toggle('size-active', isSizeJitter);
+            M.toast({html: isSizeJitter ? '大小随机: 开启 🫧' : '大小随机: 关闭', classes: 'rounded purple'});
+        });
+
+        fullscreenBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    M.toast({html: '无法全屏: ' + err.message});
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        gridBtn.addEventListener('click', () => {
+            gridOverlay.classList.toggle('visible');
+            const isVisible = gridOverlay.classList.contains('visible');
+            gridBtn.querySelector('i').innerText = isVisible ? 'grid_off' : 'grid_on';
+            if (isVisible) gridBtn.classList.add('fab-blue');
+            else gridBtn.classList.remove('fab-blue');
+        });
+
+        // --- 4. 画布与分辨率 ---
+        function resizeCanvas() {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            canvas.width = w * pixelRatio;
+            canvas.height = h * pixelRatio;
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            ctx.scale(pixelRatio, pixelRatio);
+            updateCompositeOperation();
+            loadFromLocal(); 
+        }
+        // resizeCanvas logic should ideally preserve content, simple reload for now
+        window.addEventListener('resize', () => {
+             // 简单的 resize 策略：重新设置尺寸并重绘
+             // 这里为了保持代码简洁，暂时只做尺寸调整，可能会清空画布（但loadFromLocal会尝试恢复）
+             // 实际生产中建议用 offscreen canvas 保存
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            canvas.width = w * pixelRatio;
+            canvas.height = h * pixelRatio;
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            ctx.scale(pixelRatio, pixelRatio);
+            loadFromLocal();
+        });
+        
+        // 初始执行一次
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        canvas.width = w * pixelRatio;
+        canvas.height = h * pixelRatio;
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        ctx.scale(pixelRatio, pixelRatio);
+
+
+        resToggle.addEventListener('click', () => {
+            if (pixelRatio === 1) {
+                pixelRatio = window.devicePixelRatio || 2;
+                resToggle.classList.add('active');
+                document.getElementById('res-text').innerText = 'HD';
+                M.toast({html: '已开启高清模式', classes: 'rounded'});
+            } else {
+                pixelRatio = 1;
+                resToggle.classList.remove('active');
+                document.getElementById('res-text').innerText = 'SD';
+                M.toast({html: '省电模式', classes: 'rounded'});
+            }
+            saveToLocal(); 
+            resizeCanvas();
+        });
+
+        // --- 5. 撤销重做逻辑 ---
+        function saveState() {
+            if (undoStack.length >= MAX_HISTORY) undoStack.shift();
+            undoStack.push(canvas.toDataURL());
+            redoStack = []; 
+            saveToLocal(); 
+        }
+
+        function restoreState(imgData) {
+            ctx.clearRect(0, 0, canvas.width / pixelRatio, canvas.height / pixelRatio);
+            const img = new Image();
+            img.src = imgData;
+            img.onload = () => {
+                ctx.save();
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.drawImage(img, 0, 0);
+                ctx.restore();
+                saveToLocal(); 
+            };
+        }
+
+        undoBtn.addEventListener('click', () => {
+            if (undoStack.length > 0) {
+                redoStack.push(canvas.toDataURL());
+                const prev = undoStack.pop();
+                restoreState(prev);
+            } else {
+                redoStack.push(canvas.toDataURL());
+                ctx.clearRect(0, 0, canvas.width / pixelRatio, canvas.height / pixelRatio);
+                saveToLocal();
+            }
+        });
+
+        redoBtn.addEventListener('click', () => {
+            if (redoStack.length > 0) {
+                const next = redoStack.pop();
+                undoStack.push(canvas.toDataURL());
+                restoreState(next);
+            }
+        });
+
+        // --- 6. 模式与绘图 (更新：画笔支持) ---
+        function updateCompositeOperation() {
+            ctx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
+        }
+
+        // 切换到 Emoji 模式
+        modeBrushBtn.addEventListener('click', () => {
+            isEraser = false;
+            isPen = false; // 关闭纯色笔
+            modeBrushBtn.classList.add('active');
+            modePenBtn.classList.remove('pen-active');
+            modeEraserBtn.classList.remove('active');
+            updateCompositeOperation();
+            M.toast({html: 'Emoji 模式', classes: 'rounded'});
+        });
+
+        // 切换到 纯色画笔 模式 (新增)
+        modePenBtn.addEventListener('click', () => {
+            isEraser = false;
+            isPen = true;
+            modePenBtn.classList.add('pen-active');
+            modeBrushBtn.classList.remove('active');
+            modeEraserBtn.classList.remove('active');
+            updateCompositeOperation();
+            M.toast({html: '画笔模式', classes: 'rounded green'});
+        });
+
+        // 切换到 橡皮擦 模式
+        modeEraserBtn.addEventListener('click', () => {
+            isEraser = true;
+            // 橡皮擦不改变 isPen 状态，只改变 eraser 状态，但为了 UI 互斥，我们这里视为一种特殊模式
+            isPen = false; 
+            modeEraserBtn.classList.add('active');
+            modeBrushBtn.classList.remove('active');
+            modePenBtn.classList.remove('pen-active');
+            updateCompositeOperation();
+            M.toast({html: '橡皮擦', classes: 'rounded'});
+        });
+
+        // --- 7. 背景与颜色交互 (含画笔颜色) ---
+        function setBg(color) {
+            currentBgColor = color;
+            document.body.style.backgroundColor = color;
+        }
+
+        bgDots.forEach(dot => {
+            dot.addEventListener('click', () => {
+                document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+                dot.classList.add('active');
+                setBg(dot.getAttribute('data-bg'));
+            });
+        });
+
+        rainbowDot.addEventListener('click', () => {
+            document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+            rainbowDot.classList.add('active');
+            setBg(customBgPicker.value);
+        });
+
+        customBgPicker.addEventListener('input', (e) => {
+            const color = e.target.value;
+            document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+            rainbowDot.classList.add('active');
+            setBg(color);
+        });
+
+        // 画笔颜色逻辑 (新增)
+        penColorDot.addEventListener('click', () => {
+            // 触发内部 input 点击
+            penColorPicker.click();
+            // 切换到画笔模式如果不在画笔模式
+            if (!isPen) modePenBtn.click();
+        });
+
+        penColorPicker.addEventListener('input', (e) => {
+            currentPenColor = e.target.value;
+            penColorDot.style.backgroundColor = currentPenColor; // 让按钮显示当前颜色
+        });
+
+
+        document.getElementById('toggle-sheet').addEventListener('click', () => {
+            bottomSheet.classList.toggle('collapsed');
+        });
+
+        emojiBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // 点击 Emoji 自动切回 Emoji 模式
+                if (isEraser || isPen) modeBrushBtn.click();
+                
+                document.querySelectorAll('.emoji-item').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                customInput.value = '';
+                currentEmoji = btn.getAttribute('data-emoji');
+            });
+        });
+
+        customInput.addEventListener('input', (e) => {
+            if (e.target.value) {
+                if (isEraser || isPen) modeBrushBtn.click();
+                document.querySelectorAll('.emoji-item').forEach(b => b.classList.remove('active'));
+                e.target.parentElement.classList.add('active');
+                currentEmoji = e.target.value;
+            }
+        });
+
+        sizeSlider.addEventListener('input', (e) => {
+            brushSize = parseInt(e.target.value);
+            document.getElementById('size-val').innerText = brushSize;
+        });
+
+        spacingSlider.addEventListener('input', (e) => {
+            brushSpacing = parseInt(e.target.value);
+            document.getElementById('spacing-val').innerText = brushSpacing;
+        });
+
+        snapshotBtn.addEventListener('click', () => {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.fillStyle = currentBgColor;
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            tempCtx.drawImage(canvas, 0, 0);
+            const link = document.createElement('a');
+            link.download = `EmojiArt_${Date.now()}.png`;
+            link.href = tempCanvas.toDataURL('image/png');
+            link.click();
+            M.toast({html: '已保存到相册', classes: 'rounded green'});
+        });
+
+        clearBtn.addEventListener('click', () => {
+            saveState();
+            ctx.clearRect(0, 0, canvas.width / pixelRatio, canvas.height / pixelRatio);
+            localStorage.removeItem('emojiArtSave'); 
+        });
+
+        // --- 8. 绘图引擎 (集成画笔) ---
+        function getPos(e) {
+            const t = e.touches ? e.touches[0] : e;
+            return { x: t.clientX, y: t.clientY };
+        }
+
+        function drawPoint(x, y) {
+            drawShape(x, y);
+            if (isMirror) {
+                const canvasW = canvas.width / pixelRatio; 
+                drawShape(canvasW - x, y);
+            }
+        }
+
+        function drawShape(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // 处理随机大小抖动 (对所有模式生效)
+            let currentScale = 1;
+            if (isSizeJitter) {
+                currentScale = 0.5 + Math.random();
+            }
+
+            // 处理随机角度抖动 (对所有模式生效)
+            if (isJitter) {
+                const angle = Math.random() * Math.PI * 2; 
+                ctx.rotate(angle);
+            }
+
+            const finalSize = brushSize * currentScale;
+
+            if (isEraser) {
+                ctx.beginPath();
+                // 橡皮擦也是圆的
+                ctx.arc(0, 0, finalSize / 2, 0, Math.PI * 2);
+                ctx.fill();
+            } 
+            else if (isPen) {
+                // 纯色画笔逻辑
+                ctx.fillStyle = currentPenColor;
+                ctx.beginPath();
+                ctx.arc(0, 0, finalSize / 2, 0, Math.PI * 2);
+                ctx.fill();
+            } 
+            else {
+                // Emoji 逻辑
+                ctx.font = `${finalSize}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(currentEmoji, 0, 0); 
+            }
+            
+            ctx.restore(); 
+        }
+
+        canvas.addEventListener('mousedown', start);
+        canvas.addEventListener('touchstart', start, {passive: false});
+        canvas.addEventListener('mousemove', move);
+        canvas.addEventListener('touchmove', move, {passive: false});
+        canvas.addEventListener('mouseup', end);
+        canvas.addEventListener('touchend', end);
+        canvas.addEventListener('mouseout', end);
+
+        function start(e) {
+            if(e.target !== canvas) return;
+            dynamicIsland.classList.remove('expanded');
+            
+            isDrawing = true;
+            saveState();
+            const pos = getPos(e);
+            lastX = pos.x;
+            lastY = pos.y;
+            drawPoint(lastX, lastY);
+            if(e.type === 'touchstart') e.preventDefault();
+        }
+
+        function move(e) {
+            if (!isDrawing) return;
+            const pos = getPos(e);
+            const dist = Math.hypot(pos.x - lastX, pos.y - lastY);
+            // 对于画笔模式，如果间距很小，可以形成连续线条
+            // 如果用户想要点状画笔，可以调大间距滑块
+            const step = isEraser ? brushSize/4 : brushSpacing;
+
+            if (dist >= step) {
+                const angle = Math.atan2(pos.y - lastY, pos.x - lastX);
+                for (let i = 0; i < dist; i += step) {
+                    const nextX = lastX + Math.cos(angle) * i;
+                    const nextY = lastY + Math.sin(angle) * i;
+                    drawPoint(nextX, nextY);
+                }
+                lastX = pos.x;
+                lastY = pos.y;
+            }
+            if(e.type === 'touchmove') e.preventDefault();
+        }
+
+        function end() {
+            isDrawing = false;
+            ctx.beginPath();
+            saveToLocal(); 
+        }
+
+    </script>
+</body>
+</html>
