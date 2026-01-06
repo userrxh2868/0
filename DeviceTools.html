@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="system">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#fdfbff" id="themeColorMeta">
+    <title>设备工具 Pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* --- 动画系统 & 变量 --- */
+        :root {
+            /* 强烈的弹簧回弹效果 */
+            --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+            /* 平滑过渡 */
+            --ease-smooth: cubic-bezier(0.4, 0.0, 0.2, 1);
+            
+            --radius-md: 18px;
+            --radius-lg: 28px;
+            
+            --nav-height: 80px;
+        }
+
+        /* 浅色模式 */
+        :root, [data-theme="light"] {
+            --md-primary: #6750a4;
+            --md-primary-container: #eaddff;
+            --md-on-primary-container: #21005d;
+            --md-background: #fdfbff;
+            --md-surface: #f7f2fa;
+            --md-surface-bright: #ffffff;
+            --md-on-surface: #1c1b1f;
+            --md-on-surface-variant: #49454f;
+            --md-outline: #79747e;
+            --md-outline-variant: #c4c7c5;
+            
+            --status-good: #006c4c;
+            --status-ok: #a85e00;
+            --status-bad: #ba1a1a;
+            
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+            --nav-bg: rgba(253, 251, 255, 0.9);
+        }
+
+        /* 深色模式 */
+        [data-theme="dark"] {
+            --md-primary: #d0bcff;
+            --md-primary-container: #4f378b;
+            --md-on-primary-container: #eaddff;
+            --md-background: #141218;
+            --md-surface: #1d1b20;
+            --md-surface-bright: #2b2930;
+            --md-on-surface: #e6e1e5;
+            --md-on-surface-variant: #cac4d0;
+            --md-outline: #938f99;
+            --md-outline-variant: #444746;
+
+            --status-good: #6dd58c;
+            --status-ok: #ffb77c;
+            --status-bad: #ffb4ab;
+            
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
+            --nav-bg: rgba(20, 18, 24, 0.9);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'Roboto', sans-serif;
+            transition: background-color 0.4s var(--ease-smooth), color 0.4s var(--ease-smooth);
+        }
+
+        body {
+            background-color: var(--md-background);
+            color: var(--md-on-surface);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* --- 顶部栏 --- */
+        .app-bar {
+            height: 64px;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--md-background);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            background-color: var(--nav-bg);
+            border-bottom: 1px solid rgba(128,128,128, 0.1);
+        }
+
+        .app-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--md-on-surface);
+            letter-spacing: -0.5px;
+        }
+
+        .toolbar { display: flex; gap: 8px; }
+
+        .btn-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: var(--md-surface-bright);
+            color: var(--md-on-surface-variant);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+            transition: transform 0.3s var(--ease-spring);
+        }
+        .btn-icon:active { transform: scale(0.85); }
+        .btn-icon svg { width: 20px; height: 20px; fill: currentColor; }
+
+        .btn-text {
+            padding: 0 14px;
+            height: 40px;
+            border-radius: 20px;
+            background: var(--md-surface-bright);
+            color: var(--md-on-surface);
+            border: none;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+            transition: transform 0.3s var(--ease-spring);
+        }
+        .btn-text:active { transform: scale(0.95); }
+
+        /* --- 主内容区 (Pages) --- */
+        main {
+            flex: 1;
+            position: relative;
+            padding-bottom: calc(var(--nav-height) + 20px); 
+        }
+
+        .page-view {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            animation: fadeIn 0.4s var(--ease-smooth);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .hidden-page { display: none !important; }
+
+        /* --- 首页：仪表盘样式 --- */
+        .card {
+            background-color: var(--md-surface);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(128,128,128, 0.05);
+            transition: transform 0.3s var(--ease-spring);
+        }
+
+        .hero-fps {
+            text-align: center;
+            padding: 24px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .fps-val {
+            font-size: clamp(60px, 18vw, 100px); 
+            line-height: 0.9;
+            font-weight: 900;
+            color: var(--md-primary);
+            font-feature-settings: "tnum";
+            animation: breathe 3s infinite ease-in-out; 
+        }
+        @keyframes breathe {
+            0%, 100% { filter: brightness(1); transform: scale(1); }
+            50% { filter: brightness(1.1); transform: scale(0.98); }
+        }
+        
+        .fps-unit {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--md-on-surface-variant);
+            opacity: 0.8;
+            margin-top: 8px;
+            letter-spacing: 2px;
+        }
+
+        .status-pill {
+            margin-top: 16px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: var(--md-primary-container);
+            color: var(--md-on-primary-container);
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            box-shadow: 0 0 6px currentColor;
+        }
+
+        .grid-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        .stat-box {
+            background: var(--md-surface-bright);
+            border-radius: var(--radius-md);
+            padding: 12px 4px;
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+        }
+        .stat-num {
+            font-size: 18px; 
+            font-weight: 700;
+            font-feature-settings: "tnum";
+            margin-bottom: 2px;
+        }
+        .stat-lbl {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--md-on-surface-variant);
+            text-transform: uppercase;
+        }
+
+        .card-graph {
+            height: 200px;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .graph-header {
+            padding: 14px 20px 0;
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--md-on-surface-variant);
+        }
+        canvas {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .monitor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 12px;
+        }
+        .monitor-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 4px;
+        }
+        .monitor-icon { color: var(--md-primary); margin-bottom: 4px; }
+        .monitor-val { font-size: 16px; font-weight: 700; }
+        .monitor-lbl { font-size: 11px; color: var(--md-on-surface-variant); }
+
+        .info-list { display: flex; flex-direction: column; gap: 10px; }
+        .info-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+        .info-k { color: var(--md-on-surface-variant); }
+        .info-v { font-weight: 600; color: var(--md-on-surface); text-align: right; max-width: 60%; word-break: break-all;}
+
+        /* --- 导航页：搜索栏 & 链接 --- */
+        
+        .search-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        .search-box {
+            display: flex;
+            align-items: center;
+            background-color: var(--md-surface-bright);
+            border-radius: 30px;
+            padding: 4px 6px 4px 12px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--md-outline-variant);
+            transition: transform 0.3s var(--ease-spring), box-shadow 0.3s;
+        }
+        .search-box:focus-within {
+            transform: scale(1.02);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            border-color: var(--md-primary);
+        }
+        
+        .search-select {
+            background: transparent;
+            border: none;
+            color: var(--md-on-surface-variant);
+            font-size: 14px;
+            font-weight: 600;
+            margin-right: 8px;
+            padding: 4px;
+            outline: none;
+            cursor: pointer;
+            border-right: 1px solid var(--md-outline-variant);
+        }
+
+        .search-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 16px;
+            color: var(--md-on-surface);
+            font-weight: 500;
+        }
+        .search-btn {
+            background-color: var(--md-primary);
+            color: var(--md-on-primary-container);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s var(--ease-spring);
+        }
+        .search-btn:active { transform: scale(0.9); }
+        .search-btn svg { fill: white; width: 20px; height: 20px; }
+
+        /* 分类标题 */
+        .section-header {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--md-primary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin: 24px 0 12px 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-header:first-of-type { margin-top: 0; }
+        .section-header svg { width: 18px; height: 18px; fill: currentColor; }
+
+        .link-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .link-card {
+            background-color: var(--md-surface-bright);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            text-decoration: none;
+            color: var(--md-on-surface);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 12px;
+            transition: transform 0.3s var(--ease-spring), box-shadow 0.3s;
+            border: 1px solid var(--md-outline-variant);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        .link-card:active { transform: scale(0.92); }
+        
+        /* 标签 */
+        .tag-local {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--md-primary-container);
+            color: var(--md-on-primary-container);
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        .link-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--md-primary-container);
+            color: var(--md-on-primary-container);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .link-title { font-weight: 700; font-size: 14px; }
+        .link-desc { font-size: 11px; color: var(--md-on-surface-variant); }
+
+        /* --- 全屏覆盖层 (用于测试) --- */
+        #fullscreenOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: black;
+            z-index: 9999;
+            display: none;
+            cursor: pointer;
+            touch-action: none;
+        }
+        .overlay-hint {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            font-weight: 500;
+            pointer-events: none;
+            text-align: center;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.3);
+            padding: 8px 16px;
+            border-radius: 16px;
+            backdrop-filter: blur(4px);
+        }
+
+        /* --- 底部导航栏 --- */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: var(--nav-height);
+            background-color: var(--nav-bg);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(128,128,128, 0.1);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 200;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            flex: 1;
+            height: 100%;
+            background: none;
+            border: none;
+            color: var(--md-on-surface-variant);
+            cursor: pointer;
+            position: relative;
+        }
+
+        .nav-indicator {
+            position: absolute;
+            top: 12px;
+            width: 64px;
+            height: 32px;
+            background-color: var(--md-primary-container);
+            border-radius: 16px;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.4s var(--ease-spring);
+        }
+
+        .nav-item.active .nav-indicator { opacity: 1; transform: scale(1); }
+        .nav-icon { z-index: 2; transition: color 0.3s, transform 0.3s var(--ease-spring); }
+        .nav-item.active .nav-icon { color: var(--md-on-primary-container); transform: translateY(-2px); }
+        .nav-label { font-size: 12px; font-weight: 600; z-index: 2; transition: color 0.3s; }
+        .nav-item.active .nav-label { color: var(--md-on-surface); font-weight: 700; }
+
+        /* Utils */
+        .c-good { color: var(--status-good); }
+        .c-ok { color: var(--status-ok); }
+        .c-bad { color: var(--status-bad); }
+
+    </style>
+</head>
+<body>
+
+    <!-- 全屏测试覆盖层 (复用) -->
+    <div id="fullscreenOverlay" onclick="handleOverlayClick()">
+        <div class="overlay-hint" id="overlayHint">Tap to cycle colors</div>
+    </div>
+
+    <!-- 顶部栏 -->
+    <header class="app-bar">
+        <div class="app-title" data-i18n="title">Device Tools</div>
+        <div class="toolbar">
+            <button class="btn-text" id="langBtn" onclick="toggleLanguage()">EN</button>
+            <button class="btn-icon" onclick="toggleTheme()" id="themeBtn">
+                <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+            </button>
+            <button class="btn-icon" onclick="resetStats()">
+                <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <!-- 页面 1: 仪表盘 (Home) -->
+        <div id="page-home" class="page-view">
+            <!-- 核心 FPS -->
+            <div class="card hero-fps">
+                <div class="fps-val" id="curFps">--</div>
+                <div class="fps-unit">FRAMES PER SECOND</div>
+                <div class="status-pill">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">Analyzing...</span>
+                </div>
+            </div>
+
+            <!-- 统计数据 -->
+            <div class="grid-stats">
+                <div class="stat-box">
+                    <div class="stat-num c-good" id="maxFps">--</div>
+                    <div class="stat-lbl" data-i18n="max">MAX</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-num c-bad" id="minFps">--</div>
+                    <div class="stat-lbl" data-i18n="min">MIN</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-num" style="color:var(--md-primary)" id="avgFps">--</div>
+                    <div class="stat-lbl" data-i18n="avg">AVG</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-num c-ok" id="jitterMs">--</div>
+                    <div class="stat-lbl" data-i18n="jitter">Jitter</div>
+                </div>
+            </div>
+
+            <!-- 波形图 -->
+            <div class="card card-graph">
+                <div class="graph-header">
+                    <span data-i18n="graph">Live Wave</span>
+                    <span>Real-time</span>
+                </div>
+                <canvas id="fpsCanvas"></canvas>
+            </div>
+
+            <!-- 硬件监控 (含 Ping) -->
+            <div class="card monitor-grid">
+                <!-- 内存 -->
+                <div class="monitor-item">
+                    <div class="monitor-icon">
+                        <svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M2 7h2v12H2V7zm18 5h2v7h-2v-7zm-4-9h2v16h-2V3zm-4 4h2v12h-2V7zm-4-3h2v15H8V4z"/></svg>
+                    </div>
+                    <div class="monitor-val" id="memUsage">--</div>
+                    <div class="monitor-lbl" data-i18n="mem">RAM (Heap)</div>
+                </div>
+                <!-- 电池 -->
+                <div class="monitor-item">
+                    <div class="monitor-icon">
+                        <svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+                    </div>
+                    <div class="monitor-val" id="battLevel">--</div>
+                    <div class="monitor-lbl" id="battStatus">Battery</div>
+                </div>
+                <!-- Ping -->
+                <div class="monitor-item">
+                    <div class="monitor-icon">
+                        <svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                    </div>
+                    <div class="monitor-val" id="netPing">--</div>
+                    <div class="monitor-lbl">Ping (ms)</div>
+                </div>
+            </div>
+
+            <!-- 设备信息 -->
+            <div class="card">
+                <div class="info-list">
+                    <div class="info-row">
+                        <span class="info-k" data-i18n="res">Resolution</span>
+                        <span class="info-v" id="infoRes">--</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-k" data-i18n="renderer">Renderer</span>
+                        <span class="info-v" id="infoGpu">--</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-k">UA / OS</span>
+                        <span class="info-v" id="infoOs">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 页面 2: 导航 (Nav) -->
+        <div id="page-nav" class="page-view hidden-page">
+            <div style="padding: 0 4px;">
+                
+                <!-- 搜索栏 -->
+                <div class="search-container">
+                    <form class="search-box" onsubmit="event.preventDefault(); performSearch();">
+                        <select id="searchEngineSelect" class="search-select">
+                            <option value="bing">Bing</option>
+                            <option value="google">Google</option>
+                            <option value="baidu">Baidu</option>
+                            <option value="duckduckgo">DuckGo</option>
+                        </select>
+                        <input type="text" id="searchInput" class="search-input" placeholder="Search..." data-i18n-ph="searchPh">
+                        <button type="submit" class="search-btn">
+                            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- 分类 0: 本地工具专区 (新增) -->
+                <div class="section-header">
+                    <svg viewBox="0 0 24 24"><path d="M22 6H12l-2-2H2v16h20V6zm-2 14H4V6h6.17l2 2H20v12zm-8-2h6v-2h-6v2zm0-4h6v-2h-6v2z"/></svg>
+                    <span data-i18n="secLocal">Local Tools Zone</span>
+                </div>
+                <div class="link-grid">
+                    <!-- 屏幕坏点 -->
+                    <div class="link-card" onclick="startTest('deadpixel')">
+                        <div class="tag-local">LOCAL</div>
+                        <div class="link-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+                        </div>
+                        <div class="link-title" data-i18n="deadPixel">Dead Pixel</div>
+                        <div class="link-desc" data-i18n="deadPixelDesc">Check colors</div>
+                    </div>
+                    
+                    <!-- 震动测试 -->
+                    <div class="link-card" onclick="testVibration()">
+                        <div class="tag-local">LOCAL</div>
+                        <div class="link-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M0 15h2V9H0v6zm3 2h2V7H3v10zm19-8v6h2V9h-2zm-3 8h2V7h-2v10zM16.5 3h-9C6.67 3 6 3.67 6 4.5v15c0 .83.67 1.5 1.5 1.5h9c.83 0 1.5-.67 1.5-1.5v-15c0-.83-.67-1.5-1.5-1.5zM16 19H8V5h8v14z"/></svg>
+                        </div>
+                        <div class="link-title" data-i18n="vibro">Haptics Test</div>
+                        <div class="link-desc" data-i18n="vibroDesc">Test vibration</div>
+                    </div>
+
+                    <!-- 扬声器测试 -->
+                    <div class="link-card" onclick="testAudio()">
+                        <div class="tag-local">LOCAL</div>
+                        <div class="link-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                        </div>
+                        <div class="link-title" data-i18n="audio">Speaker Test</div>
+                        <div class="link-desc" data-i18n="audioDesc">Play beep sound</div>
+                    </div>
+
+                    <!-- 色阶测试 -->
+                    <div class="link-card" onclick="startTest('gradient')">
+                        <div class="tag-local">LOCAL</div>
+                        <div class="link-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                        </div>
+                        <div class="link-title" data-i18n="gradient">Gradient Test</div>
+                        <div class="link-desc" data-i18n="gradientDesc">Check banding</div>
+                    </div>
+                </div>
+
+                <!-- 分类 1: 屏幕与显示 -->
+                <div class="section-header" data-i18n="secDisplay">Online Display</div>
+                <div class="link-grid">
+                    <a href="https://www.vsynctester.com/" target="_blank" class="link-card">
+                        <div class="link-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 3h18v18H3V3zm16 16V5H5v14h14zM7 7h10v2H7V7zm0 4h10v2H7v-2zm0 4h7v2H7v-2z"/></svg>
+                        </div>
+                        <div class="link-title">VSync Tester</div>
+                        <div class="link-desc">Screen tearing</div>
+                    </a>
+                    
+                    <a href="https://www.testufo.com/" target="_blank" class="link-card">
+                        <div class="link-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                        </div>
+                        <div class="link-title">UFO Test</div>
+                        <div class="link-desc">Motion blur</div>
+                    </a>
+                </div>
+
+                <!-- 分类 2: 性能基准 -->
+                <div class="section-header" data-i18n="secBench">Benchmarks</div>
+                <div class="link-grid">
+                    <a href="https://html5test.com/" target="_blank" class="link-card">
+                        <div class="link-icon">
+                             <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+                        </div>
+                        <div class="link-title">HTML5Test</div>
+                        <div class="link-desc">Browser Compatibility</div>
+                    </a>
+                     <a href="https://webglreport.com/" target="_blank" class="link-card">
+                        <div class="link-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M4 6h18V4H4c-1.1 0-2 .9-2 2v11H0v3h14v-3H4V6zm19 2h-6c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V9c0-.55-.45-1-1-1zm-1 9h-4v-7h4v7z"/></svg>
+                        </div>
+                        <div class="link-title">WebGL Report</div>
+                        <div class="link-desc">GPU & Driver Info</div>
+                    </a>
+                </div>
+
+                <!-- 分类 3: 网络与系统 -->
+                <div class="section-header" data-i18n="secNet">Network & System</div>
+                <div class="link-grid">
+                    <a href="https://fast.com/" target="_blank" class="link-card">
+                        <div class="link-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+                        </div>
+                        <div class="link-title">Fast.com</div>
+                        <div class="link-desc">Net Speed</div>
+                    </a>
+                     <a href="https://www.deviceinfo.me/" target="_blank" class="link-card">
+                        <div class="link-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                        </div>
+                        <div class="link-title">Device Info</div>
+                        <div class="link-desc">Fingerprint & IP</div>
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- 底部导航栏 -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="switchPage('home', this)">
+            <div class="nav-indicator"></div>
+            <div class="nav-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+            </div>
+            <span class="nav-label" data-i18n="navHome">Monitor</span>
+        </button>
+
+        <button class="nav-item" onclick="switchPage('nav', this)">
+            <div class="nav-indicator"></div>
+            <div class="nav-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+            </div>
+            <span class="nav-label" data-i18n="navTools">Portal</span>
+        </button>
+    </nav>
+
+    <script>
+        /* --- 多语言系统 --- */
+        const i18n = {
+            zh: {
+                title: "设备工具 Pro",
+                max: "最高",
+                min: "最低",
+                avg: "平均",
+                jitter: "抖动(ms)",
+                graph: "实时波形",
+                mem: "内存使用 (堆)",
+                res: "物理分辨率",
+                renderer: "图形渲染器",
+                statusExcellent: "极佳",
+                statusGood: "流畅",
+                statusPoor: "卡顿",
+                ready: "监测中",
+                charging: "充电中",
+                discharging: "放电中",
+                navHome: "仪表盘",
+                navTools: "传送门",
+                searchPh: "输入内容搜索...",
+                
+                secLocal: "本地工具专区",
+                secDisplay: "屏幕与显示",
+                secBench: "性能基准",
+                secNet: "网络与系统",
+                
+                deadPixel: "屏幕坏点检测",
+                deadPixelDesc: "纯色循环测试",
+                vibro: "震动/触感测试",
+                vibroDesc: "测试马达反馈",
+                audio: "扬声器测试",
+                audioDesc: "播放测试音",
+                gradient: "灰阶/色阶测试",
+                gradientDesc: "检测色彩断层",
+
+                overlayDeadPixel: "点击切换颜色\n黑 -> 白 -> 红 -> 绿 -> 蓝",
+                overlayGradient: "点击切换渐变模式"
+            },
+            en: {
+                title: "Device Tools Pro",
+                max: "MAX",
+                min: "MIN",
+                avg: "AVG",
+                jitter: "JITTER",
+                graph: "Live Waveform",
+                mem: "JS Heap Mem",
+                res: "Resolution",
+                renderer: "Renderer",
+                statusExcellent: "Excellent",
+                statusGood: "Smooth",
+                statusPoor: "Stutter",
+                ready: "Monitoring",
+                charging: "Charging",
+                discharging: "On Battery",
+                navHome: "Dashboard",
+                navTools: "Portal",
+                searchPh: "Type to search...",
+                
+                secLocal: "Local Tools Zone",
+                secDisplay: "Online Display",
+                secBench: "Benchmarks",
+                secNet: "Network & System",
+                
+                deadPixel: "Dead Pixel Test",
+                deadPixelDesc: "Local Color Cycle",
+                vibro: "Haptics Test",
+                vibroDesc: "Vibration Check",
+                audio: "Speaker Test",
+                audioDesc: "Play Sound",
+                gradient: "Gradient Test",
+                gradientDesc: "Check Banding",
+
+                overlayDeadPixel: "Tap to cycle colors\nBlack -> White -> Red -> Green -> Blue",
+                overlayGradient: "Tap to cycle gradients"
+            }
+        };
+
+        let currentLang = 'zh';
+
+        /* --- DOM 引用 --- */
+        const els = {
+            curFps: document.getElementById('curFps'),
+            maxFps: document.getElementById('maxFps'),
+            minFps: document.getElementById('minFps'),
+            avgFps: document.getElementById('avgFps'),
+            jitterMs: document.getElementById('jitterMs'),
+            statusText: document.getElementById('statusText'),
+            statusDot: document.getElementById('statusDot'),
+            canvas: document.getElementById('fpsCanvas'),
+            memUsage: document.getElementById('memUsage'),
+            battLevel: document.getElementById('battLevel'),
+            battStatus: document.getElementById('battStatus'),
+            netPing: document.getElementById('netPing'),
+            searchInput: document.getElementById('searchInput'),
+            searchEngineSelect: document.getElementById('searchEngineSelect'),
+            langBtn: document.getElementById('langBtn'),
+            overlay: document.getElementById('fullscreenOverlay'),
+            overlayHint: document.getElementById('overlayHint')
+        };
+        const ctx = els.canvas.getContext('2d');
+
+        /* --- 核心状态 --- */
+        let state = {
+            lastTime: performance.now(),
+            frameCount: 0,
+            maxFps: 0,
+            minFps: 999,
+            totalFps: 0,
+            framesRecorded: 0,
+            history: [],
+            lastJitterTime: performance.now(),
+            jitterSum: 0,
+            jitterCount: 0,
+            theme: 'system',
+            activePage: 'home',
+            lastPingTime: 0,
+            
+            // 测试状态
+            testMode: null, // 'deadpixel' or 'gradient'
+            testIndex: 0
+        };
+
+        /* --- 本地工具逻辑 --- */
+        
+        // 1. 震动测试
+        function testVibration() {
+            if (navigator.vibrate) {
+                // 震动模式：短，停，短
+                navigator.vibrate([100, 50, 100]);
+            } else {
+                alert("Your device does not support vibration API.");
+            }
+        }
+
+        // 2. 音频测试 (Web Audio API)
+        function testAudio() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return alert("Web Audio API not supported");
+                
+                const audioCtx = new AudioContext();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // 440Hz A4 note
+                
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.5);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // 3. 全屏测试逻辑 (坏点 & 渐变)
+        const deadPixelColors = ['#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff'];
+        const gradientStyles = [
+            'linear-gradient(to right, black, white)', // 灰阶
+            'linear-gradient(to right, black, red)',   // 红阶
+            'linear-gradient(to right, black, green)', // 绿阶
+            'linear-gradient(to right, black, blue)',  // 蓝阶
+            'linear-gradient(to bottom, #000, #333, #666, #999, #ccc, #fff)' // 灰阶分层
+        ];
+
+        function startTest(mode) {
+            state.testMode = mode;
+            state.testIndex = 0;
+            
+            els.overlay.style.display = 'block';
+            
+            if (mode === 'deadpixel') {
+                els.overlay.style.background = deadPixelColors[0];
+                els.overlayHint.innerText = i18n[currentLang].overlayDeadPixel;
+            } else if (mode === 'gradient') {
+                els.overlay.style.background = gradientStyles[0];
+                els.overlayHint.innerText = i18n[currentLang].overlayGradient;
+            }
+
+            // Request Fullscreen
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(()=>{});
+            }
+        }
+
+        function handleOverlayClick() {
+            state.testIndex++;
+            const arr = state.testMode === 'deadpixel' ? deadPixelColors : gradientStyles;
+            
+            if (state.testIndex >= arr.length) {
+                // Exit
+                els.overlay.style.display = 'none';
+                state.testMode = null;
+                if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+            } else {
+                els.overlay.style.background = arr[state.testIndex];
+                // Hide hint after first tap
+                if (state.testIndex > 0) els.overlayHint.style.display = 'none';
+                else els.overlayHint.style.display = 'block';
+            }
+        }
+
+        /* --- 搜索功能 --- */
+        function performSearch() {
+            const query = els.searchInput.value.trim();
+            const engine = els.searchEngineSelect.value;
+            
+            if (query !== "") {
+                let url = "";
+                switch(engine) {
+                    case 'google': url = `https://www.google.com/search?q=${encodeURIComponent(query)}`; break;
+                    case 'baidu': url = `https://www.baidu.com/s?wd=${encodeURIComponent(query)}`; break;
+                    case 'duckduckgo': url = `https://duckduckgo.com/?q=${encodeURIComponent(query)}`; break;
+                    case 'bing': 
+                    default:
+                        url = `https://www.bing.com/search?q=${encodeURIComponent(query)}`; break;
+                }
+                window.open(url, '_blank');
+            }
+        }
+
+        /* --- Ping 监测 --- */
+        async function measurePing() {
+            const start = performance.now();
+            try {
+                await fetch(window.location.href, { method: 'HEAD', mode: 'no-cors', cache: 'no-store' });
+                const end = performance.now();
+                const ping = end - start;
+                els.netPing.innerText = Math.round(ping);
+            } catch (e) {
+                els.netPing.innerText = "N/A";
+            }
+        }
+
+        /* --- 页面切换 --- */
+        function switchPage(pageName, btnEl) {
+            document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+            btnEl.classList.add('active');
+
+            document.querySelectorAll('.page-view').forEach(view => view.classList.add('hidden-page'));
+            
+            const targetView = document.getElementById(`page-${pageName}`);
+            targetView.classList.remove('hidden-page');
+            
+            state.activePage = pageName;
+
+            if (pageName === 'home') {
+                requestAnimationFrame(() => onResize());
+            }
+        }
+
+        /* --- 主题与初始化 --- */
+        function initTheme() {
+            const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (state.theme === 'system') {
+                document.documentElement.setAttribute('data-theme', sysDark ? 'dark' : 'light');
+            }
+            updateMetaColor();
+        }
+
+        function toggleTheme() {
+            const cur = document.documentElement.getAttribute('data-theme');
+            const next = cur === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            state.theme = next;
+            updateMetaColor();
+        }
+
+        function updateMetaColor() {
+            const bg = getComputedStyle(document.body).getPropertyValue('--md-background').trim();
+            document.getElementById('themeColorMeta').setAttribute('content', bg);
+        }
+
+        /* --- 硬件信息 --- */
+        function initHardwareInfo() {
+            document.getElementById('infoRes').innerText = 
+                `${window.screen.width * window.devicePixelRatio} x ${window.screen.height * window.devicePixelRatio}`;
+            
+            const ua = navigator.userAgent;
+            let os = "Web";
+            if (/Android/.test(ua)) os = "Android";
+            else if (/iPhone/.test(ua)) os = "iOS";
+            else if (/Win/.test(ua)) os = "Windows";
+            else if (/Mac/.test(ua)) os = "MacOS";
+            document.getElementById('infoOs').innerText = os;
+
+            try {
+                const gl = document.createElement('canvas').getContext('webgl');
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                const simple = renderer.replace(/ANGLE \(/, '').replace(/,.*$/, '').replace(/\(.*\)/, '').substring(0, 25);
+                document.getElementById('infoGpu').innerText = simple;
+            } catch(e) {
+                document.getElementById('infoGpu').innerText = "Generic";
+            }
+
+            if ('getBattery' in navigator) {
+                navigator.getBattery().then(battery => {
+                    updateBattery(battery);
+                    battery.addEventListener('levelchange', () => updateBattery(battery));
+                    battery.addEventListener('chargingchange', () => updateBattery(battery));
+                });
+            } else {
+                els.battLevel.innerText = "N/A";
+            }
+        }
+
+        function updateBattery(battery) {
+            els.battLevel.innerText = Math.round(battery.level * 100) + "%";
+            els.battStatus.innerText = battery.charging ? i18n[currentLang].charging : i18n[currentLang].discharging;
+        }
+
+        function updateMemory() {
+            if (performance && performance.memory) {
+                const used = performance.memory.usedJSHeapSize;
+                els.memUsage.innerText = (used / 1024 / 1024).toFixed(1) + " MB";
+            } else {
+                els.memUsage.innerText = "N/A";
+            }
+        }
+
+        /* --- 语言管理 --- */
+        function setLanguage(lang) {
+            currentLang = lang;
+            els.langBtn.innerText = currentLang === 'zh' ? 'EN' : '中';
+            document.title = i18n[currentLang].title;
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const k = el.getAttribute('data-i18n');
+                if (i18n[currentLang][k]) el.innerText = i18n[currentLang][k];
+            });
+
+            document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+                const k = el.getAttribute('data-i18n-ph');
+                if (i18n[currentLang][k]) el.placeholder = i18n[currentLang][k];
+            });
+            
+            if ('getBattery' in navigator) navigator.getBattery().then(updateBattery);
+        }
+
+        function toggleLanguage() {
+            const nextLang = currentLang === 'zh' ? 'en' : 'zh';
+            setLanguage(nextLang);
+        }
+
+        /* --- 核心 FPS 逻辑 --- */
+        function updateStats(fps, jitter) {
+            let statusKey = 'statusPoor';
+            let colorVar = '--status-bad';
+            if (fps >= 55) { statusKey = 'statusExcellent'; colorVar = '--status-good'; }
+            else if (fps >= 24) { statusKey = 'statusGood'; colorVar = '--status-ok'; }
+            
+            els.statusText.innerText = i18n[currentLang][statusKey];
+            els.statusDot.style.backgroundColor = `var(${colorVar})`;
+            
+            els.jitterMs.innerText = jitter.toFixed(1);
+            
+            if (fps > state.maxFps) {
+                state.maxFps = fps;
+                els.maxFps.innerText = Math.round(fps);
+            }
+            if (state.framesRecorded > 60 && fps < state.minFps) {
+                state.minFps = fps;
+                els.minFps.innerText = Math.round(fps);
+            }
+            
+            state.framesRecorded++;
+            state.totalFps += fps;
+            els.avgFps.innerText = Math.round(state.totalFps / state.framesRecorded);
+
+            state.history.push(fps);
+            if (state.history.length > els.canvas.width / 4) state.history.shift();
+        }
+
+        function drawWaveform() {
+            if (state.activePage !== 'home') return;
+
+            const { width, height } = els.canvas;
+            ctx.clearRect(0, 0, width, height);
+
+            if (state.history.length < 2) return;
+
+            const style = getComputedStyle(document.body);
+            const primary = style.getPropertyValue('--md-primary').trim();
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, height);
+            gradient.addColorStop(0, primary);
+            gradient.addColorStop(1, "rgba(0,0,0,0)");
+
+            ctx.beginPath();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = primary;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            const maxH = Math.max(120, state.maxFps * 1.1);
+            const step = width / (state.history.length - 1);
+
+            let x0 = 0;
+            let y0 = height - (state.history[0] / maxH) * height * 0.8 - 10;
+            ctx.moveTo(x0, y0);
+
+            for (let i = 1; i < state.history.length - 1; i++) {
+                const x = i * step;
+                const y = height - (state.history[i] / maxH) * height * 0.8 - 10;
+                const nx = (i + 1) * step;
+                const ny = height - (state.history[i+1] / maxH) * height * 0.8 - 10;
+                const mx = (x + nx) / 2;
+                const my = (y + ny) / 2;
+                ctx.quadraticCurveTo(x, y, mx, my);
+            }
+            
+            const lx = (state.history.length - 1) * step;
+            const ly = height - (state.history[state.history.length-1] / maxH) * height * 0.8 - 10;
+            ctx.lineTo(lx, ly);
+            ctx.stroke();
+
+            ctx.lineTo(lx, height);
+            ctx.lineTo(0, height);
+            ctx.closePath();
+            ctx.globalAlpha = 0.15;
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+
+        function loop(timestamp) {
+            requestAnimationFrame(loop);
+
+            const delta = timestamp - state.lastJitterTime;
+            state.lastJitterTime = timestamp;
+            if (state.framesRecorded > 0) {
+                state.jitterSum += delta;
+                state.jitterCount++;
+            }
+
+            state.frameCount++;
+            const dt = timestamp - state.lastTime;
+
+            if (timestamp - state.lastPingTime > 2000 && state.activePage === 'home') {
+                measurePing();
+                state.lastPingTime = timestamp;
+            }
+
+            if (dt >= 250) {
+                const fps = (state.frameCount * 1000) / dt;
+                const avgFrameTime = state.jitterSum / state.jitterCount;
+                const ideal = 1000 / (fps || 60);
+                const jitter = Math.abs(avgFrameTime - ideal);
+
+                els.curFps.innerText = Math.round(fps);
+                updateStats(fps, jitter);
+                updateMemory();
+
+                state.lastTime = timestamp;
+                state.frameCount = 0;
+                state.jitterSum = 0;
+                state.jitterCount = 0;
+            }
+
+            drawWaveform();
+        }
+
+        function resetStats() {
+            state.maxFps = 0;
+            state.minFps = 999;
+            state.totalFps = 0;
+            state.framesRecorded = 0;
+            state.history = [];
+            state.frameCount = 0;
+            state.lastTime = performance.now();
+
+            els.maxFps.innerText = "--";
+            els.minFps.innerText = "--";
+            els.avgFps.innerText = "--";
+            els.curFps.innerText = "--";
+            els.jitterMs.innerText = "--";
+            ctx.clearRect(0, 0, els.canvas.width, els.canvas.height);
+        }
+
+        function onResize() {
+            if (els.canvas.parentElement) {
+                const r = els.canvas.parentElement.getBoundingClientRect();
+                if (r.width > 0 && r.height > 0) {
+                    els.canvas.width = r.width;
+                    els.canvas.height = r.height;
+                }
+            }
+        }
+
+        window.addEventListener('resize', onResize);
+        window.addEventListener('load', () => {
+            initTheme();
+            initHardwareInfo();
+            onResize();
+            resetStats();
+            setLanguage('zh'); 
+            requestAnimationFrame(loop);
+        });
+
+    </script>
+</body>
+</html>
