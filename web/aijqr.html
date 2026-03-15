@@ -1,0 +1,2768 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>gNiall - 语言学习程序</title>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600&family=Source+Serif+4:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg: #f6f5f4;
+            --fg: #1e1e1e;
+            --muted: #5e5c64;
+            --accent: #3584e4;
+            --card: #ffffff;
+            --border: #c0bfbc;
+            --header-bg: #e8e7e6;
+            --input-bg: #fafafa;
+            --success: #2ec27e;
+            --warning: #e5a50a;
+            --danger: #e01b24;
+            --button-hover: #e2e1e0;
+            --menu-hover: #d9d9d7;
+            --radius: 6px;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Source Sans 3', sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 菜单条 */
+        .menubar {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            flex-shrink: 0;
+            user-select: none;
+        }
+
+        .menu-item {
+            position: relative;
+        }
+
+        .menu-trigger {
+            padding: 6px 12px;
+            background: transparent;
+            border: none;
+            font-size: 13px;
+            font-family: inherit;
+            color: var(--fg);
+            cursor: pointer;
+            border-radius: var(--radius);
+            transition: background 0.1s;
+        }
+
+        .menu-trigger:hover,
+        .menu-trigger.active {
+            background: var(--menu-hover);
+        }
+
+        .menu-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 50;
+            display: none;
+            padding: 4px 0;
+        }
+
+        .menu-dropdown.show {
+            display: block;
+            animation: menuIn 0.15s ease-out;
+        }
+
+        @keyframes menuIn {
+            from {
+                opacity: 0;
+                transform: translateY(-4px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.1s;
+            white-space: nowrap;
+        }
+
+        .dropdown-item:hover {
+            background: var(--menu-hover);
+        }
+
+        .dropdown-item:active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 0;
+        }
+
+        .dropdown-hint {
+            font-size: 11px;
+            color: var(--muted);
+            margin-left: 24px;
+        }
+
+        /* 加载指示器 */
+        .loading-indicator {
+            margin-left: auto;
+            padding: 0 8px;
+            display: flex;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+
+        .loading-indicator.show {
+            opacity: 1;
+        }
+
+        .loading-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* GNOME 风格标题栏 */
+        .titlebar {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        .titlebar-title {
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--fg);
+        }
+
+        .titlebar-subtitle {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* 对话区域 */
+        .conversation-area {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 0;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 10px 14px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            line-height: 1.5;
+            animation: messageIn 0.2s ease-out;
+            flex-shrink: 0;
+        }
+
+        @keyframes messageIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-user {
+            align-self: flex-end;
+            background: var(--accent);
+            color: white;
+        }
+
+        .message-bot {
+            align-self: flex-start;
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--fg);
+        }
+
+        .message-label {
+            font-size: 11px;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .message-bot .message-label {
+            color: var(--accent);
+        }
+
+        /* 空状态 */
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+            text-align: center;
+            color: var(--muted);
+            flex-shrink: 0;
+        }
+
+        .empty-icon {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--fg);
+            margin-bottom: 8px;
+        }
+
+        .empty-desc {
+            font-size: 13px;
+            line-height: 1.6;
+            max-width: 280px;
+        }
+
+        /* 统计栏 */
+        .stats-bar {
+            background: var(--card);
+            border-top: 1px solid var(--border);
+            padding: 8px 16px;
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--muted);
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: var(--fg);
+        }
+
+        /* 输入区域 */
+        .input-area {
+            background: var(--card);
+            border-top: 1px solid var(--border);
+            padding: 12px 16px;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+            flex-shrink: 0;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-family: inherit;
+            background: var(--input-bg);
+            color: var(--fg);
+            resize: none;
+            outline: none;
+            transition: border-color 0.15s;
+            min-height: 42px;
+            max-height: 100px;
+            vertical-align: middle;
+        }
+
+        .input-field:focus {
+            border-color: var(--accent);
+        }
+
+        .input-field::placeholder {
+            color: var(--muted);
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent);
+            filter: brightness(1.1);
+        }
+
+        .btn-secondary {
+            background: var(--button-hover);
+            color: var(--fg);
+        }
+
+        .btn-secondary:hover {
+            background: #d5d4d3;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c01820;
+        }
+
+        .btn-icon {
+            padding: 0;
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+        }
+
+        /* 记忆状态指示 */
+        .memory-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--success);
+            padding: 4px 8px;
+            background: #e5f3e5;
+            border-radius: var(--radius);
+        }
+
+        .memory-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--success);
+            border-radius: 50%;
+        }
+
+        .memory-indicator.off {
+            color: var(--muted);
+            background: var(--header-bg);
+        }
+
+        .memory-indicator.off .memory-dot {
+            background: var(--muted);
+        }
+
+        /* 模态框 - 修复动画 */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.2s ease-out, visibility 0s linear 0.2s;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transition: opacity 0.2s ease-out, visibility 0s linear 0s;
+        }
+
+        .modal {
+            background: var(--card);
+            border-radius: calc(var(--radius) + 2px);
+            width: 100%;
+            max-width: 420px;
+            max-height: 85vh;
+            overflow: hidden;
+            transform: scale(0.92);
+            opacity: 0;
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease-out;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal.modal-large {
+            max-width: 600px;
+            max-height: 90vh;
+        }
+
+        .modal-overlay.show .modal {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .modal-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .modal-title {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .modal-close {
+            padding: 4px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: var(--muted);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            background: var(--button-hover);
+        }
+
+        .modal-body {
+            padding: 16px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .modal-body p {
+            margin: 0 0 12px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .modal-body p:last-child {
+            margin-bottom: 0;
+        }
+
+        .modal-footer {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            flex-shrink: 0;
+        }
+
+        /* 设置面板 */
+        .settings-group {
+            margin-bottom: 24px;
+        }
+
+        .settings-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .settings-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--fg);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .settings-desc {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .radio-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+        .radio-item:hover {
+            border-color: var(--accent);
+        }
+
+        .radio-item.selected {
+            border-color: var(--accent);
+            background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+        }
+
+        .radio-input {
+            width: 18px;
+            height: 18px;
+            margin-top: 1px;
+            accent-color: var(--accent);
+            flex-shrink: 0;
+        }
+
+        .radio-content {
+            flex: 1;
+        }
+
+        .radio-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--fg);
+        }
+
+        .radio-desc {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        /* 数字输入组 */
+        .number-input-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .number-slider {
+            flex: 1;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--border);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .number-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .number-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .number-input {
+            width: 70px;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-family: inherit;
+            text-align: center;
+            background: var(--input-bg);
+            color: var(--fg);
+        }
+
+        .number-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .number-unit {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        /* 主题选择 */
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .theme-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 8px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: border-color 0.15s, transform 0.1s;
+        }
+
+        .theme-option:hover {
+            border-color: var(--accent);
+        }
+
+        .theme-option.selected {
+            border-color: var(--accent);
+            background: color-mix(in srgb, var(--accent) 8%, var(--card));
+        }
+
+        .theme-option:active {
+            transform: scale(0.96);
+        }
+
+        .theme-preview {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+        }
+
+        .theme-name {
+            font-size: 11px;
+            color: var(--fg);
+            font-weight: 500;
+        }
+
+        /* Toast 提示 */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: var(--fg);
+            color: white;
+            padding: 12px 20px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            z-index: 200;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            max-width: calc(100% - 32px);
+            text-align: center;
+        }
+
+        .toast.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.success {
+            background: var(--success);
+        }
+
+        .toast.error {
+            background: var(--danger);
+        }
+
+        /* 正在输入指示 */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 10px 14px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            align-self: flex-start;
+            margin-top: 4px;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--muted);
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: 0s; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
+        }
+
+        /* 开发者数据表格 */
+        .dev-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .dev-table th,
+        .dev-table td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .dev-table th {
+            background: var(--header-bg);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        .dev-table tr:hover td {
+            background: var(--bg);
+        }
+
+        .dev-table td:first-child {
+            font-weight: 500;
+        }
+
+        .dev-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .dev-stat-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px;
+            text-align: center;
+        }
+
+        .dev-stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .dev-stat-label {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* 搜索框 */
+        .search-box {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 13px;
+            font-family: inherit;
+            background: var(--input-bg);
+            color: var(--fg);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* 数据编辑项 */
+        .edit-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 8px;
+        }
+
+        .edit-item-word {
+            font-weight: 600;
+            min-width: 80px;
+            color: var(--accent);
+        }
+
+        .edit-item-content {
+            flex: 1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            font-size: 12px;
+        }
+
+        .edit-tag {
+            padding: 2px 8px;
+            background: var(--header-bg);
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .edit-item-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .edit-btn {
+            padding: 4px 8px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            color: var(--muted);
+            transition: all 0.15s;
+        }
+
+        .edit-btn:hover {
+            background: var(--button-hover);
+            color: var(--fg);
+        }
+
+        .edit-btn.delete:hover {
+            background: #fce4e5;
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        /* 标签页 */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            font-size: 13px;
+            font-family: inherit;
+            color: var(--muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            transition: all 0.15s;
+        }
+
+        .tab:hover {
+            color: var(--fg);
+        }
+
+        .tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        /* 响应式 */
+        @media (min-width: 640px) {
+            .message {
+                max-width: 70%;
+            }
+            
+            .titlebar {
+                padding: 10px 24px;
+            }
+            
+            .conversation-area {
+                padding: 24px;
+            }
+            
+            .input-area {
+                padding: 16px 24px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* 滚动条样式 */
+        .conversation-area::-webkit-scrollbar,
+        .modal-body::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .conversation-area::-webkit-scrollbar-track,
+        .modal-body::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .conversation-area::-webkit-scrollbar-thumb,
+        .modal-body::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        /* 导入输入框 */
+        .import-textarea {
+            width: 100%;
+            min-height: 100px;
+            max-height: 200px;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 12px;
+            font-family: monospace;
+            background: var(--input-bg);
+            color: var(--fg);
+            resize: vertical;
+        }
+
+        .import-hint {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 8px;
+        }
+
+        /* 空数据提示 */
+        .empty-data {
+            text-align: center;
+            padding: 32px;
+            color: var(--muted);
+        }
+
+        .empty-data-icon {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <!-- 菜单条 -->
+    <div class="menubar">
+        <div class="menu-item">
+            <button class="menu-trigger" onclick="toggleMenu('fileMenu')" id="fileMenuTrigger">
+                文件
+            </button>
+            <div class="menu-dropdown" id="fileMenu">
+                <div class="dropdown-item" onclick="exportMemory()">
+                    <span>导出存档</span>
+                    <span class="dropdown-hint">复制到剪贴板</span>
+                </div>
+                <div class="dropdown-item" onclick="showImportModal()">
+                    <span>导入存档</span>
+                    <span class="dropdown-hint">从剪贴板</span>
+                </div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item" onclick="exportChat()">
+                    <span>导出聊天记录</span>
+                    <span class="dropdown-hint">复制到剪贴板</span>
+                </div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item" onclick="clearConversation()">
+                    <span>清除聊天记录</span>
+                </div>
+                <div class="dropdown-item" onclick="showClearMemoryModal()">
+                    <span style="color: var(--danger);">清除记忆</span>
+                </div>
+            </div>
+        </div>
+        <div class="menu-item">
+            <button class="menu-trigger" onclick="toggleMenu('settingsMenu')" id="settingsMenuTrigger">
+                设置
+            </button>
+            <div class="menu-dropdown" id="settingsMenu">
+                <div class="dropdown-item" onclick="showPreferencesModal()">
+                    <span>首选项</span>
+                </div>
+                <div class="dropdown-item" onclick="showThemeModal()">
+                    <span>主题</span>
+                </div>
+            </div>
+        </div>
+        <div class="menu-item">
+            <button class="menu-trigger" onclick="toggleMenu('devMenu')" id="devMenuTrigger">
+                开发者
+            </button>
+            <div class="menu-dropdown" id="devMenu">
+                <div class="dropdown-item" onclick="showDevDataModal()">
+                    <span>查看学习数据</span>
+                </div>
+                <div class="dropdown-item" onclick="showDevEditModal()">
+                    <span>编辑学习数据</span>
+                </div>
+            </div>
+        </div>
+        <div class="menu-item">
+            <button class="menu-trigger" onclick="showAboutModal()">
+                帮助
+            </button>
+        </div>
+        <!-- 加载指示器 -->
+        <div class="loading-indicator" id="loadingIndicator">
+            <div class="loading-spinner"></div>
+        </div>
+    </div>
+
+    <!-- 标题栏 -->
+    <header class="titlebar">
+        <div>
+            <div class="titlebar-title">gNiall</div>
+            <div class="titlebar-subtitle">语言学习程序</div>
+        </div>
+        <div class="memory-indicator" id="memoryIndicator">
+            <span class="memory-dot"></span>
+            <span id="memoryStatus">已保存</span>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+        <!-- 对话区域 -->
+        <div class="conversation-area" id="conversationArea">
+            <div class="empty-state" id="emptyState">
+                <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                </svg>
+                <div class="empty-title">开始教 gNiall 学习语言</div>
+                <div class="empty-desc">
+                    输入句子来教导它。gNiall 会分析你输入的内容，学习单词之间的关联，并尝试生成有意义的回复。
+                </div>
+            </div>
+        </div>
+
+        <!-- 统计栏 -->
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-item">
+                <span>词汇量</span>
+                <span class="stat-value" id="vocabCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span>学习句子</span>
+                <span class="stat-value" id="sentenceCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span>关联数</span>
+                <span class="stat-value" id="linkCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span>模式</span>
+                <span class="stat-value" id="modeDisplay">逐句</span>
+            </div>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="input-area">
+            <div class="input-row">
+                <div class="input-wrapper">
+                    <textarea 
+                        class="input-field" 
+                        id="inputField" 
+                        placeholder="输入句子教导 gNiall..."
+                        rows="1"
+                        aria-label="输入消息"
+                    ></textarea>
+                </div>
+                <button class="btn btn-primary btn-icon" id="sendBtn" onclick="sendMessage()" aria-label="发送">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast 提示 -->
+    <div class="toast" id="toast"></div>
+
+    <!-- 首选项模态框 -->
+    <div class="modal-overlay" id="preferencesModal" onclick="closeModal(event, 'preferencesModal')">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">首选项</span>
+                <button class="modal-close" onclick="hideModal('preferencesModal')" aria-label="关闭">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <label class="settings-label">学习模式</label>
+                    <p class="settings-desc">选择 gNiall 如何分析你输入的内容</p>
+                    <div class="radio-group" id="learningModeGroup">
+                        <label class="radio-item" data-mode="sentence">
+                            <input type="radio" name="learningMode" value="sentence" class="radio-input">
+                            <div class="radio-content">
+                                <div class="radio-title">按句子学习</div>
+                                <div class="radio-desc">整句作为一个学习单元，分析句子中的词汇关联</div>
+                            </div>
+                        </label>
+                        <label class="radio-item" data-mode="segment">
+                            <input type="radio" name="learningMode" value="segment" class="radio-input">
+                            <div class="radio-content">
+                                <div class="radio-title">按分隔符学习</div>
+                                <div class="radio-desc">按逗号、句号等分隔符切分，学习每个片段</div>
+                            </div>
+                        </label>
+                        <label class="radio-item" data-mode="char">
+                            <input type="radio" name="learningMode" value="char" class="radio-input">
+                            <div class="radio-content">
+                                <div class="radio-title">逐字学习</div>
+                                <div class="radio-desc">中文逐字学习，适合学习单字关联</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <label class="settings-label">回复最大长度</label>
+                    <p class="settings-desc">设置 gNiall 回复的最大字数限制</p>
+                    <div class="number-input-group">
+                        <input type="range" class="number-slider" id="maxLengthSlider" min="5" max="100" value="15">
+                        <input type="number" class="number-input" id="maxLengthInput" min="5" max="100" value="15">
+                        <span class="number-unit">字</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="savePreferences()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主题模态框 -->
+    <div class="modal-overlay" id="themeModal" onclick="closeModal(event, 'themeModal')">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">主题</span>
+                <button class="modal-close" onclick="hideModal('themeModal')" aria-label="关闭">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <label class="settings-label">颜色主题</label>
+                    <div class="theme-grid" id="themeGrid">
+                        <div class="theme-option selected" data-theme="blue" onclick="selectTheme('blue')">
+                            <div class="theme-preview" style="background: linear-gradient(135deg, #3584e4, #1c71d8);"></div>
+                            <span class="theme-name">经典蓝</span>
+                        </div>
+                        <div class="theme-option" data-theme="green" onclick="selectTheme('green')">
+                            <div class="theme-preview" style="background: linear-gradient(135deg, #2ec27e, #1b7d4a);"></div>
+                            <span class="theme-name">森林绿</span>
+                        </div>
+                        <div class="theme-option" data-theme="purple" onclick="selectTheme('purple')">
+                            <div class="theme-preview" style="background: linear-gradient(135deg, #9141ac, #613583);"></div>
+                            <span class="theme-name">优雅紫</span>
+                        </div>
+                        <div class="theme-option" data-theme="orange" onclick="selectTheme('orange')">
+                            <div class="theme-preview" style="background: linear-gradient(135deg, #e5a50a, #c64600);"></div>
+                            <span class="theme-name">活力橙</span>
+                        </div>
+                        <div class="theme-option" data-theme="red" onclick="selectTheme('red')">
+                            <div class="theme-preview" style="background: linear-gradient(135deg, #e01b24, #a51d2d);"></div>
+                            <span class="theme-name">热情红</span>
+                        </div>
+                        <div class="theme-option" data-theme="teal" onclick="selectTheme('teal')">
+                            <div class="theme-preview" style="background: linear-gradient(135deg, #0d9ba4, #0a6b74);"></div>
+                            <span class="theme-name">青色</span>
+                        </div>
+                        <div class="theme-option" data-theme="pink" onclick="selectTheme('pink')">
+                            <div class="theme-preview" style="background: linear-gradient(135deg, #d318a6, #9c1d7b);"></div>
+                            <span class="theme-name">粉红</span>
+                        </div>
+                        <div class="theme-option" data-theme="gray" onclick="selectTheme('gray')">
+                            <div class="theme-preview" style="background: linear-gradient(135deg, #5e5c64, #3d3c40);"></div>
+                            <span class="theme-name">石墨灰</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <label class="settings-label">圆角大小</label>
+                    <p class="settings-desc">调整界面元素的圆角程度</p>
+                    <div class="number-input-group">
+                        <input type="range" class="number-slider" id="radiusSlider" min="0" max="16" value="6">
+                        <input type="number" class="number-input" id="radiusInput" min="0" max="16" value="6">
+                        <span class="number-unit">px</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="saveTheme()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 关于模态框 -->
+    <div class="modal-overlay" id="aboutModal" onclick="closeModal(event, 'aboutModal')">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">关于 gNiall</span>
+                <button class="modal-close" onclick="hideModal('aboutModal')" aria-label="关闭">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p><strong>gNiall</strong> 是一个尝试学习人类语言的程序。</p>
+                <p>它本质上是一个关联分析器：收集你输入的句子的统计数据，分析单词之间的关系，并尝试构造有意义的回复。</p>
+                <p>gNiall 的灵感来源于 <strong>Niall</strong>，这是一款由 Matthew Peck 开发的 Amiga 程序。</p>
+                <p style="color: var(--muted); font-size: 12px; margin-top: 16px;">
+                    数据会自动保存在浏览器本地存储中，下次打开会自动恢复学习进度。
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 清除记忆确认框 -->
+    <div class="modal-overlay" id="clearMemoryModal" onclick="closeModal(event, 'clearMemoryModal')">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">清除记忆</span>
+                <button class="modal-close" onclick="hideModal('clearMemoryModal')" aria-label="关闭">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; padding: 8px 0;">
+                    <svg style="width: 48px; height: 48px; margin: 0 auto 12px; color: var(--warning);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    <p><strong>确定要清除所有记忆吗？</strong></p>
+                    <p style="color: var(--muted); font-size: 13px;">
+                        这将删除 gNiall 学到的所有词汇、句子和关联。此操作无法撤销。
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideModal('clearMemoryModal')">取消</button>
+                <button class="btn btn-danger" onclick="confirmClearMemory()">确认清除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导入模态框 -->
+    <div class="modal-overlay" id="importModal" onclick="closeModal(event, 'importModal')">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">导入存档</span>
+                <button class="modal-close" onclick="hideModal('importModal')" aria-label="关闭">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 13px; color: var(--muted);">
+                    请粘贴之前导出的存档数据：
+                </p>
+                <textarea 
+                    class="import-textarea" 
+                    id="importTextarea" 
+                    placeholder="在此粘贴存档数据..."
+                ></textarea>
+                <p class="import-hint">
+                    提示：导入将覆盖当前所有数据
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="pasteFromClipboard()">从剪贴板粘贴</button>
+                <button class="btn btn-primary" onclick="confirmImport()">导入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 开发者数据查看模态框 -->
+    <div class="modal-overlay" id="devDataModal" onclick="closeModal(event, 'devDataModal')">
+        <div class="modal modal-large" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">学习数据详情</span>
+                <button class="modal-close" onclick="hideModal('devDataModal')" aria-label="关闭">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 16px;">
+                <div class="dev-stat-grid">
+                    <div class="dev-stat-card">
+                        <div class="dev-stat-value" id="devVocabCount">0</div>
+                        <div class="dev-stat-label">词汇总数</div>
+                    </div>
+                    <div class="dev-stat-card">
+                        <div class="dev-stat-value" id="devSentenceCount">0</div>
+                        <div class="dev-stat-label">学习句子</div>
+                    </div>
+                    <div class="dev-stat-card">
+                        <div class="dev-stat-value" id="devLinkCount">0</div>
+                        <div class="dev-stat-label">关联总数</div>
+                    </div>
+                    <div class="dev-stat-card">
+                        <div class="dev-stat-value" id="devAvgLinks">0</div>
+                        <div class="dev-stat-label">平均关联/词</div>
+                    </div>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab active" onclick="switchDevTab('vocabulary')">词汇表</button>
+                    <button class="tab" onclick="switchDevTab('links')">关联矩阵</button>
+                    <button class="tab" onclick="switchDevTab('sentences')">句子列表</button>
+                </div>
+
+                <div id="devVocabularyTab" style="max-height: 300px; overflow-y: auto;">
+                    <table class="dev-table" id="devVocabTable">
+                        <thead>
+                            <tr>
+                                <th>词汇</th>
+                                <th>后继词数</th>
+                                <th>前驱词数</th>
+                                <th>句首次数</th>
+                                <th>句尾次数</th>
+                            </tr>
+                        </thead>
+                        <tbody id="devVocabBody"></tbody>
+                    </table>
+                </div>
+
+                <div id="devLinksTab" style="max-height: 300px; overflow-y: auto; display: none;">
+                    <table class="dev-table" id="devLinksTable">
+                        <thead>
+                            <tr>
+                                <th>词汇</th>
+                                <th>后继词 (权重)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="devLinksBody"></tbody>
+                    </table>
+                </div>
+
+                <div id="devSentencesTab" style="max-height: 300px; overflow-y: auto; display: none;">
+                    <table class="dev-table" id="devSentencesTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>句子内容</th>
+                            </tr>
+                        </thead>
+                        <tbody id="devSentencesBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 开发者编辑模态框 -->
+    <div class="modal-overlay" id="devEditModal" onclick="closeModal(event, 'devEditModal')">
+        <div class="modal modal-large" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">编辑学习数据</span>
+                <button class="modal-close" onclick="hideModal('devEditModal')" aria-label="关闭">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 16px;">
+                <div class="search-box">
+                    <input type="text" class="search-input" id="devSearchInput" placeholder="搜索词汇..." oninput="filterEditList()">
+                    <button class="btn btn-secondary" onclick="clearEditSearch()">清除</button>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab active" onclick="switchEditTab('words')">词汇编辑</button>
+                    <button class="tab" onclick="switchEditTab('sentences')">句子编辑</button>
+                </div>
+
+                <div id="editWordsTab" style="max-height: 350px; overflow-y: auto;">
+                    <div id="editWordsList"></div>
+                </div>
+
+                <div id="editSentencesTab" style="max-height: 350px; overflow-y: auto; display: none;">
+                    <div id="editSentencesList"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideModal('devEditModal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑单个词汇模态框 -->
+    <div class="modal-overlay" id="editWordModal" onclick="closeModal(event, 'editWordModal')">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">编辑词汇: <span id="editWordTitle"></span></span>
+                <button class="modal-close" onclick="hideModal('editWordModal')" aria-label="关闭">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <label class="settings-label">句首出现次数</label>
+                    <input type="number" class="number-input" id="editStartCount" min="0" style="width: 100%;">
+                </div>
+                <div class="settings-group">
+                    <label class="settings-label">句尾出现次数</label>
+                    <input type="number" class="number-input" id="editEndCount" min="0" style="width: 100%;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="hideModal('editWordModal')">取消</button>
+                <button class="btn btn-danger" onclick="deleteWord()">删除词汇</button>
+                <button class="btn btn-primary" onclick="saveWordEdit()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============ 核心数据结构 ============
+        
+        let vocabulary = new Set();
+        let sentences = [];
+        let wordLinks = new Map();
+        let startWords = new Map();
+        let endWords = new Map();
+        let conversationHistory = [];
+        
+        // 设置
+        let learningMode = 'sentence';
+        let maxReplyLength = 15;
+        let currentTheme = 'blue';
+        let currentRadius = 6;
+        
+        // 存储键名
+        const STORAGE_KEY = 'gniall_memory';
+        const SETTINGS_KEY = 'gniall_settings';
+        
+        // 主题配置
+        const themes = {
+            blue: { accent: '#3584e4', accentDark: '#1c71d8' },
+            green: { accent: '#2ec27e', accentDark: '#1b7d4a' },
+            purple: { accent: '#9141ac', accentDark: '#613583' },
+            orange: { accent: '#e5a50a', accentDark: '#c64600' },
+            red: { accent: '#e01b24', accentDark: '#a51d2d' },
+            teal: { accent: '#0d9ba4', accentDark: '#0a6b74' },
+            pink: { accent: '#d318a6', accentDark: '#9c1d7b' },
+            gray: { accent: '#5e5c64', accentDark: '#3d3c40' }
+        };
+
+        // 当前编辑的词汇
+        let currentEditWord = null;
+
+        // ============ 卡顿检测 ============
+        
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+        let fps = 60;
+        let isLagging = false;
+        const LAG_THRESHOLD = 30; // FPS 低于此值视为卡顿
+
+        function checkLag() {
+            const now = performance.now();
+            const delta = now - lastFrameTime;
+            lastFrameTime = now;
+            
+            // 计算瞬时帧率
+            const instantFps = 1000 / delta;
+            
+            // 平滑处理
+            fps = fps * 0.9 + instantFps * 0.1;
+            frameCount++;
+            
+            // 每 10 帧检查一次
+            if (frameCount >= 10) {
+                frameCount = 0;
+                
+                const wasLagging = isLagging;
+                isLagging = fps < LAG_THRESHOLD;
+                
+                const indicator = document.getElementById('loadingIndicator');
+                
+                if (isLagging && !wasLagging) {
+                    indicator.classList.add('show');
+                } else if (!isLagging && wasLagging) {
+                    indicator.classList.remove('show');
+                }
+            }
+            
+            requestAnimationFrame(checkLag);
+        }
+
+        // 启动卡顿检测
+        requestAnimationFrame(checkLag);
+        
+        // ============ 剪贴板兼容层 ============
+        
+        async function copyToClipboard(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                } catch (e) {
+                    console.warn('新剪贴板 API 失败，尝试旧方法');
+                }
+            }
+            
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.cssText = 'position:fixed;left:-9999px;top:0;';
+            textarea.setAttribute('readonly', '');
+            document.body.appendChild(textarea);
+            textarea.select();
+            textarea.setSelectionRange(0, text.length);
+            
+            try {
+                const success = document.execCommand('copy');
+                document.body.removeChild(textarea);
+                return success;
+            } catch (e) {
+                document.body.removeChild(textarea);
+                return false;
+            }
+        }
+        
+        async function readFromClipboard() {
+            if (navigator.clipboard && navigator.clipboard.readText) {
+                try {
+                    const text = await navigator.clipboard.readText();
+                    return text;
+                } catch (e) {
+                    return null;
+                }
+            }
+            return null;
+        }
+        
+        // ============ Toast 提示 ============
+        
+        function showToast(message, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+        
+        // ============ 菜单管理 ============
+        
+        let currentOpenMenu = null;
+        
+        function toggleMenu(menuId) {
+            const menu = document.getElementById(menuId);
+            const trigger = document.getElementById(menuId + 'Trigger');
+            
+            if (currentOpenMenu && currentOpenMenu !== menu) {
+                currentOpenMenu.classList.remove('show');
+                const prevTrigger = currentOpenMenu.previousElementSibling;
+                if (prevTrigger) prevTrigger.classList.remove('active');
+            }
+            
+            menu.classList.toggle('show');
+            trigger.classList.toggle('active');
+            currentOpenMenu = menu.classList.contains('show') ? menu : null;
+        }
+        
+        function closeAllMenus() {
+            document.querySelectorAll('.menu-dropdown').forEach(menu => {
+                menu.classList.remove('show');
+            });
+            document.querySelectorAll('.menu-trigger').forEach(trigger => {
+                trigger.classList.remove('active');
+            });
+            currentOpenMenu = null;
+        }
+        
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.menu-item')) {
+                closeAllMenus();
+            }
+        });
+        
+        // ============ 本地存储 ============
+        
+        function saveToStorage() {
+            const data = {
+                vocabulary: Array.from(vocabulary),
+                sentences: sentences,
+                wordLinks: Array.from(wordLinks.entries()).map(([word, links]) => ({
+                    word,
+                    next: Array.from(links.next.entries()),
+                    prev: Array.from(links.prev.entries())
+                })),
+                startWords: Array.from(startWords.entries()),
+                endWords: Array.from(endWords.entries()),
+                conversationHistory: conversationHistory
+            };
+            
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                updateMemoryIndicator(true);
+            } catch (e) {
+                console.warn('无法保存到本地存储:', e);
+                updateMemoryIndicator(false);
+            }
+        }
+        
+        function loadFromStorage() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (!saved) return false;
+                
+                const data = JSON.parse(saved);
+                
+                vocabulary = new Set(data.vocabulary || []);
+                sentences = data.sentences || [];
+                
+                wordLinks = new Map();
+                (data.wordLinks || []).forEach(item => {
+                    wordLinks.set(item.word, {
+                        next: new Map(item.next || []),
+                        prev: new Map(item.prev || [])
+                    });
+                });
+                
+                startWords = new Map(data.startWords || []);
+                endWords = new Map(data.endWords || []);
+                conversationHistory = data.conversationHistory || [];
+                
+                return true;
+            } catch (e) {
+                console.warn('无法从本地存储加载:', e);
+                return false;
+            }
+        }
+        
+        function clearStorage() {
+            try {
+                localStorage.removeItem(STORAGE_KEY);
+            } catch (e) {
+                console.warn('无法清除本地存储:', e);
+            }
+        }
+        
+        function saveSettingsToStorage() {
+            try {
+                localStorage.setItem(SETTINGS_KEY, JSON.stringify({ 
+                    learningMode,
+                    maxReplyLength,
+                    currentTheme,
+                    currentRadius
+                }));
+            } catch (e) {
+                console.warn('无法保存设置:', e);
+            }
+        }
+        
+        function loadSettingsFromStorage() {
+            try {
+                const saved = localStorage.getItem(SETTINGS_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    learningMode = data.learningMode || 'sentence';
+                    maxReplyLength = data.maxReplyLength || 15;
+                    currentTheme = data.currentTheme || 'blue';
+                    currentRadius = data.currentRadius !== undefined ? data.currentRadius : 6;
+                }
+            } catch (e) {
+                console.warn('无法加载设置:', e);
+            }
+        }
+        
+        function updateMemoryIndicator(saved) {
+            const indicator = document.getElementById('memoryIndicator');
+            const status = document.getElementById('memoryStatus');
+            
+            if (saved) {
+                indicator.classList.remove('off');
+                status.textContent = '已保存';
+            } else {
+                indicator.classList.add('off');
+                status.textContent = '未保存';
+            }
+        }
+        
+        function updateModeDisplay() {
+            const modeNames = {
+                'sentence': '逐句',
+                'segment': '分段',
+                'char': '逐字'
+            };
+            document.getElementById('modeDisplay').textContent = modeNames[learningMode];
+        }
+        
+        function applyTheme() {
+            const theme = themes[currentTheme];
+            document.documentElement.style.setProperty('--accent', theme.accent);
+            document.documentElement.style.setProperty('--radius', currentRadius + 'px');
+        }
+        
+        // ============ 导出/导入 ============
+        
+        async function exportMemory() {
+            closeAllMenus();
+            
+            const data = {
+                vocabulary: Array.from(vocabulary),
+                sentences: sentences,
+                wordLinks: Array.from(wordLinks.entries()).map(([word, links]) => ({
+                    word,
+                    next: Array.from(links.next.entries()),
+                    prev: Array.from(links.prev.entries())
+                })),
+                startWords: Array.from(startWords.entries()),
+                endWords: Array.from(endWords.entries()),
+                version: 1
+            };
+            
+            const jsonStr = JSON.stringify(data);
+            const success = await copyToClipboard(jsonStr);
+            
+            if (success) {
+                showToast('存档已复制到剪贴板', 'success');
+            } else {
+                showToast('复制失败，请重试', 'error');
+            }
+        }
+        
+        async function exportChat() {
+            closeAllMenus();
+            
+            if (conversationHistory.length === 0) {
+                showToast('没有聊天记录可导出', 'error');
+                return;
+            }
+            
+            const lines = conversationHistory.map(msg => {
+                const sender = msg.isUser ? '你' : 'gNiall';
+                return `${sender}: ${msg.text}`;
+            });
+            
+            const text = `gNiall 聊天记录\n导出时间: ${new Date().toLocaleString()}\n\n${lines.join('\n')}`;
+            
+            const success = await copyToClipboard(text);
+            
+            if (success) {
+                showToast('聊天记录已复制到剪贴板', 'success');
+            } else {
+                showToast('复制失败，请重试', 'error');
+            }
+        }
+        
+        function showImportModal() {
+            closeAllMenus();
+            document.getElementById('importTextarea').value = '';
+            document.getElementById('importModal').classList.add('show');
+        }
+        
+        async function pasteFromClipboard() {
+            const text = await readFromClipboard();
+            if (text !== null) {
+                document.getElementById('importTextarea').value = text;
+                showToast('已从剪贴板粘贴', 'success');
+            } else {
+                showToast('无法读取剪贴板，请手动粘贴', 'error');
+            }
+        }
+        
+        function confirmImport() {
+            const textarea = document.getElementById('importTextarea');
+            const jsonStr = textarea.value.trim();
+            
+            if (!jsonStr) {
+                showToast('请粘贴存档数据', 'error');
+                return;
+            }
+            
+            try {
+                const data = JSON.parse(jsonStr);
+                
+                if (!data.vocabulary || !Array.isArray(data.vocabulary)) {
+                    throw new Error('无效的存档格式');
+                }
+                
+                vocabulary = new Set(data.vocabulary);
+                sentences = data.sentences || [];
+                
+                wordLinks = new Map();
+                (data.wordLinks || []).forEach(item => {
+                    wordLinks.set(item.word, {
+                        next: new Map(item.next || []),
+                        prev: new Map(item.prev || [])
+                    });
+                });
+                
+                startWords = new Map(data.startWords || []);
+                endWords = new Map(data.endWords || []);
+                
+                conversationHistory = [];
+                
+                saveToStorage();
+                updateStats();
+                clearConversation();
+                hideModal('importModal');
+                
+                showToast('存档导入成功', 'success');
+            } catch (e) {
+                showToast('存档格式无效', 'error');
+            }
+        }
+        
+        // ============ 统计更新 ============
+        
+        function updateStats() {
+            document.getElementById('vocabCount').textContent = vocabulary.size;
+            document.getElementById('sentenceCount').textContent = sentences.length;
+            
+            let totalLinks = 0;
+            wordLinks.forEach(links => {
+                totalLinks += links.next.size + links.prev.size;
+            });
+            document.getElementById('linkCount').textContent = Math.floor(totalLinks / 2);
+            
+            updateModeDisplay();
+        }
+        
+        // ============ 语言学习核心 ============
+        
+        function tokenize(text) {
+            const tokens = [];
+            let current = '';
+            
+            for (let char of text) {
+                if (learningMode === 'char') {
+                    if (/[\s，。！？、；：""''（）\[\]【】]/.test(char)) {
+                        if (current) {
+                            tokens.push(current.toLowerCase());
+                            current = '';
+                        }
+                    } else if (/[\u4e00-\u9fa5]/.test(char)) {
+                        if (current) {
+                            tokens.push(current.toLowerCase());
+                            current = '';
+                        }
+                        tokens.push(char);
+                    } else {
+                        current += char;
+                    }
+                } else if (learningMode === 'segment') {
+                    if (/[,，。！？、；：]/.test(char)) {
+                        if (current.trim()) {
+                            tokens.push(current.trim().toLowerCase());
+                            current = '';
+                        }
+                    } else if (/\s/.test(char)) {
+                        if (current.trim()) {
+                            tokens.push(current.trim().toLowerCase());
+                            current = '';
+                        }
+                    } else {
+                        current += char;
+                    }
+                } else {
+                    if (/[\s，。！？、；：""''（）\[\]【】]/.test(char)) {
+                        if (current) {
+                            tokens.push(current.toLowerCase());
+                            current = '';
+                        }
+                    } else if (/[\u4e00-\u9fa5]/.test(char)) {
+                        if (current) {
+                            tokens.push(current.toLowerCase());
+                            current = '';
+                        }
+                        tokens.push(char);
+                    } else {
+                        current += char;
+                    }
+                }
+            }
+            
+            if (current.trim()) {
+                tokens.push(current.trim().toLowerCase());
+            }
+            
+            return tokens.filter(t => t.length > 0);
+        }
+        
+        function learn(text) {
+            if (learningMode === 'segment') {
+                const segments = text.split(/[,，。！？、；：]+/).filter(s => s.trim());
+                segments.forEach(segment => {
+                    learnSegment(segment.trim());
+                });
+            } else {
+                learnSegment(text);
+            }
+        }
+        
+        function learnSegment(text) {
+            const tokens = tokenize(text);
+            if (tokens.length === 0) return;
+            
+            sentences.push(text);
+            
+            const firstWord = tokens[0];
+            startWords.set(firstWord, (startWords.get(firstWord) || 0) + 1);
+            
+            const lastWord = tokens[tokens.length - 1];
+            endWords.set(lastWord, (endWords.get(lastWord) || 0) + 1);
+            
+            for (let i = 0; i < tokens.length; i++) {
+                const word = tokens[i];
+                vocabulary.add(word);
+                
+                if (!wordLinks.has(word)) {
+                    wordLinks.set(word, { next: new Map(), prev: new Map() });
+                }
+                
+                const links = wordLinks.get(word);
+                
+                if (i > 0) {
+                    const prevWord = tokens[i - 1];
+                    links.prev.set(prevWord, (links.prev.get(prevWord) || 0) + 1);
+                }
+                
+                if (i < tokens.length - 1) {
+                    const nextWord = tokens[i + 1];
+                    links.next.set(nextWord, (links.next.get(nextWord) || 0) + 1);
+                }
+            }
+            
+            updateStats();
+            saveToStorage();
+        }
+        
+        function weightedRandom(map) {
+            if (!map || map.size === 0) return null;
+            
+            const entries = Array.from(map.entries());
+            const total = entries.reduce((sum, [, count]) => sum + count, 0);
+            let random = Math.random() * total;
+            
+            for (const [word, count] of entries) {
+                random -= count;
+                if (random <= 0) return word;
+            }
+            
+            return entries[0][0];
+        }
+        
+        function generateReply() {
+            if (vocabulary.size === 0) {
+                return "我还没有学到任何东西，请先教我一些句子吧。";
+            }
+            
+            const strategy = Math.random();
+            
+            if (strategy < 0.3 && sentences.length > 0) {
+                return combineSentences();
+            } else {
+                return generateFromStart();
+            }
+        }
+        
+        function generateFromStart() {
+            let current = weightedRandom(startWords);
+            if (!current) {
+                current = Array.from(vocabulary)[Math.floor(Math.random() * vocabulary.size)];
+            }
+            
+            const result = [current];
+            const usedWords = new Set([current]);
+            
+            for (let i = 0; i < maxReplyLength; i++) {
+                const links = wordLinks.get(current);
+                if (!links || links.next.size === 0) break;
+                
+                const candidates = new Map();
+                for (const [word, count] of links.next) {
+                    if (!usedWords.has(word) || usedWords.size > 5) {
+                        candidates.set(word, count);
+                    }
+                }
+                
+                if (candidates.size === 0) break;
+                
+                const next = weightedRandom(candidates);
+                result.push(next);
+                usedWords.add(next);
+                
+                if (endWords.has(next) && Math.random() < 0.3) {
+                    break;
+                }
+                
+                current = next;
+            }
+            
+            return result.join('');
+        }
+        
+        function combineSentences() {
+            if (sentences.length === 0) return generateFromStart();
+            
+            const pieces = [];
+            const count = 2 + Math.floor(Math.random() * 2);
+            
+            for (let i = 0; i < count && sentences.length > 0; i++) {
+                const sentence = sentences[Math.floor(Math.random() * sentences.length)];
+                const tokens = tokenize(sentence);
+                if (tokens.length > 0) {
+                    const start = Math.floor(Math.random() * tokens.length);
+                    const end = Math.min(start + 2 + Math.floor(Math.random() * 3), tokens.length);
+                    pieces.push(tokens.slice(start, end).join(''));
+                }
+            }
+            
+            return pieces.join('');
+        }
+        
+        // ============ UI 交互 ============
+        
+        function scrollToBottom(smooth = true) {
+            const conversationArea = document.getElementById('conversationArea');
+            if (smooth) {
+                conversationArea.scrollTo({
+                    top: conversationArea.scrollHeight,
+                    behavior: 'smooth'
+                });
+            } else {
+                conversationArea.scrollTop = conversationArea.scrollHeight;
+            }
+        }
+        
+        function addMessage(text, isUser) {
+            const conversationArea = document.getElementById('conversationArea');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (emptyState) {
+                emptyState.style.display = 'none';
+            }
+            
+            const message = document.createElement('div');
+            message.className = `message ${isUser ? 'message-user' : 'message-bot'}`;
+            
+            const label = document.createElement('div');
+            label.className = 'message-label';
+            label.textContent = isUser ? '你' : 'gNiall';
+            
+            const content = document.createElement('div');
+            content.textContent = text;
+            
+            message.appendChild(label);
+            message.appendChild(content);
+            conversationArea.appendChild(message);
+            
+            conversationHistory.push({ text, isUser });
+            
+            scrollToBottom();
+            saveToStorage();
+        }
+        
+        function showTypingIndicator() {
+            const conversationArea = document.getElementById('conversationArea');
+            
+            const typing = document.createElement('div');
+            typing.className = 'typing-indicator';
+            typing.id = 'typingIndicator';
+            
+            for (let i = 0; i < 3; i++) {
+                const dot = document.createElement('span');
+                dot.className = 'typing-dot';
+                typing.appendChild(dot);
+            }
+            
+            conversationArea.appendChild(typing);
+            scrollToBottom();
+        }
+        
+        function removeTypingIndicator() {
+            const typing = document.getElementById('typingIndicator');
+            if (typing) {
+                typing.remove();
+            }
+        }
+        
+        function sendMessage() {
+            const inputField = document.getElementById('inputField');
+            const text = inputField.value.trim();
+            
+            if (!text) return;
+            
+            addMessage(text, true);
+            
+            inputField.value = '';
+            inputField.style.height = 'auto';
+            
+            learn(text);
+            
+            showTypingIndicator();
+            
+            setTimeout(() => {
+                removeTypingIndicator();
+                const reply = generateReply();
+                addMessage(reply, false);
+            }, 400 + Math.random() * 600);
+        }
+        
+        function clearConversation() {
+            closeAllMenus();
+            const conversationArea = document.getElementById('conversationArea');
+            
+            conversationArea.innerHTML = `
+                <div class="empty-state" id="emptyState">
+                    <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                    </svg>
+                    <div class="empty-title">开始教 gNiall 学习语言</div>
+                    <div class="empty-desc">
+                        输入句子来教导它。gNiall 会分析你输入的内容，学习单词之间的关联，并尝试生成有意义的回复。
+                    </div>
+                </div>
+            `;
+            
+            conversationHistory = [];
+            saveToStorage();
+            showToast('聊天记录已清除', 'success');
+        }
+        
+        function showAboutModal() {
+            closeAllMenus();
+            document.getElementById('aboutModal').classList.add('show');
+        }
+        
+        function showClearMemoryModal() {
+            closeAllMenus();
+            document.getElementById('clearMemoryModal').classList.add('show');
+        }
+        
+        function confirmClearMemory() {
+            vocabulary = new Set();
+            sentences = [];
+            wordLinks = new Map();
+            startWords = new Map();
+            endWords = new Map();
+            conversationHistory = [];
+            
+            clearStorage();
+            updateStats();
+            updateMemoryIndicator(false);
+            
+            clearConversation();
+            hideModal('clearMemoryModal');
+            
+            showToast('记忆已清除', 'success');
+        }
+        
+        // ============ 设置相关 ============
+        
+        function showPreferencesModal() {
+            closeAllMenus();
+            
+            document.querySelectorAll('#learningModeGroup .radio-item').forEach(item => {
+                const mode = item.dataset.mode;
+                const radio = item.querySelector('input');
+                
+                if (mode === learningMode) {
+                    item.classList.add('selected');
+                    radio.checked = true;
+                } else {
+                    item.classList.remove('selected');
+                    radio.checked = false;
+                }
+            });
+            
+            document.getElementById('maxLengthSlider').value = maxReplyLength;
+            document.getElementById('maxLengthInput').value = maxReplyLength;
+            
+            document.getElementById('preferencesModal').classList.add('show');
+        }
+        
+        function savePreferences() {
+            const selected = document.querySelector('input[name="learningMode"]:checked');
+            if (selected) {
+                learningMode = selected.value;
+            }
+            
+            const lengthInput = document.getElementById('maxLengthInput');
+            const newLength = parseInt(lengthInput.value, 10);
+            if (!isNaN(newLength) && newLength >= 5 && newLength <= 100) {
+                maxReplyLength = newLength;
+            }
+            
+            saveSettingsToStorage();
+            updateModeDisplay();
+            hideModal('preferencesModal');
+            showToast('首选项已保存', 'success');
+        }
+        
+        function showThemeModal() {
+            closeAllMenus();
+            
+            document.querySelectorAll('.theme-option').forEach(item => {
+                if (item.dataset.theme === currentTheme) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+            
+            document.getElementById('radiusSlider').value = currentRadius;
+            document.getElementById('radiusInput').value = currentRadius;
+            
+            document.getElementById('themeModal').classList.add('show');
+        }
+        
+        function selectTheme(theme) {
+            document.querySelectorAll('.theme-option').forEach(item => {
+                if (item.dataset.theme === theme) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+        
+        function saveTheme() {
+            const selected = document.querySelector('.theme-option.selected');
+            if (selected) {
+                currentTheme = selected.dataset.theme;
+            }
+            
+            const radiusInput = document.getElementById('radiusInput');
+            const newRadius = parseInt(radiusInput.value, 10);
+            if (!isNaN(newRadius) && newRadius >= 0 && newRadius <= 16) {
+                currentRadius = newRadius;
+            }
+            
+            applyTheme();
+            saveSettingsToStorage();
+            hideModal('themeModal');
+            showToast('主题已保存', 'success');
+        }
+        
+        // ============ 开发者相关 ============
+        
+        function showDevDataModal() {
+            closeAllMenus();
+            
+            document.getElementById('devVocabCount').textContent = vocabulary.size;
+            document.getElementById('devSentenceCount').textContent = sentences.length;
+            
+            let totalLinks = 0;
+            wordLinks.forEach(links => {
+                totalLinks += links.next.size + links.prev.size;
+            });
+            document.getElementById('devLinkCount').textContent = Math.floor(totalLinks / 2);
+            
+            const avgLinks = vocabulary.size > 0 ? (totalLinks / vocabulary.size).toFixed(1) : '0';
+            document.getElementById('devAvgLinks').textContent = avgLinks;
+            
+            renderDevVocabulary();
+            renderDevLinks();
+            renderDevSentences();
+            
+            switchDevTab('vocabulary');
+            
+            document.getElementById('devDataModal').classList.add('show');
+        }
+        
+        function renderDevVocabulary() {
+            const tbody = document.getElementById('devVocabBody');
+            
+            if (vocabulary.size === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--muted);">暂无数据</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            vocabulary.forEach(word => {
+                const links = wordLinks.get(word) || { next: new Map(), prev: new Map() };
+                const startCount = startWords.get(word) || 0;
+                const endCount = endWords.get(word) || 0;
+                
+                html += `<tr>
+                    <td style="color: var(--accent); font-weight: 600;">${escapeHtml(word)}</td>
+                    <td>${links.next.size}</td>
+                    <td>${links.prev.size}</td>
+                    <td>${startCount}</td>
+                    <td>${endCount}</td>
+                </tr>`;
+            });
+            
+            tbody.innerHTML = html;
+        }
+        
+        function renderDevLinks() {
+            const tbody = document.getElementById('devLinksBody');
+            
+            if (vocabulary.size === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--muted);">暂无数据</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            vocabulary.forEach(word => {
+                const links = wordLinks.get(word);
+                if (!links || links.next.size === 0) return;
+                
+                const nextWords = Array.from(links.next.entries())
+                    .map(([w, c]) => `${escapeHtml(w)}(${c})`)
+                    .join(', ');
+                
+                html += `<tr>
+                    <td style="color: var(--accent); font-weight: 600;">${escapeHtml(word)}</td>
+                    <td style="font-size: 11px;">${nextWords}</td>
+                </tr>`;
+            });
+            
+            tbody.innerHTML = html || '<tr><td colspan="2" style="text-align: center; color: var(--muted);">暂无关联数据</td></tr>';
+        }
+        
+        function renderDevSentences() {
+            const tbody = document.getElementById('devSentencesBody');
+            
+            if (sentences.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--muted);">暂无数据</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            sentences.forEach((sentence, index) => {
+                html += `<tr>
+                    <td>${index + 1}</td>
+                    <td>${escapeHtml(sentence)}</td>
+                </tr>`;
+            });
+            
+            tbody.innerHTML = html;
+        }
+        
+        function switchDevTab(tab) {
+            document.querySelectorAll('#devDataModal .tab').forEach(t => {
+                t.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            document.getElementById('devVocabularyTab').style.display = tab === 'vocabulary' ? 'block' : 'none';
+            document.getElementById('devLinksTab').style.display = tab === 'links' ? 'block' : 'none';
+            document.getElementById('devSentencesTab').style.display = tab === 'sentences' ? 'block' : 'none';
+        }
+        
+        function showDevEditModal() {
+            closeAllMenus();
+            document.getElementById('devSearchInput').value = '';
+            
+            renderEditWords();
+            renderEditSentences();
+            
+            switchEditTab('words');
+            
+            document.getElementById('devEditModal').classList.add('show');
+        }
+        
+        function renderEditWords(filter = '') {
+            const container = document.getElementById('editWordsList');
+            
+            if (vocabulary.size === 0) {
+                container.innerHTML = '<div class="empty-data"><svg class="empty-data-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg><div>暂无词汇数据</div></div>';
+                return;
+            }
+            
+            let html = '';
+            const lowerFilter = filter.toLowerCase();
+            
+            vocabulary.forEach(word => {
+                if (filter && !word.toLowerCase().includes(lowerFilter)) return;
+                
+                const links = wordLinks.get(word) || { next: new Map(), prev: new Map() };
+                const startCount = startWords.get(word) || 0;
+                const endCount = endWords.get(word) || 0;
+                
+                const nextPreview = Array.from(links.next.entries()).slice(0, 3)
+                    .map(([w, c]) => `<span class="edit-tag">${escapeHtml(w)}:${c}</span>`)
+                    .join('');
+                
+                html += `<div class="edit-item">
+                    <div class="edit-item-word">${escapeHtml(word)}</div>
+                    <div class="edit-item-content">
+                        <span style="color: var(--muted);">后继:</span> ${nextPreview || '<span style="color: var(--muted);">无</span>'}
+                        <span style="color: var(--muted); margin-left: 8px;">句首:${startCount} 句尾:${endCount}</span>
+                    </div>
+                    <div class="edit-item-actions">
+                        <button class="edit-btn" onclick="editWord('${escapeHtml(word)}')">编辑</button>
+                        <button class="edit-btn delete" onclick="deleteWordDirect('${escapeHtml(word)}')">删除</button>
+                    </div>
+                </div>`;
+            });
+            
+            container.innerHTML = html || '<div class="empty-data"><div>未找到匹配的词汇</div></div>';
+        }
+        
+        function renderEditSentences(filter = '') {
+            const container = document.getElementById('editSentencesList');
+            
+            if (sentences.length === 0) {
+                container.innerHTML = '<div class="empty-data"><svg class="empty-data-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg><div>暂无句子数据</div></div>';
+                return;
+            }
+            
+            let html = '';
+            const lowerFilter = filter.toLowerCase();
+            
+            sentences.forEach((sentence, index) => {
+                if (filter && !sentence.toLowerCase().includes(lowerFilter)) return;
+                
+                html += `<div class="edit-item">
+                    <div style="min-width: 30px; color: var(--muted); font-size: 12px;">${index + 1}</div>
+                    <div class="edit-item-content">${escapeHtml(sentence)}</div>
+                    <div class="edit-item-actions">
+                        <button class="edit-btn delete" onclick="deleteSentence(${index})">删除</button>
+                    </div>
+                </div>`;
+            });
+            
+            container.innerHTML = html || '<div class="empty-data"><div>未找到匹配的句子</div></div>';
+        }
+        
+        function switchEditTab(tab) {
+            document.querySelectorAll('#devEditModal .tab').forEach(t => {
+                t.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            document.getElementById('editWordsTab').style.display = tab === 'words' ? 'block' : 'none';
+            document.getElementById('editSentencesTab').style.display = tab === 'sentences' ? 'block' : 'none';
+        }
+        
+        function filterEditList() {
+            const filter = document.getElementById('devSearchInput').value;
+            renderEditWords(filter);
+            renderEditSentences(filter);
+        }
+        
+        function clearEditSearch() {
+            document.getElementById('devSearchInput').value = '';
+            filterEditList();
+        }
+        
+        function editWord(word) {
+            currentEditWord = word;
+            
+            document.getElementById('editWordTitle').textContent = word;
+            document.getElementById('editStartCount').value = startWords.get(word) || 0;
+            document.getElementById('editEndCount').value = endWords.get(word) || 0;
+            
+            document.getElementById('editWordModal').classList.add('show');
+        }
+        
+        function saveWordEdit() {
+            if (!currentEditWord) return;
+            
+            const startCount = parseInt(document.getElementById('editStartCount').value, 10) || 0;
+            const endCount = parseInt(document.getElementById('editEndCount').value, 10) || 0;
+            
+            if (startCount > 0) {
+                startWords.set(currentEditWord, startCount);
+            } else {
+                startWords.delete(currentEditWord);
+            }
+            
+            if (endCount > 0) {
+                endWords.set(currentEditWord, endCount);
+            } else {
+                endWords.delete(currentEditWord);
+            }
+            
+            saveToStorage();
+            hideModal('editWordModal');
+            renderEditWords(document.getElementById('devSearchInput').value);
+            showToast('词汇已更新', 'success');
+        }
+        
+        function deleteWord() {
+            if (!currentEditWord) return;
+            deleteWordDirect(currentEditWord);
+            hideModal('editWordModal');
+        }
+        
+        function deleteWordDirect(word) {
+            vocabulary.delete(word);
+            wordLinks.delete(word);
+            startWords.delete(word);
+            endWords.delete(word);
+            
+            wordLinks.forEach(links => {
+                links.next.delete(word);
+                links.prev.delete(word);
+            });
+            
+            saveToStorage();
+            updateStats();
+            renderEditWords(document.getElementById('devSearchInput').value);
+            showToast('词汇已删除', 'success');
+        }
+        
+        function deleteSentence(index) {
+            sentences.splice(index, 1);
+            saveToStorage();
+            updateStats();
+            renderEditSentences(document.getElementById('devSearchInput').value);
+            showToast('句子已删除', 'success');
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function hideModal(id) {
+            document.getElementById(id).classList.remove('show');
+        }
+        
+        function closeModal(event, id) {
+            if (event.target.classList.contains('modal-overlay')) {
+                hideModal(id);
+            }
+        }
+        
+        // ============ 恢复对话历史 ============
+        
+        function restoreConversation() {
+            if (conversationHistory.length === 0) return;
+            
+            const conversationArea = document.getElementById('conversationArea');
+            conversationArea.innerHTML = '';
+            
+            conversationHistory.forEach(msg => {
+                const message = document.createElement('div');
+                message.className = `message ${msg.isUser ? 'message-user' : 'message-bot'}`;
+                
+                const label = document.createElement('div');
+                label.className = 'message-label';
+                label.textContent = msg.isUser ? '你' : 'gNiall';
+                
+                const content = document.createElement('div');
+                content.textContent = msg.text;
+                
+                message.appendChild(label);
+                message.appendChild(content);
+                conversationArea.appendChild(message);
+            });
+            
+            setTimeout(() => scrollToBottom(false), 100);
+        }
+        
+        // ============ 输入框自动高度 ============
+        
+        const inputFieldEl = document.getElementById('inputField');
+        
+        inputFieldEl.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+        });
+        
+        inputFieldEl.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // ============ 键盘快捷键 ============
+        
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                hideModal('aboutModal');
+                hideModal('preferencesModal');
+                hideModal('themeModal');
+                hideModal('clearMemoryModal');
+                hideModal('importModal');
+                hideModal('devDataModal');
+                hideModal('devEditModal');
+                hideModal('editWordModal');
+                closeAllMenus();
+            }
+        });
+        
+        // ============ 设置界面交互 ============
+        
+        document.querySelectorAll('#learningModeGroup .radio-item').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('#learningModeGroup .radio-item').forEach(i => {
+                    i.classList.remove('selected');
+                });
+                this.classList.add('selected');
+                this.querySelector('input').checked = true;
+            });
+        });
+        
+        const maxLengthSlider = document.getElementById('maxLengthSlider');
+        const maxLengthInput = document.getElementById('maxLengthInput');
+        
+        maxLengthSlider.addEventListener('input', function() {
+            maxLengthInput.value = this.value;
+        });
+        
+        maxLengthInput.addEventListener('input', function() {
+            let value = parseInt(this.value, 10);
+            if (isNaN(value)) value = 15;
+            value = Math.max(5, Math.min(100, value));
+            maxLengthSlider.value = value;
+            this.value = value;
+        });
+        
+        const radiusSlider = document.getElementById('radiusSlider');
+        const radiusInput = document.getElementById('radiusInput');
+        
+        radiusSlider.addEventListener('input', function() {
+            radiusInput.value = this.value;
+        });
+        
+        radiusInput.addEventListener('input', function() {
+            let value = parseInt(this.value, 10);
+            if (isNaN(value)) value = 6;
+            value = Math.max(0, Math.min(16, value));
+            radiusSlider.value = value;
+            this.value = value;
+        });
+        
+        // ============ 初始化 ============
+        
+        function init() {
+            loadSettingsFromStorage();
+            applyTheme();
+            const loaded = loadFromStorage();
+            
+            if (loaded) {
+                updateStats();
+                restoreConversation();
+                updateMemoryIndicator(true);
+            } else {
+                const initialSentences = [
+                    "你好，很高兴认识你",
+                    "今天天气真不错",
+                    "我是一个学习语言的程序",
+                    "请多教我一些句子",
+                    "我会努力学习中文"
+                ];
+                
+                initialSentences.forEach(s => learn(s));
+            }
+            
+            updateModeDisplay();
+        }
+        
+        init();
+    </script>
+</body>
+</html>
