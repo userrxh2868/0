@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>老哥的实名论坛</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        :root{--md-primary:#006B5E;--md-on-primary:#FFF;--md-primary-container:#7AF8DE;--md-on-primary-container:#00201B;--md-secondary:#4A635D;--md-on-secondary:#FFF;--md-secondary-container:#CCE8DF;--md-on-secondary-container:#06201A;--md-error:#BA1A1A;--md-on-error:#FFF;--md-error-container:#FFDAD6;--md-surface:#F5FBF7;--md-on-surface:#171D1B;--md-surface-variant:#DBE5E0;--md-on-surface-variant:#3F4945;--md-outline:#6F7975;--md-outline-variant:#BFC9C4;--md-surface-dim:#D8DDD9;--md-surface-container-lowest:#FFF;--md-surface-container-low:#EFF5F1;--md-surface-container:#E9EFEC;--md-surface-container-high:#E3EAE6;--md-surface-container-highest:#DEE4E0;--md-inverse-surface:#2B3230;--md-inverse-on-surface:#ECF2EE;--e1:0 1px 2px rgba(0,0,0,.3),0 1px 3px 1px rgba(0,0,0,.15);--e2:0 1px 2px rgba(0,0,0,.3),0 2px 6px 2px rgba(0,0,0,.15);--e3:0 4px 8px 3px rgba(0,0,0,.15),0 1px 3px rgba(0,0,0,.3);--ms:cubic-bezier(.2,0,0,1);--me:cubic-bezier(.05,.7,.1,1);--md:cubic-bezier(0,0,0,1);--ts:200ms;--tm:300ms;--tl:500ms}
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        html,body{height:100%;overflow:hidden}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans SC','PingFang SC',sans-serif;background:var(--md-surface);color:var(--md-on-surface);-webkit-font-smoothing:antialiased}
+        @keyframes pgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes cardUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fabPop{0%{opacity:0;transform:scale(0) rotate(-90deg)}55%{transform:scale(1.08) rotate(4deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+        @keyframes dlgIn{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}
+        @keyframes ovIn{from{opacity:0}to{opacity:1}}
+        @keyframes outL{to{opacity:0;transform:translateX(-22px)}}
+        @keyframes inR{from{opacity:0;transform:translateX(22px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes outR{to{opacity:0;transform:translateX(22px)}}
+        @keyframes inL{from{opacity:0;transform:translateX(-22px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes rip{to{transform:scale(1);opacity:0}}
+        @keyframes toastUp{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+        @keyframes shim{0%{background-position:-200% 0}100%{background-position:200% 0}}
+        @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+        @keyframes pillIn{from{opacity:0;transform:scaleX(.45)}to{opacity:1;transform:scaleX(1)}}
+        @keyframes sendFly{0%{transform:scale(1)}30%{transform:scale(.7) rotate(-8deg)}60%{transform:scale(1.15) rotate(3deg)}100%{transform:scale(1) rotate(0)}}
+        .rp{position:absolute;border-radius:50%;background:currentColor;opacity:.12;pointer-events:none;z-index:2;transform:scale(0);animation:rip .5s var(--md) forwards}
+        .top-bar{position:fixed;top:0;left:0;right:0;height:60px;background:var(--md-surface);display:flex;align-items:center;padding:0 2px 0 6px;z-index:100;transition:box-shadow var(--tm) var(--ms),background var(--tm) var(--ms)}
+        .top-bar.elev{box-shadow:var(--e2);background:var(--md-surface-container-low)}
+        .top-bar .bar-mode,.top-bar .post-mode{display:flex;align-items:center;width:100%}
+        .top-bar .post-mode{display:none}
+        .tb-i{width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:none;background:none;color:var(--md-on-surface-variant);cursor:pointer;position:relative;overflow:hidden;flex-shrink:0;transition:background var(--ts) var(--ms)}
+        .tb-i:active{background:var(--md-surface-container-high)}
+        .tb-i .material-icons-round{font-size:24px}
+        .tb-i.spin .material-icons-round{animation:spin .7s linear infinite}
+        .tb-t{font-size:20px;font-weight:500;color:var(--md-on-surface);margin-left:2px;letter-spacing:-.3px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .scr{position:fixed;top:60px;left:0;right:0;bottom:0;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+        .scr::-webkit-scrollbar{display:none}
+        .scr.nav{bottom:80px}
+        .pg{display:none}.pg.on{display:block;animation:pgIn .28s var(--me) both}
+        .bnav{position:fixed;bottom:0;left:0;right:0;height:80px;background:var(--md-surface-container);display:flex;justify-content:space-around;align-items:flex-start;padding-top:12px;z-index:100;transition:transform .35s var(--me)}
+        .bnav.hide{transform:translateY(100%);pointer-events:none}
+        .nv{display:flex;flex-direction:column;align-items:center;background:none;border:none;cursor:pointer;color:var(--md-on-surface-variant);font-size:12px;font-weight:500;letter-spacing:.4px;padding:0;min-width:64px;position:relative;overflow:hidden;transition:color var(--ts) var(--ms)}
+        .nv-p{width:64px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;transition:background var(--tm) var(--me)}
+        .nv.on .nv-p{background:var(--md-secondary-container);animation:pillIn .28s var(--me) both}
+        .nv.on{color:var(--md-on-secondary-container)}
+        .nv.on .material-icons-round{color:var(--md-on-secondary-container)}
+        .fab{position:fixed;bottom:96px;right:16px;width:56px;height:56px;border-radius:16px;background:var(--md-primary-container);color:var(--md-on-primary-container);border:none;cursor:pointer;z-index:90;display:none;align-items:center;justify-content:center;box-shadow:var(--e3);overflow:hidden;transition:box-shadow var(--ts) var(--ms),transform .12s var(--ms),bottom .35s var(--me)}
+        .fab.show{display:flex;animation:fabPop .5s var(--me) both}
+        .fab:active{transform:scale(.9);box-shadow:var(--e1)}
+        .fab.low{bottom:20px}
+        .fab .material-icons-round{font-size:24px;z-index:1}
+        .login-hint{display:flex;align-items:center;gap:12px;margin:10px 12px;padding:10px 14px;background:var(--md-surface-container-high);border-radius:12px;font-size:13px;color:var(--md-on-surface-variant)}
+        .login-hint .material-icons-round{font-size:20px;color:var(--md-outline)}
+        .lh-btn{margin-left:auto;padding:7px 18px;border-radius:20px;border:none;background:var(--md-primary);color:var(--md-on-primary);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;font-family:inherit;position:relative;overflow:hidden;transition:transform .1s var(--ms)}
+        .lh-btn:active{transform:scale(.95)}
+        .lst{background:var(--md-surface-container-lowest);margin-top:6px}
+        .bi{padding:14px 16px;position:relative;overflow:hidden;transition:background var(--ts) var(--ms);cursor:pointer}
+        .bi.anim{animation:cardUp .4s var(--me) both}
+        .bi+.bi{border-top:1px solid var(--md-outline-variant)}
+        .bi:active{background:var(--md-surface-container-high)}
+        .bi-h{display:flex;align-items:center;gap:4px;margin-bottom:5px}
+        .bi-nm{font-size:17px;font-weight:600;color:var(--md-on-surface);flex:1;letter-spacing:-.1px}
+        .bi-arr{color:var(--md-outline);flex-shrink:0}
+        .bi-ds{font-size:13px;color:var(--md-on-surface-variant);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .bi-mt{display:flex;align-items:center;gap:5px;margin-top:8px;font-size:12px;color:var(--md-outline)}
+        .bi-del{width:32px;height:32px;border-radius:50%;border:none;background:none;cursor:pointer;color:var(--md-error);display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;overflow:hidden;transition:background var(--ts) var(--ms)}
+        .bi-del:active{background:var(--md-error-container)}
+        .bi-del .material-icons-round{font-size:18px;z-index:1}
+        .pc{padding:14px 16px 12px;position:relative;overflow:hidden;transition:background var(--ts) var(--ms)}
+        .pc.anim{animation:cardUp .4s var(--me) both}
+        .pc+.pc{border-top:1px solid var(--md-outline-variant)}
+        .pc.pinned-card{background:var(--md-surface-container-low)}
+        .pc-h{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+        .pc-av{width:38px;height:38px;border-radius:50%;background:var(--md-primary-container);color:var(--md-on-primary-container);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0;transition:transform var(--tm) var(--me)}
+        .pc-av:active{transform:scale(.88)}
+        .pc-m{flex:1;min-width:0}
+        .pc-nm{font-size:14px;font-weight:600;color:var(--md-on-surface);line-height:1.3}
+        .pc-tm{font-size:12px;color:var(--md-on-surface-variant);margin-top:1px}
+        .pc-acts-r{display:flex;align-items:center;gap:2px;flex-shrink:0}
+        .pin-btn{width:36px;height:36px;border-radius:50%;border:none;background:none;cursor:pointer;color:var(--md-on-surface-variant);display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;overflow:hidden;transition:background var(--ts) var(--ms),color var(--ts) var(--ms)}
+        .pin-btn:active{background:var(--md-surface-container-high)}
+        .pin-btn.pinned{color:var(--md-primary)}
+        .pin-btn .material-icons-round{font-size:20px;z-index:1}
+        .pc-more{width:36px;height:36px;border-radius:50%;border:none;background:none;cursor:pointer;color:var(--md-on-surface-variant);display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;overflow:hidden;transition:background var(--ts) var(--ms),color var(--ts) var(--ms)}
+        .pc-more:active{background:var(--md-surface-container-high)}
+        .pc-more .material-icons-round{font-size:20px;z-index:1}
+        .pc-tt-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap}
+        .pc-tt{font-size:16px;font-weight:600;color:var(--md-on-surface);line-height:1.45;letter-spacing:-.1px;flex:1;min-width:0}
+        .pin-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:6px;background:var(--md-primary-container);color:var(--md-on-primary-container);font-size:11px;font-weight:600;flex-shrink:0;white-space:nowrap}
+        .pin-badge .material-icons-round{font-size:13px}
+        .pc-bd{font-size:14px;line-height:1.65;color:var(--md-on-surface-variant);white-space:pre-wrap;word-break:break-word}
+        .pc-act{display:flex;align-items:center;gap:2px;margin-top:10px;padding-top:8px;border-top:1px solid var(--md-surface-container-high)}
+        .pc-ab{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;border:none;background:none;cursor:pointer;color:var(--md-on-surface-variant);font-size:13px;font-weight:500;position:relative;overflow:hidden;transition:background var(--ts) var(--ms),color var(--ts) var(--ms)}
+        .pc-ab:active{background:var(--md-surface-container-high)}
+        .pc-ab .material-icons-round{font-size:18px;transition:transform .3s var(--me)}
+        .pc-ab.open .material-icons-round{transform:rotate(180deg)}
+        .pc-ab.open{color:var(--md-primary)}
+        .pc-cm{max-height:0;overflow:hidden;opacity:0;transition:max-height .45s var(--me),opacity .25s var(--ms),padding .35s var(--me);padding:0 0 0}
+        .pc-cm.open{max-height:4000px;opacity:1;padding:6px 0 0}
+        .cm-ls{padding-top:6px}
+        .cm-it{display:flex;gap:10px;padding:9px 0}
+        .cm-it+.cm-it{border-top:1px solid var(--md-surface-container)}
+        .cm-av{width:30px;height:30px;border-radius:50%;background:var(--md-secondary-container);color:var(--md-on-secondary-container);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+        .cm-bd{flex:1;min-width:0}
+        .cm-hd{display:flex;align-items:baseline;gap:6px}
+        .cm-nm{font-size:13px;font-weight:600;color:var(--md-on-surface)}
+        .cm-tm{font-size:11px;color:var(--md-outline)}
+        .cm-tx{font-size:14px;line-height:1.5;color:var(--md-on-surface);margin-top:2px;white-space:pre-wrap;word-break:break-word}
+        .cm-empty{font-size:13px;color:var(--md-outline);padding:8px 0;font-style:italic}
+        .cm-iw{display:flex;align-items:center;gap:8px;padding:8px 0 2px}
+        .cm-in{flex:1;height:40px;padding:0 16px;border-radius:20px;border:1px solid var(--md-outline-variant);background:var(--md-surface-container-low);font-size:14px;color:var(--md-on-surface);outline:none;font-family:inherit;transition:border-color var(--ts) var(--ms),box-shadow var(--ts) var(--ms)}
+        .cm-in:focus{border-color:var(--md-primary);box-shadow:0 0 0 1px var(--md-primary)}
+        .cm-in::placeholder{color:var(--md-outline)}
+        .cm-sd{width:40px;height:40px;border-radius:50%;background:var(--md-primary);color:var(--md-on-primary);border:none;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;transition:transform .1s var(--ms),opacity var(--ts) var(--ms)}
+        .cm-sd .material-icons-round{font-size:18px;z-index:1}
+        .cm-sd:disabled{opacity:.38}
+        .cm-sd:active:not(:disabled){transform:scale(.86)}
+        .cm-sd.sent .material-icons-round{animation:sendFly .45s var(--me)}
+        .auth-w{padding:44px 24px 24px}
+        .auth-ic{width:52px;height:52px;border-radius:14px;background:var(--md-primary-container);color:var(--md-on-primary-container);display:flex;align-items:center;justify-content:center;margin-bottom:22px}
+        .auth-ic .material-icons-round{font-size:26px}
+        .auth-h{font-size:26px;font-weight:600;margin-bottom:6px;letter-spacing:-.5px}
+        .auth-d{font-size:14px;color:var(--md-on-surface-variant);margin-bottom:28px;line-height:1.5}
+        .tf{margin-bottom:14px;position:relative}
+        .tf input,.tf textarea{width:100%;height:56px;padding:26px 16px 8px;border-radius:12px 12px 0 0;border:none;border-bottom:1px solid var(--md-on-surface-variant);background:var(--md-surface-container-high);font-size:16px;color:var(--md-on-surface);outline:none;font-family:inherit;transition:border-color var(--ts) var(--ms),border-bottom-width var(--ts) var(--ms),background var(--ts) var(--ms)}
+        .tf textarea{height:auto;padding:30px 16px 8px;min-height:120px;resize:vertical;line-height:1.5}
+        .tf label{position:absolute;left:16px;top:18px;font-size:16px;color:var(--md-on-surface-variant);pointer-events:none;transform-origin:left top;transition:all var(--ts) var(--ms)}
+        .tf input:focus,.tf textarea:focus{border-bottom:2px solid var(--md-primary);background:var(--md-surface-container-highest)}
+        .tf input:focus+label,.tf input:not(:placeholder-shown)+label,.tf textarea:focus+label,.tf textarea:not(:placeholder-shown)+label{transform:translateY(-12px) scale(.75);color:var(--md-primary)}
+        .tf input:not(:focus):not(:placeholder-shown)+label,.tf textarea:not(:focus):not(:placeholder-shown)+label{color:var(--md-on-surface-variant)}
+        .bf{width:100%;height:56px;border-radius:28px;border:none;background:var(--md-primary);color:var(--md-on-primary);font-size:15px;font-weight:500;cursor:pointer;margin-top:8px;font-family:inherit;letter-spacing:.2px;position:relative;overflow:hidden;box-shadow:var(--e1);transition:transform .1s var(--ms),box-shadow var(--ts) var(--ms),opacity var(--ts) var(--ms)}
+        .bf:active:not(:disabled){transform:scale(.97);box-shadow:none}
+        .bf:disabled{opacity:.38;cursor:default}
+        .bt{display:block;width:100%;height:48px;border:none;background:transparent;color:var(--md-primary);font-size:14px;font-weight:500;cursor:pointer;margin-top:4px;font-family:inherit;text-align:center;position:relative;overflow:hidden;border-radius:24px;transition:background var(--ts) var(--ms)}
+        .bt:active{background:rgba(0,107,94,.08)}
+        .bor{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:56px;border-radius:28px;border:1px solid var(--md-error);background:transparent;color:var(--md-error);font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;position:relative;overflow:hidden;transition:background var(--ts) var(--ms),transform .1s var(--ms)}
+        .bor:active{background:var(--md-error-container);transform:scale(.97)}
+        .bor .material-icons-round{font-size:20px}
+        .prof-h{display:flex;flex-direction:column;align-items:center;padding:44px 24px 20px}
+        .prof-av{width:76px;height:76px;border-radius:50%;background:var(--md-primary-container);color:var(--md-on-primary-container);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700;margin-bottom:14px;transition:transform var(--tm) var(--me)}
+        .prof-av:active{transform:scale(.92)}
+        .prof-nm{font-size:22px;font-weight:600;letter-spacing:-.3px}
+        .prof-hd{font-size:14px;color:var(--md-on-surface-variant);margin-top:2px}
+        .prof-chip{margin-top:10px;padding:4px 14px;border-radius:8px;font-size:12px;font-weight:500;letter-spacing:.3px}
+        .prof-chip.admin{background:var(--md-primary-container);color:var(--md-on-primary-container)}
+        .prof-chip.user{background:var(--md-secondary-container);color:var(--md-on-secondary-container)}
+        .prof-card{margin:16px 16px 0;padding:4px 16px;background:var(--md-surface-container-low);border-radius:16px}
+        .prof-r{display:flex;align-items:center;gap:12px;padding:14px 0;font-size:14px;color:var(--md-on-surface)}
+        .prof-r+.prof-r{border-top:1px solid var(--md-outline-variant)}
+        .prof-r .material-icons-round{font-size:20px;color:var(--md-on-surface-variant)}
+        .prof-acts{padding:28px 24px 24px}
+        .sh-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:150;display:none}
+        .sh-bg.show{display:block;animation:ovIn .25s var(--ms) both}
+        .sh{position:fixed;bottom:0;left:0;right:0;background:var(--md-surface-container-low);border-radius:28px 28px 0 0;z-index:160;transform:translateY(100%);transition:transform .45s var(--me);max-height:85vh;overflow-y:auto}
+        .sh.show{transform:translateY(0)}
+        .sh-hd{width:32px;height:4px;background:var(--md-on-surface-variant);border-radius:2px;margin:12px auto 0;opacity:.4}
+        .sh-in{padding:20px 24px 36px}
+        .sh-tt{font-size:20px;font-weight:500;margin-bottom:20px;letter-spacing:-.2px}
+        .ann-bar{display:flex;align-items:flex-start;gap:10px;margin:6px 12px 0;padding:12px 14px;background:var(--md-primary-container);border-radius:12px;font-size:13px;color:var(--md-on-primary-container);line-height:1.5}
+        .ann-bar .material-icons-round{font-size:20px;flex-shrink:0;margin-top:1px}
+        .ann-body{flex:1;min-width:0;word-break:break-word}
+        .ann-acts{display:flex;align-items:center;gap:4px;flex-shrink:0;margin-top:1px}
+        .ann-edit{width:32px;height:32px;border-radius:50%;border:none;background:rgba(0,0,0,.08);cursor:pointer;color:var(--md-on-primary-container);display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;overflow:hidden;transition:background var(--ts) var(--ms)}
+        .ann-edit:active{background:rgba(0,0,0,.18)}
+        .ann-edit .material-icons-round{font-size:16px;z-index:1}
+        .ann-close{width:32px;height:32px;border-radius:50%;border:none;background:rgba(0,0,0,.08);cursor:pointer;color:var(--md-on-primary-container);display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;overflow:hidden;transition:background var(--ts) var(--ms)}
+        .ann-close:active{background:rgba(0,0,0,.18)}
+        .ann-close .material-icons-round{font-size:18px;z-index:1}
+        .ann-toggle-row{display:flex;align-items:center;gap:10px;margin:16px 0 4px;padding:0 2px}
+        .ann-toggle-row input[type="checkbox"]{width:20px;height:20px;accent-color:var(--md-primary);cursor:pointer;flex-shrink:0}
+        .ann-toggle-row label{font-size:14px;color:var(--md-on-surface);cursor:pointer}
+        .tst-w{position:fixed;bottom:96px;left:16px;right:16px;z-index:300;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+        .tst{padding:14px 20px;border-radius:12px;font-size:14px;pointer-events:auto;animation:toastUp .4s var(--me) both;box-shadow:var(--e3);background:var(--md-inverse-surface);color:var(--md-inverse-on-surface);transition:opacity .25s var(--ms),transform .25s var(--ms)}
+        .tst.ok{border-left:4px solid #43A047}
+        .tst.err{border-left:4px solid var(--md-error)}
+        .tst.inf{border-left:4px solid var(--md-primary)}
+        .cf-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:250;display:none;align-items:center;justify-content:center;padding:24px}
+        .cf-bg.show{display:flex;animation:ovIn .2s var(--ms) both}
+        .cf-dlg{background:var(--md-surface-container-high);border-radius:28px;padding:24px;width:100%;max-width:360px;animation:dlgIn .35s var(--me) both}
+        .cf-dlg h3{font-size:22px;font-weight:500;margin-bottom:12px;letter-spacing:-.2px}
+        .cf-dlg p{font-size:14px;color:var(--md-on-surface-variant);margin-bottom:24px;line-height:1.5}
+        .cf-acts{display:flex;justify-content:flex-end;gap:8px}
+        .cf-b{padding:10px 24px;border-radius:20px;border:none;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;position:relative;overflow:hidden;transition:background var(--ts) var(--ms),transform .1s var(--ms)}
+        .cf-b:active{transform:scale(.95)}
+        .cf-cancel{background:transparent;color:var(--md-primary)}
+        .cf-cancel:active{background:rgba(0,107,94,.08)}
+        .cf-danger{background:var(--md-error);color:var(--md-on-error)}
+        .cf-danger:active{opacity:.85}
+        .sk-w{background:var(--md-surface-container-lowest)}
+        .sk-c{padding:14px 16px 12px}
+        .sk-c+.sk-c{border-top:1px solid var(--md-outline-variant)}
+        .sk{border-radius:6px;background:linear-gradient(90deg,var(--md-surface-container) 25%,var(--md-surface-container-high) 50%,var(--md-surface-container) 75%);background-size:200% 100%;animation:shim 1.8s ease-in-out infinite}
+        .sk-bar-nm{height:18px;width:35%;margin-bottom:8px;border-radius:4px}
+        .sk-bar-ds{height:12px;width:75%;margin-bottom:5px}.sk-bar-ds:last-of-type{width:40%;margin-bottom:0}
+        .sk-bar-mt{height:11px;width:50%;margin-top:8px;border-radius:6px}
+        .sk-hd{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+        .sk-ci{width:38px;height:38px;border-radius:50%;flex-shrink:0}
+        .sk-ls{flex:1}.sk-l{height:11px;border-radius:6px;margin-bottom:5px}.sk-l.w1{width:40%}.sk-l.w2{width:25%;margin-bottom:0}
+        .sk-tt{height:17px;width:65%;margin-bottom:10px;border-radius:4px}
+        .sk-bd{height:12px;margin-bottom:5px}.sk-bd:last-child{width:55%;margin-bottom:0}
+        .empty{text-align:center;padding:72px 24px}
+        .empty .material-icons-round{font-size:48px;color:var(--md-outline-variant);display:block;margin:0 auto 12px}
+        .empty p{color:var(--md-on-surface-variant);font-size:14px;line-height:1.5}
+        .hidden{display:none!important}
+        @supports(padding-bottom:env(safe-area-inset-bottom)){.bnav{padding-bottom:env(safe-area-inset-bottom);height:calc(64px + env(safe-area-inset-bottom))}.fab{bottom:96px}.fab.low{bottom:20px}.scr.nav{bottom:calc(80px + env(safe-area-inset-bottom))}.tst-w{bottom:calc(96px + env(safe-area-inset-bottom))}}
+        @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+    </style>
+</head>
+<body>
+
+    <header class="top-bar" id="topBar">
+        <div class="bar-mode" id="barMode">
+            <div class="tb-i" style="cursor:default"><span class="material-icons-round">forum</span></div>
+            <span class="tb-t">实名论坛</span>
+            <button class="tb-i hidden" id="tbAnnEdit" onclick="openAnnouncementSheet()"><span class="material-icons-round">campaign</span></button>
+            <button class="tb-i" id="refreshBtn" onclick="refreshBars()"><span class="material-icons-round" id="refreshIcon">refresh</span></button>
+        </div>
+        <div class="post-mode" id="postMode">
+            <button class="tb-i" onclick="goBack()"><span class="material-icons-round">arrow_back</span></button>
+            <span class="tb-t" id="barTitle"></span>
+            <button class="tb-i" id="refreshPostBtn" onclick="refreshBarPosts()"><span class="material-icons-round" id="refreshPostIcon">refresh</span></button>
+        </div>
+    </header>
+
+    <div class="scr nav" id="scr">
+        <div id="barView" class="pg on">
+            <div id="announcementBar" class="ann-bar hidden">
+                <span class="material-icons-round">campaign</span>
+                <div class="ann-body" id="announcementText"></div>
+                <div class="ann-acts">
+                    <button class="ann-edit hidden" id="annEditInBar" onclick="openAnnouncementSheet()"><span class="material-icons-round">edit</span></button>
+                    <button class="ann-close" onclick="closeAnnouncement()"><span class="material-icons-round">close</span></button>
+                </div>
+            </div>
+            <div id="loginBanner" class="login-hint">
+                <span class="material-icons-round">lock_outline</span>
+                <span>登录后即可创建吧和发帖</span>
+                <button class="lh-btn" onclick="switchTab('profile')">去登录</button>
+            </div>
+            <div id="bars" class="lst"></div>
+        </div>
+        <div id="postView" class="pg">
+            <div id="barPosts" class="lst"></div>
+        </div>
+        <div id="profileView" class="pg">
+            <div id="authSection">
+                <div class="auth-w" id="loginForm">
+                    <div class="auth-ic"><span class="material-icons-round">login</span></div>
+                    <div class="auth-h">欢迎回来</div>
+                    <div class="auth-d">登录你的账号继续参与讨论</div>
+                    <div class="tf"><input type="text" id="loginUsername" placeholder=" " autocomplete="username"><label>用户名</label></div>
+                    <div class="tf"><input type="password" id="loginPassword" placeholder=" " autocomplete="current-password"><label>密码</label></div>
+                    <button class="bf" id="loginBtn" onclick="login()">登录</button>
+                    <button class="bt" onclick="showRegister()">没有账号？注册一个</button>
+                </div>
+                <div class="auth-w hidden" id="registerForm">
+                    <div class="auth-ic"><span class="material-icons-round">person_add</span></div>
+                    <div class="auth-h">创建账号</div>
+                    <div class="auth-d">注册后即可参与讨论</div>
+                    <div class="tf"><input type="text" id="regUsername" placeholder=" " autocomplete="username"><label>用户名</label></div>
+                    <div class="tf"><input type="password" id="regPassword" placeholder=" " autocomplete="new-password"><label>密码</label></div>
+                    <div class="tf"><input type="text" id="regNickname" placeholder=" "><label>昵称</label></div>
+                    <button class="bf" id="regBtn" onclick="register()">注册</button>
+                    <button class="bt" onclick="showLogin()">已有账号？去登录</button>
+                </div>
+            </div>
+            <div id="profileSection" class="hidden">
+                <div class="prof-h">
+                    <div class="prof-av" id="pAv">A</div>
+                    <div class="prof-nm" id="pNm">管理员</div>
+                    <div class="prof-hd" id="pHd">@admin</div>
+                    <div class="prof-chip admin" id="pCh">管理员</div>
+                </div>
+                <div class="prof-card">
+                    <div class="prof-r"><span class="material-icons-round">person</span><span>用户名：<strong id="pUn">admin</strong></span></div>
+                    <div class="prof-r"><span class="material-icons-round">badge</span><span>昵称：<strong id="pNn">管理员</strong></span></div>
+                    <div class="prof-r"><span class="material-icons-round">shield</span><span>角色：<strong id="pRo">管理员</strong></span></div>
+                </div>
+                <div class="prof-acts"><button class="bor" onclick="logout()"><span class="material-icons-round">logout</span>退出登录</button></div>
+            </div>
+        </div>
+    </div>
+
+    <button class="fab" id="fabBtn" onclick="openSheet()"><span class="material-icons-round" id="fabIcon">add</span></button>
+
+    <nav class="bnav" id="bnav">
+        <button class="nv on" id="navHome" onclick="switchTab('home')"><div class="nv-p"><span class="material-icons-round">home</span></div><span>首页</span></button>
+        <button class="nv" id="navProfile" onclick="switchTab('profile')"><div class="nv-p"><span class="material-icons-round">person</span></div><span>我的</span></button>
+    </nav>
+
+    <div class="sh-bg" id="sheetBg" onclick="closeSheet()"></div>
+    <div class="sh" id="barSheet">
+        <div class="sh-hd"></div>
+        <div class="sh-in">
+            <div class="sh-tt">创建新吧</div>
+            <div class="tf"><input type="text" id="barNameInput" placeholder=" "><label>吧名</label></div>
+            <div class="tf"><input type="text" id="barDescInput" placeholder=" "><label>简介（选填）</label></div>
+            <button class="bf" id="createBarBtn" onclick="createBar()">创建</button>
+        </div>
+    </div>
+    <div class="sh" id="postSheet">
+        <div class="sh-hd"></div>
+        <div class="sh-in">
+            <div class="sh-tt">发布新帖</div>
+            <div class="tf"><input type="text" id="postTitleInput" placeholder=" "><label>标题</label></div>
+            <div class="tf"><textarea id="postContentInput" placeholder=" " rows="4"></textarea><label>内容</label></div>
+            <button class="bf" id="createPostBtn" onclick="addPost()">发布</button>
+        </div>
+    </div>
+    <div class="sh" id="annSheet">
+        <div class="sh-hd"></div>
+        <div class="sh-in">
+            <div class="sh-tt" id="annSheetTitle">编辑公告</div>
+            <div class="tf"><textarea id="annTextInput" placeholder=" " rows="3"></textarea><label>公告内容</label></div>
+            <div class="tf"><input type="text" id="annLinkInput" placeholder=" "><label>链接（选填）</label></div>
+            <div class="ann-toggle-row">
+                <input type="checkbox" id="annEnabledInput">
+                <label for="annEnabledInput">启用公告</label>
+            </div>
+            <button class="bf" id="saveAnnBtn" onclick="handleSaveAnnouncement()">保存</button>
+        </div>
+    </div>
+
+    <div class="tst-w" id="tstW"></div>
+
+    <div class="cf-bg" id="cfBg">
+        <div class="cf-dlg">
+            <h3 id="cfTitle">确认</h3>
+            <p id="cfMsg"></p>
+            <div class="cf-acts">
+                <button class="cf-b cf-cancel" onclick="closeCf(false)">取消</button>
+                <button class="cf-b cf-danger" id="cfDanger" onclick="closeCf(true)">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var GITHUB_TOKEN = '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';
+        var REPO_OWNER = 'userrxh2868';
+        var REPO_NAME = 'forum-data';
+        var BARS_PATH = 'bars.json';
+        var POSTS_PATH = 'posts.json';
+        var USERS_PATH = 'users.json';
+        var ANN_PATH = 'announcement.json';
+        var baseUrl = 'https://api.github.com/repos/' + REPO_OWNER + '/' + REPO_NAME + '/contents/';
+        var BARS_URL = baseUrl + BARS_PATH;
+        var POSTS_URL = baseUrl + POSTS_PATH;
+        var USERS_URL = baseUrl + USERS_PATH;
+        var ANN_URL = baseUrl + ANN_PATH;
+
+        /* ===== 密码哈希相关 ===== */
+        var SALT = 'github_forum_salt_2024';
+
+        function hashPassword(pw) {
+            return CryptoJS.SHA256(pw + SALT).toString();
+        }
+
+        /* 判断密码是否已经是SHA256哈希格式（64位十六进制） */
+        function isHashed(pw) {
+            return typeof pw === 'string' && /^[a-f0-9]{64}$/i.test(pw);
+        }
+
+        /* ===== 状态 ===== */
+        var currentUser = null;
+        var confirmResolve = null;
+        var currentView = 'bars';
+        var currentBar = null;
+        var cachedBars = [];
+        var cachedPosts = [];
+        var cachedAnnouncement = null;
+        var expandedPosts = {};
+        var isRefreshing = false;
+        var ANN_CLOSED_KEY = 'forum_announcement_closed';
+
+        /* ===== 涟漪 ===== */
+        document.addEventListener('pointerdown', function(e) {
+            var t = e.target.closest('.bf,.bt,.bor,.lh-btn,.pc-more,.cm-sd,.nv,.fab,.cf-b,.tb-i,.pc-ab,.bi-del,.ann-close,.ann-edit,.pin-btn');
+            if (!t) return;
+            var r = t.getBoundingClientRect(), sz = Math.max(r.width, r.height) * 2.2;
+            var rp = document.createElement('span');
+            rp.className = 'rp';
+            rp.style.cssText = 'width:' + sz + 'px;height:' + sz + 'px;left:' + (e.clientX - r.left - sz / 2) + 'px;top:' + (e.clientY - r.top - sz / 2) + 'px';
+            if (getComputedStyle(t).position === 'static') t.style.position = 'relative';
+            t.appendChild(rp);
+            setTimeout(function() { rp.remove(); }, 550);
+        });
+
+        /* ===== Top Bar 滚动阴影 ===== */
+        var scr = document.getElementById('scr');
+        var topBar = document.getElementById('topBar');
+        var stTick = false;
+        scr.addEventListener('scroll', function() {
+            if (!stTick) { requestAnimationFrame(function() { topBar.classList.toggle('elev', scr.scrollTop > 3); stTick = false; }); stTick = true; }
+        });
+
+        /* ===== Toast ===== */
+        function showToast(msg, type) {
+            var t = document.createElement('div');
+            t.className = 'tst ' + (type || 'inf');
+            t.textContent = msg;
+            document.getElementById('tstW').appendChild(t);
+            setTimeout(function() { t.style.opacity = '0'; t.style.transform = 'translateY(10px) scale(.95)'; setTimeout(function() { t.remove(); }, 280); }, 2600);
+        }
+
+        /* ===== 确认弹窗 ===== */
+        function showConfirm(title, msg, btnText) {
+            return new Promise(function(res) {
+                document.getElementById('cfTitle').textContent = title;
+                document.getElementById('cfMsg').textContent = msg;
+                document.getElementById('cfDanger').textContent = btnText || '确定删除';
+                document.getElementById('cfBg').classList.add('show');
+                confirmResolve = res;
+            });
+        }
+        function closeCf(r) {
+            document.getElementById('cfBg').classList.remove('show');
+            if (confirmResolve) { confirmResolve(r); confirmResolve = null; }
+        }
+
+        /* ===== 视图切换核心 ===== */
+        function switchTo(view, bar) {
+            var barView = document.getElementById('barView');
+            var postView = document.getElementById('postView');
+            var profileView = document.getElementById('profileView');
+            var barMode = document.getElementById('barMode');
+            var postMode = document.getElementById('postMode');
+            var navHome = document.getElementById('navHome');
+            var navProfile = document.getElementById('navProfile');
+            var bnav = document.getElementById('bnav');
+            var fab = document.getElementById('fabBtn');
+            var fabIcon = document.getElementById('fabIcon');
+            var tbAnnEdit = document.getElementById('tbAnnEdit');
+
+            barView.classList.remove('on');
+            postView.classList.remove('on');
+            profileView.classList.remove('on');
+            barMode.style.display = 'none';
+            postMode.style.display = 'none';
+            navHome.classList.remove('on');
+            navProfile.classList.remove('on');
+            tbAnnEdit.classList.add('hidden');
+
+            currentView = view;
+
+            if (view === 'bars') {
+                currentBar = null;
+                expandedPosts = {};
+                barMode.style.display = 'flex';
+                navHome.classList.add('on');
+                bnav.classList.remove('hide');
+                scr.classList.add('nav');
+                fab.classList.remove('low');
+                updateFabForBars();
+                updateAnnEditVisibility();
+                requestAnimationFrame(function() { barView.classList.add('on'); });
+
+            } else if (view === 'posts') {
+                currentBar = bar;
+                postMode.style.display = 'flex';
+                document.getElementById('barTitle').textContent = bar.name;
+                navHome.classList.add('on');
+                bnav.classList.add('hide');
+                scr.classList.remove('nav');
+                fab.classList.add('low');
+                updateFabForPosts();
+                requestAnimationFrame(function() { postView.classList.add('on'); });
+
+            } else if (view === 'profile') {
+                barMode.style.display = 'flex';
+                navProfile.classList.add('on');
+                bnav.classList.remove('hide');
+                scr.classList.add('nav');
+                fab.classList.remove('low');
+                fab.classList.remove('show');
+                updateAnnEditVisibility();
+                requestAnimationFrame(function() { profileView.classList.add('on'); });
+            }
+
+            scr.scrollTop = 0;
+        }
+
+        /* 控制topbar公告编辑按钮显示 */
+        function updateAnnEditVisibility() {
+            var tbAnnEdit = document.getElementById('tbAnnEdit');
+            if (currentView === 'bars' && currentUser && currentUser.role === 'admin') {
+                tbAnnEdit.classList.remove('hidden');
+            } else {
+                tbAnnEdit.classList.add('hidden');
+            }
+        }
+
+        function updateFabForBars() {
+            var fab = document.getElementById('fabBtn');
+            var fabIcon = document.getElementById('fabIcon');
+            fabIcon.textContent = 'add';
+            if (currentUser) {
+                if (!fab.classList.contains('show')) { fab.style.display = ''; fab.classList.add('show'); }
+            } else {
+                fab.classList.remove('show');
+            }
+        }
+        function updateFabForPosts() {
+            var fab = document.getElementById('fabBtn');
+            var fabIcon = document.getElementById('fabIcon');
+            fabIcon.textContent = 'edit';
+            if (currentUser) {
+                if (!fab.classList.contains('show')) { fab.style.display = ''; fab.classList.add('show'); }
+            } else {
+                fab.classList.remove('show');
+            }
+        }
+
+        function switchTab(tab) {
+            if (tab === 'home') { switchTo('bars'); }
+            else if (tab === 'profile') { switchTo('profile'); }
+        }
+
+        function enterBar(barId) {
+            var bar = cachedBars.find(function(b) { return b.id === barId; });
+            if (!bar) return;
+            switchTo('posts', bar);
+            loadBarPosts(barId);
+        }
+
+        function goBack() {
+            switchTo('bars');
+            loadBars();
+        }
+
+        /* ===== Sheet ===== */
+        function openSheet() {
+            if (!currentUser) { showToast('请先登录', 'err'); return; }
+            document.getElementById('sheetBg').classList.add('show');
+            if (currentView === 'bars') {
+                document.getElementById('barSheet').classList.add('show');
+            } else if (currentView === 'posts') {
+                document.getElementById('postSheet').classList.add('show');
+            }
+        }
+        function closeSheet() {
+            document.getElementById('sheetBg').classList.remove('show');
+            document.getElementById('barSheet').classList.remove('show');
+            document.getElementById('postSheet').classList.remove('show');
+            document.getElementById('annSheet').classList.remove('show');
+        }
+
+        /* ===== 工具 ===== */
+        function nc(url) { return url + '?_=' + Date.now() + Math.random(); }
+        function u2b(s) { return btoa(encodeURIComponent(s).replace(/%([0-9A-F]{2})/g, function(_, p) { return String.fromCharCode('0x' + p); })); }
+        function b2u(s) { return decodeURIComponent(Array.prototype.map.call(atob(s), function(c) { return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2); }).join('')); }
+        function esc(s) { if (!s) return ''; return String(s).replace(/[&<>"]/g, function(m) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]; }); }
+
+        /* ===== 数据读写通用 ===== */
+        async function readJson(url) {
+            var r = await fetch(nc(url), { headers: { 'Authorization': 'token ' + GITHUB_TOKEN } });
+            if (r.status === 404) return { data: null, sha: null };
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            var d = await r.json();
+            return { data: d.content ? JSON.parse(b2u(d.content)) : null, sha: d.sha };
+        }
+        async function writeJson(url, data, sha, msg) {
+            var body = { message: msg, content: u2b(JSON.stringify(data, null, 2)), branch: 'main' };
+            if (sha) body.sha = sha;
+            var r = await fetch(url, {
+                method: 'PUT',
+                headers: { 'Authorization': 'token ' + GITHUB_TOKEN, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (!r.ok) { var e = await r.json(); throw new Error(e.message || '写入失败'); }
+        }
+
+        /* ===== 用户系统（带密码哈希） ===== */
+        async function loadUsers() {
+            try {
+                var r = await readJson(USERS_URL);
+                if (!r.data) {
+                    /* 首次初始化：admin密码直接用哈希值 */
+                    var def = { admin: { password: hashPassword('123456'), nickname: '管理员', role: 'admin' } };
+                    await writeJson(USERS_URL, def, null, '初始化用户数据');
+                    return def;
+                }
+                return r.data;
+            } catch(e) {
+                return { admin: { password: hashPassword('123456'), nickname: '管理员', role: 'admin' } };
+            }
+        }
+        async function saveUsers(users) {
+            var r = await readJson(USERS_URL);
+            await writeJson(USERS_URL, users, r.sha, '更新用户数据');
+        }
+
+        async function login() {
+            var un = document.getElementById('loginUsername').value.trim();
+            var pw = document.getElementById('loginPassword').value.trim();
+            if (!un || !pw) { showToast('用户名和密码都不能空', 'err'); return; }
+            var btn = document.getElementById('loginBtn');
+            btn.disabled = true; btn.textContent = '登录中...';
+            try {
+                var users = await loadUsers();
+                if (users[un]) {
+                    var storedPw = users[un].password;
+                    var inputHash = hashPassword(pw);
+                    var match = false;
+                    if (isHashed(storedPw)) {
+                        /* 新格式：哈希比对 */
+                        match = (storedPw === inputHash);
+                    } else {
+                        /* 旧格式兼容：明文比对，通过后自动迁移为哈希 */
+                        match = (storedPw === pw);
+                        if (match) {
+                            users[un].password = inputHash;
+                            try { await saveUsers(users); } catch(migErr) { /* 迁移失败不影响登录 */ }
+                        }
+                    }
+                    if (match) {
+                        currentUser = { username: un, nickname: users[un].nickname, role: users[un].role };
+                        localStorage.setItem('forumUser', JSON.stringify(currentUser));
+                        showLoggedInUI();
+                        if (currentView === 'bars') { loadBars(); loadAndRenderAnnouncement(); }
+                        else if (currentView === 'posts') loadBarPosts(currentBar.id);
+                        showToast('欢迎回来，' + users[un].nickname, 'ok');
+                        switchTab('home');
+                    } else {
+                        showToast('用户名或密码错误', 'err');
+                    }
+                } else {
+                    showToast('用户名或密码错误', 'err');
+                }
+            } catch(e) { showToast('登录出错: ' + e.message, 'err'); }
+            finally { btn.disabled = false; btn.textContent = '登录'; }
+        }
+
+        async function register() {
+            var un = document.getElementById('regUsername').value.trim();
+            var pw = document.getElementById('regPassword').value.trim();
+            var nn = document.getElementById('regNickname').value.trim();
+            if (!un || !pw || !nn) { showToast('所有字段都不能空', 'err'); return; }
+            if (!/^[a-zA-Z0-9]+$/.test(un)) { showToast('用户名只能包含字母和数字', 'err'); return; }
+            var btn = document.getElementById('regBtn');
+            btn.disabled = true; btn.textContent = '注册中...';
+            try {
+                var users = await loadUsers();
+                if (users[un]) { showToast('用户名已存在', 'err'); return; }
+                /* 注册时密码直接存哈希 */
+                users[un] = { password: hashPassword(pw), nickname: nn, role: 'user' };
+                await saveUsers(users);
+                showToast('注册成功！请登录', 'ok');
+                showLogin();
+            } catch(e) { showToast('注册出错: ' + e.message, 'err'); }
+            finally { btn.disabled = false; btn.textContent = '注册'; }
+        }
+
+        async function logout() {
+            var ok = await showConfirm('退出登录', '确定要退出当前账号吗？', '确定退出');
+            if (!ok) return;
+            localStorage.removeItem('forumUser');
+            currentUser = null;
+            expandedPosts = {};
+            showLoginUI();
+            if (currentView === 'bars') loadBars();
+            showToast('已退出登录', 'inf');
+        }
+
+        function showLoggedInUI() {
+            document.getElementById('loginBanner').classList.add('hidden');
+            document.getElementById('authSection').classList.add('hidden');
+            document.getElementById('profileSection').classList.remove('hidden');
+            document.getElementById('pAv').textContent = currentUser.nickname.charAt(0).toUpperCase();
+            document.getElementById('pNm').textContent = currentUser.nickname;
+            document.getElementById('pHd').textContent = '@' + currentUser.username;
+            document.getElementById('pUn').textContent = currentUser.username;
+            document.getElementById('pNn').textContent = currentUser.nickname;
+            var rt = currentUser.role === 'admin' ? '管理员' : '普通用户';
+            document.getElementById('pRo').textContent = rt;
+            var ch = document.getElementById('pCh');
+            ch.textContent = rt; ch.className = 'prof-chip ' + currentUser.role;
+            if (currentView === 'bars') updateFabForBars();
+            else if (currentView === 'posts') updateFabForPosts();
+            updateAnnEditVisibility();
+            renderAnnouncement();
+        }
+
+        function showLoginUI() {
+            document.getElementById('loginBanner').classList.remove('hidden');
+            document.getElementById('authSection').classList.remove('hidden');
+            document.getElementById('profileSection').classList.add('hidden');
+            var fab = document.getElementById('fabBtn');
+            fab.classList.remove('show');
+            showLogin();
+            updateAnnEditVisibility();
+            renderAnnouncement();
+        }
+
+        function showRegister() {
+            var lf = document.getElementById('loginForm'), rf = document.getElementById('registerForm');
+            lf.style.animation = 'outL .18s ease forwards';
+            setTimeout(function() { lf.classList.add('hidden'); lf.style.animation = ''; rf.classList.remove('hidden'); rf.style.animation = 'inR .28s var(--me) both'; }, 160);
+        }
+        function showLogin() {
+            var lf = document.getElementById('loginForm'), rf = document.getElementById('registerForm');
+            rf.style.animation = 'outR .18s ease forwards';
+            setTimeout(function() { rf.classList.add('hidden'); rf.style.animation = ''; lf.classList.remove('hidden'); lf.style.animation = 'inL .28s var(--me) both'; }, 160);
+        }
+
+        /* ===== 公告系统 ===== */
+        async function loadAnnouncement() {
+            try {
+                var r = await readJson(ANN_URL);
+                if (!r.data) return { text: '', link: '', updatedAt: '', enabled: false };
+                /* 兼容旧数据：确保字段完整 */
+                return {
+                    text: r.data.text || '',
+                    link: r.data.link || '',
+                    updatedAt: r.data.updatedAt || '',
+                    enabled: !!r.data.enabled
+                };
+            } catch(e) {
+                return { text: '', link: '', updatedAt: '', enabled: false };
+            }
+        }
+
+        async function saveAnnouncement(data) {
+            var r = await readJson(ANN_URL);
+            await writeJson(ANN_URL, data, r.sha, '更新公告');
+        }
+
+        /* 判断公告是否被当前用户关闭过 */
+        function isAnnouncementClosed(ann) {
+            if (!ann || !ann.updatedAt) return true;
+            var closedVal = localStorage.getItem(ANN_CLOSED_KEY);
+            return closedVal === ann.updatedAt;
+        }
+
+        function closeAnnouncement() {
+            if (cachedAnnouncement && cachedAnnouncement.updatedAt) {
+                localStorage.setItem(ANN_CLOSED_KEY, cachedAnnouncement.updatedAt);
+            }
+            renderAnnouncement();
+        }
+
+        function renderAnnouncement() {
+            var bar = document.getElementById('announcementBar');
+            var editBtnInBar = document.getElementById('annEditInBar');
+            var isAdmin = currentUser && currentUser.role === 'admin';
+
+            var hasValidAnn = cachedAnnouncement && cachedAnnouncement.enabled && cachedAnnouncement.text && !isAnnouncementClosed(cachedAnnouncement);
+
+            if (hasValidAnn) {
+                bar.classList.remove('hidden');
+                var textEl = document.getElementById('announcementText');
+                textEl.textContent = cachedAnnouncement.text;
+                if (cachedAnnouncement.link) {
+                    textEl.style.cursor = 'pointer';
+                    textEl.style.textDecoration = 'underline';
+                    textEl.onclick = function() { window.open(cachedAnnouncement.link, '_blank'); };
+                } else {
+                    textEl.style.cursor = 'default';
+                    textEl.style.textDecoration = 'none';
+                    textEl.onclick = null;
+                }
+            } else {
+                bar.classList.add('hidden');
+            }
+
+            /* 公告栏内的编辑按钮仅admin可见 */
+            if (isAdmin && hasValidAnn) {
+                editBtnInBar.classList.remove('hidden');
+            } else {
+                editBtnInBar.classList.add('hidden');
+            }
+
+            /* topbar的公告编辑按钮由 updateAnnEditVisibility 控制 */
+        }
+
+        async function loadAndRenderAnnouncement() {
+            cachedAnnouncement = await loadAnnouncement();
+            renderAnnouncement();
+        }
+
+        function openAnnouncementSheet() {
+            if (!currentUser || currentUser.role !== 'admin') { showToast('没有权限', 'err'); return; }
+            /* 填充当前公告数据 */
+            document.getElementById('annTextInput').value = cachedAnnouncement ? (cachedAnnouncement.text || '') : '';
+            document.getElementById('annLinkInput').value = cachedAnnouncement ? (cachedAnnouncement.link || '') : '';
+            document.getElementById('annEnabledInput').checked = cachedAnnouncement ? !!cachedAnnouncement.enabled : false;
+            document.getElementById('sheetBg').classList.add('show');
+            document.getElementById('annSheet').classList.add('show');
+        }
+
+        async function handleSaveAnnouncement() {
+            var text = document.getElementById('annTextInput').value.trim();
+            var link = document.getElementById('annLinkInput').value.trim();
+            var enabled = document.getElementById('annEnabledInput').checked;
+
+            var btn = document.getElementById('saveAnnBtn');
+            btn.disabled = true; btn.textContent = '保存中...';
+            try {
+                var now = new Date().toISOString();
+                var data = { text: text, link: link, updatedAt: now, enabled: enabled };
+                await saveAnnouncement(data);
+                cachedAnnouncement = data;
+                /* 清除用户的关闭记录，让公告重新显示 */
+                localStorage.removeItem(ANN_CLOSED_KEY);
+                closeSheet();
+                renderAnnouncement();
+                showToast('公告已更新', 'ok');
+            } catch(e) { showToast('保存失败: ' + e.message, 'err'); }
+            finally { btn.disabled = false; btn.textContent = '保存'; }
+        }
+
+        /* ===== 吧列表 ===== */
+        async function loadBars() {
+            var c = document.getElementById('bars');
+            c.innerHTML =
+                '<div class="sk-w">' +
+                    '<div class="sk-c"><div class="sk sk-bar-nm"></div><div class="sk sk-bar-ds"></div><div class="sk sk-bar-ds"></div><div class="sk sk-bar-mt"></div></div>' +
+                    '<div class="sk-c"><div class="sk sk-bar-nm"></div><div class="sk sk-bar-ds"></div><div class="sk sk-bar-mt"></div></div>' +
+                    '<div class="sk-c"><div class="sk sk-bar-nm"></div><div class="sk sk-bar-ds"></div><div class="sk sk-bar-ds"></div><div class="sk sk-bar-mt"></div></div>' +
+                '</div>';
+            try {
+                var results = await Promise.all([readJson(BARS_URL), readJson(POSTS_URL)]);
+                cachedBars = results[0].data || [];
+                cachedPosts = results[1].data || [];
+                renderBars();
+            } catch(e) {
+                c.innerHTML = '<div class="empty"><span class="material-icons-round">error_outline</span><p style="color:var(--md-error)">加载失败: ' + esc(e.message) + '</p></div>';
+            }
+        }
+
+        function renderBars() {
+            var c = document.getElementById('bars');
+            if (!cachedBars || cachedBars.length === 0) {
+                c.innerHTML = '<div class="empty"><span class="material-icons-round">forum</span><p>还没有吧，点击右下角创建一个</p></div>';
+                return;
+            }
+            var countMap = {};
+            cachedPosts.forEach(function(p) {
+                if (p && p.barId) { countMap[p.barId] = (countMap[p.barId] || 0) + 1; }
+            });
+
+            var h = '';
+            cachedBars.forEach(function(bar, i) {
+                var cnt = countMap[bar.id] || 0;
+                var canDel = currentUser && (bar.creator === currentUser.nickname || currentUser.role === 'admin');
+
+                h += '<div class="bi anim" style="animation-delay:' + (i * 0.06) + 's" onclick="enterBar(' + bar.id + ')">';
+                h += '<div class="bi-h">';
+                h += '<div class="bi-nm">' + esc(bar.name) + '</div>';
+                if (canDel) {
+                    h += '<button class="bi-del" onclick="event.stopPropagation();deleteBar(' + bar.id + ')"><span class="material-icons-round">delete_outline</span></button>';
+                }
+                h += '<span class="material-icons-round bi-arr" style="font-size:20px">chevron_right</span>';
+                h += '</div>';
+                if (bar.description) {
+                    h += '<div class="bi-ds">' + esc(bar.description) + '</div>';
+                }
+                h += '<div class="bi-mt">';
+                h += '<span class="material-icons-round" style="font-size:14px">person</span>';
+                h += '<span>' + esc(bar.creator) + '</span>';
+                h += '<span>·</span>';
+                h += '<span class="material-icons-round" style="font-size:14px">chat_bubble_outline</span>';
+                h += '<span>' + cnt + '帖</span>';
+                h += '</div>';
+                h += '</div>';
+            });
+            c.innerHTML = h;
+        }
+
+        async function createBar() {
+            if (!currentUser) { showToast('请先登录', 'err'); return; }
+            var name = document.getElementById('barNameInput').value.trim();
+            var desc = document.getElementById('barDescInput').value.trim();
+            if (!name) { showToast('吧名不能为空', 'err'); return; }
+            if (cachedBars.some(function(b) { return b.name === name; })) {
+                showToast('这个吧名已经存在了', 'err'); return;
+            }
+            var btn = document.getElementById('createBarBtn');
+            btn.disabled = true; btn.textContent = '创建中...';
+            try {
+                var r = await readJson(BARS_URL);
+                var bars = r.data || [];
+                bars.push({
+                    id: Date.now(),
+                    name: name,
+                    description: desc || '',
+                    creator: currentUser.nickname,
+                    createTime: new Date().toLocaleString()
+                });
+                await writeJson(BARS_URL, bars, r.sha, '创建吧: ' + name);
+                cachedBars = bars;
+                document.getElementById('barNameInput').value = '';
+                document.getElementById('barDescInput').value = '';
+                closeSheet();
+                renderBars();
+                showToast('创建成功', 'ok');
+            } catch(e) { showToast('创建失败: ' + e.message, 'err'); }
+            finally { btn.disabled = false; btn.textContent = '创建'; }
+        }
+
+        async function deleteBar(barId) {
+            var bar = cachedBars.find(function(b) { return b.id === barId; });
+            if (!bar) return;
+            var ok = await showConfirm('删除吧', '确定要删除「' + bar.name + '」吗？该吧下的帖子将不再显示。', '确定删除');
+            if (!ok) return;
+            try {
+                var r = await readJson(BARS_URL);
+                var bars = r.data || [];
+                bars = bars.filter(function(b) { return b.id !== barId; });
+                await writeJson(BARS_URL, bars, r.sha, '删除吧: ' + bar.name);
+                cachedBars = bars;
+                renderBars();
+                showToast('删除成功', 'ok');
+            } catch(e) { showToast('删除失败: ' + e.message, 'err'); }
+        }
+
+        /* ===== 帖子列表（某吧内，含置顶排序） ===== */
+        async function loadBarPosts(barId) {
+            var c = document.getElementById('barPosts');
+            c.innerHTML =
+                '<div class="sk-w">' +
+                    '<div class="sk-c"><div class="sk-hd"><div class="sk sk-ci"></div><div class="sk-ls"><div class="sk sk-l w1"></div><div class="sk sk-l w2"></div></div></div><div class="sk sk-tt"></div><div class="sk sk-bd"></div><div class="sk sk-bd"></div></div>' +
+                    '<div class="sk-c"><div class="sk-hd"><div class="sk sk-ci"></div><div class="sk-ls"><div class="sk sk-l w1"></div><div class="sk sk-l w2"></div></div></div><div class="sk sk-tt"></div><div class="sk sk-bd"></div><div class="sk sk-bd"></div></div>' +
+                '</div>';
+            try {
+                var r = await readJson(POSTS_URL);
+                cachedPosts = r.data || [];
+                var posts = cachedPosts.filter(function(p) { return p && p.barId === barId; });
+                renderBarPosts(posts);
+            } catch(e) {
+                c.innerHTML = '<div class="empty"><span class="material-icons-round">error_outline</span><p style="color:var(--md-error)">加载失败: ' + esc(e.message) + '</p></div>';
+            }
+        }
+
+        function renderBarPosts(posts) {
+            var c = document.getElementById('barPosts');
+
+            /* 兼容旧数据：确保每个帖子有所需字段 */
+            posts = posts.map(function(p) {
+                return Object.assign({}, p, {
+                    pinned: !!p.pinned,
+                    pinnedBy: p.pinnedBy || '',
+                    pinnedAt: p.pinnedAt || 0,
+                    comments: Array.isArray(p.comments) ? p.comments : []
+                });
+            });
+
+            /* 排序：置顶帖在前（按pinnedAt倒序），普通帖在后（按id倒序） */
+            posts.sort(function(a, b) {
+                if (a.pinned && !b.pinned) return -1;
+                if (!a.pinned && b.pinned) return 1;
+                if (a.pinned && b.pinned) return (b.pinnedAt || 0) - (a.pinnedAt || 0);
+                return (b.id || 0) - (a.id || 0);
+            });
+
+            if (!posts || posts.length === 0) {
+                c.innerHTML = '<div class="empty"><span class="material-icons-round">chat_bubble_outline</span><p>暂无帖子，快来发一个吧</p></div>';
+                return;
+            }
+
+            /* 判断当前用户是否有置顶权限 */
+            var canPin = currentUser && currentBar && (currentBar.creator === currentUser.nickname || currentUser.role === 'admin');
+
+            var h = '';
+            posts.forEach(function(p, i) {
+                var pid = p.id;
+                var cms = p.comments;
+                var showDel = currentUser && (p.author === currentUser.nickname || currentUser.role === 'admin');
+                var ini = p.author ? p.author.charAt(0).toUpperCase() : '?';
+                var isExp = !!expandedPosts[pid];
+                var isPinned = !!p.pinned;
+
+                h += '<div class="pc anim' + (isPinned ? ' pinned-card' : '') + '" style="animation-delay:' + (i * 0.06) + 's" id="post-' + pid + '">';
+                h += '<div class="pc-h">';
+                h += '<div class="pc-av">' + esc(ini) + '</div>';
+                h += '<div class="pc-m"><div class="pc-nm">' + esc(p.author) + '</div><div class="pc-tm">' + esc(p.time) + '</div></div>';
+                h += '<div class="pc-acts-r">';
+                /* 置顶按钮：仅吧主或admin可见 */
+                if (canPin) {
+                    h += '<button class="pin-btn' + (isPinned ? ' pinned' : '') + '" onclick="togglePin(' + pid + ')" title="' + (isPinned ? '取消置顶' : '置顶') + '"><span class="material-icons-round">push_pin</span></button>';
+                }
+                /* 删除按钮：仅作者或admin可见 */
+                if (showDel) {
+                    h += '<button class="pc-more" onclick="deletePost(' + pid + ')" title="删除帖子"><span class="material-icons-round">delete_outline</span></button>';
+                }
+                h += '</div>';
+                h += '</div>';
+
+                /* 标题行：置顶帖显示标签 */
+                h += '<div class="pc-tt-row">';
+                h += '<div class="pc-tt">' + esc(p.title) + '</div>';
+                if (isPinned) {
+                    h += '<span class="pin-badge"><span class="material-icons-round">push_pin</span>置顶</span>';
+                }
+                h += '</div>';
+
+                h += '<div class="pc-bd">' + esc(p.content) + '</div>';
+                h += '<div class="pc-act">';
+                h += '<button class="pc-ab' + (isExp ? ' open' : '') + '" id="cm-btn-' + pid + '" onclick="toggleCm(' + pid + ')">';
+                h += '<span class="material-icons-round">' + (isExp ? 'expand_less' : 'expand_more') + '</span>';
+                h += '<span>' + cms.length + '条评论</span></button></div>';
+                h += '<div class="pc-cm' + (isExp ? ' open' : '') + '" id="cm-' + pid + '">';
+                h += '<div class="cm-ls">';
+                if (cms.length > 0) {
+                    cms.forEach(function(cm) {
+                        if (!cm) return;
+                        var ci = cm.author ? cm.author.charAt(0).toUpperCase() : '?';
+                        h += '<div class="cm-it"><div class="cm-av">' + esc(ci) + '</div><div class="cm-bd"><div class="cm-hd"><span class="cm-nm">' + esc(cm.author) + '</span><span class="cm-tm">' + esc(cm.time) + '</span></div><div class="cm-tx">' + esc(cm.content) + '</div></div></div>';
+                    });
+                } else { h += '<div class="cm-empty">暂无评论，抢沙发</div>'; }
+                h += '</div>';
+                h += '<div class="cm-iw"><input class="cm-in" id="rp-' + pid + '" placeholder="写评论..."><button class="cm-sd" id="sd-' + pid + '" onclick="addComment(' + pid + ')"><span class="material-icons-round">send</span></button></div>';
+                h += '</div></div>';
+            });
+            c.innerHTML = h;
+        }
+
+        /* ===== 置顶/取消置顶 ===== */
+        async function togglePin(pid) {
+            if (!currentUser) return;
+            if (!currentBar) return;
+            var isCreator = currentBar.creator === currentUser.nickname;
+            var isAdmin = currentUser.role === 'admin';
+            if (!isCreator && !isAdmin) { showToast('没有置顶权限', 'err'); return; }
+
+            try {
+                var r = await readJson(POSTS_URL);
+                var posts = r.data || [];
+                var post = posts.find(function(p) { return p && p.id === pid; });
+                if (!post) { showToast('帖子不存在', 'err'); return; }
+
+                if (post.pinned) {
+                    post.pinned = false;
+                    post.pinnedBy = '';
+                    post.pinnedAt = 0;
+                    showToast('已取消置顶', 'ok');
+                } else {
+                    post.pinned = true;
+                    post.pinnedBy = currentUser.nickname;
+                    post.pinnedAt = Date.now();
+                    showToast('已置顶', 'ok');
+                }
+
+                await writeJson(POSTS_URL, posts, r.sha, (post.pinned ? '置顶' : '取消置顶') + ': ' + post.title);
+                cachedPosts = posts;
+                var barPosts = cachedPosts.filter(function(p) { return p && p.barId === currentBar.id; });
+                renderBarPosts(barPosts);
+            } catch(e) { showToast('操作失败: ' + e.message, 'err'); }
+        }
+
+        /* ===== 评论展开/收起 ===== */
+        function toggleCm(pid) {
+            var sec = document.getElementById('cm-' + pid);
+            var btn = document.getElementById('cm-btn-' + pid);
+            if (!sec || !btn) return;
+            var isOpen = sec.classList.contains('open');
+            if (isOpen) {
+                sec.classList.remove('open');
+                btn.classList.remove('open');
+                btn.querySelector('.material-icons-round').textContent = 'expand_more';
+                delete expandedPosts[pid];
+            } else {
+                sec.classList.add('open');
+                btn.classList.add('open');
+                btn.querySelector('.material-icons-round').textContent = 'expand_less';
+                expandedPosts[pid] = true;
+                var inp = document.getElementById('rp-' + pid);
+                if (inp) setTimeout(function() { inp.focus(); }, 350);
+            }
+        }
+
+        /* 评论回车发送 */
+        document.getElementById('barPosts').addEventListener('focusin', function(e) {
+            if (e.target.classList.contains('cm-in')) {
+                var pid = e.target.id.replace('rp-', '');
+                var inp = e.target;
+                if (!inp.dataset.bound) {
+                    inp.dataset.bound = '1';
+                    inp.addEventListener('keydown', function(ev) {
+                        if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); addComment(pid); }
+                    });
+                }
+            }
+        });
+
+        /* ===== 发帖 ===== */
+        async function addPost() {
+            if (!currentUser) { showToast('请先登录', 'err'); return; }
+            if (!currentBar) { showToast('请先选择一个吧', 'err'); return; }
+            var tt = document.getElementById('postTitleInput').value.trim();
+            var ct = document.getElementById('postContentInput').value.trim();
+            if (!tt || !ct) { showToast('标题和内容都不能空', 'err'); return; }
+            var btn = document.getElementById('createPostBtn');
+            btn.disabled = true; btn.textContent = '发布中...';
+            try {
+                var r = await readJson(POSTS_URL);
+                var posts = r.data || [];
+                posts.push({
+                    id: Date.now(),
+                    barId: currentBar.id,
+                    barName: currentBar.name,
+                    title: tt,
+                    content: ct,
+                    author: currentUser.nickname,
+                    time: new Date().toLocaleString(),
+                    comments: [],
+                    /* 新帖子默认不置顶 */
+                    pinned: false,
+                    pinnedBy: '',
+                    pinnedAt: 0
+                });
+                await writeJson(POSTS_URL, posts, r.sha, '发帖: ' + tt);
+                cachedPosts = posts;
+                document.getElementById('postTitleInput').value = '';
+                document.getElementById('postContentInput').value = '';
+                closeSheet();
+                var barPosts = cachedPosts.filter(function(p) { return p && p.barId === currentBar.id; });
+                renderBarPosts(barPosts);
+                showToast('发帖成功', 'ok');
+            } catch(e) { showToast('发帖失败: ' + e.message, 'err'); }
+            finally { btn.disabled = false; btn.textContent = '发布'; }
+        }
+
+        /* ===== 删除帖子 ===== */
+        async function deletePost(pid) {
+            var ok = await showConfirm('删除帖子', '确定要删除这个帖子吗？删除后无法恢复。', '确定删除');
+            if (!ok) return;
+            try {
+                var r = await readJson(POSTS_URL);
+                var posts = r.data || [];
+                var post = posts.find(function(p) { return p && p.id === pid; });
+                if (!post) { showToast('帖子不存在', 'err'); return; }
+                if (post.author !== currentUser.nickname && currentUser.role !== 'admin') { showToast('你只能删除自己的帖子', 'err'); return; }
+                posts = posts.filter(function(p) { return !p || p.id !== pid; });
+                await writeJson(POSTS_URL, posts, r.sha, '删除帖子: ' + post.title);
+                cachedPosts = posts;
+                delete expandedPosts[pid];
+                var barPosts = cachedPosts.filter(function(p) { return p && p.barId === currentBar.id; });
+                renderBarPosts(barPosts);
+                showToast('删除成功', 'ok');
+            } catch(e) { showToast('删除失败: ' + e.message, 'err'); }
+        }
+
+        /* ===== 评论 ===== */
+        async function addComment(pid) {
+            if (!currentUser) { showToast('请先登录', 'err'); switchTab('profile'); return; }
+            var inp = document.getElementById('rp-' + pid);
+            if (!inp) return;
+            var txt = inp.value.trim();
+            if (!txt) { showToast('评论内容不能为空', 'err'); return; }
+            var btn = document.getElementById('sd-' + pid);
+            if (btn) btn.disabled = true;
+            try {
+                var r = await readJson(POSTS_URL);
+                var posts = r.data || [];
+                var post = posts.find(function(p) { return p && p.id === pid; });
+                if (!post) { showToast('帖子不存在', 'err'); return; }
+                if (!Array.isArray(post.comments)) post.comments = [];
+                post.comments.push({ author: currentUser.nickname, content: txt, time: new Date().toLocaleString() });
+                await writeJson(POSTS_URL, posts, r.sha, '评论: ' + post.title);
+                cachedPosts = posts;
+                if (btn) { btn.classList.add('sent'); setTimeout(function() { btn.classList.remove('sent'); }, 500); }
+                inp.value = '';
+                expandedPosts[pid] = true;
+                var barPosts = cachedPosts.filter(function(p) { return p && p.barId === currentBar.id; });
+                renderBarPosts(barPosts);
+                showToast('评论成功', 'ok');
+            } catch(e) { showToast('评论出错: ' + e.message, 'err'); }
+            finally { if (btn) btn.disabled = false; }
+        }
+
+        /* ===== 刷新 ===== */
+        function refreshBars() {
+            if (isRefreshing) return;
+            isRefreshing = true;
+            var btn = document.getElementById('refreshBtn');
+            btn.classList.add('spin');
+            Promise.all([loadBars(), loadAndRenderAnnouncement()]).then(function() {
+                setTimeout(function() { btn.classList.remove('spin'); isRefreshing = false; showToast('已刷新', 'ok'); }, 400);
+            }).catch(function() { btn.classList.remove('spin'); isRefreshing = false; });
+        }
+        function refreshBarPosts() {
+            if (isRefreshing) return;
+            isRefreshing = true;
+            var btn = document.getElementById('refreshPostBtn');
+            btn.classList.add('spin');
+            loadBarPosts(currentBar.id).then(function() {
+                setTimeout(function() { btn.classList.remove('spin'); isRefreshing = false; showToast('已刷新', 'ok'); }, 400);
+            }).catch(function() { btn.classList.remove('spin'); isRefreshing = false; });
+        }
+
+        /* ===== 初始化 ===== */
+        var saved = localStorage.getItem('forumUser');
+        if (saved) {
+            try { currentUser = JSON.parse(saved); showLoggedInUI(); } catch(e) { showLoginUI(); }
+        } else { showLoginUI(); }
+        loadBars();
+        loadAndRenderAnnouncement();
+    </script>
+</body>
+  </html>
